@@ -14,11 +14,14 @@ import {
   type AltarType,
   type SubjectKind,
 } from './data'
-import { spanStartMs, spanWindow, type Span } from '@/lib/period'
+import { periodEyebrow, periodName, spanWindowAt, type Span } from '@/lib/period'
 import { useCarriedPeriod } from '@/hooks/useCarriedPeriod'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { SurfaceBar } from '@/components/SurfaceBar'
+import { RoomHead } from '@/components/RoomHead'
+import { WhenControl } from '@/components/WhenControl'
+import { PillSet } from '@/components/PillSet'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import './Altar.css'
 
@@ -72,17 +75,24 @@ function StrandGlyph({ heft, lenses, pools }: { heft: number; lenses: string[]; 
   )
 }
 
+/*
+ * A strand, read as a ledger line: the name in the room's margin, the warmth and
+ * the line it was brought with beside it — the same name-then-lines shape the
+ * Ascent tells its threads in. It was a bordered card in a narrow column.
+ */
 function StrandRow({ s, hero, onOpen }: { s: AltarStrand; hero: boolean; onOpen: (id: string) => void }) {
   return (
-    <button type="button" className="altar-strand" onClick={() => onOpen(s.id)}>
-      <div className="altar-strand__head">
+    <button type="button" className="altar-strand room-margin" onClick={() => onOpen(s.id)}>
+      <span className="altar-strand__head">
         <span className={`altar-strand__name${hero ? ' is-hero' : ''}`}>{s.label}</span>
         <span className="altar-strand__meta">
           {recurrence(s.heft)} · {spanText(s.spanStart, s.spanEnd)}
         </span>
-      </div>
-      <StrandGlyph heft={s.heft} lenses={s.lenses} pools={s.pools} />
-      {s.repLine ? <p className="altar-strand__snip">“{s.repLine.excerpt}”</p> : null}
+      </span>
+      <span className="altar-strand__body">
+        <StrandGlyph heft={s.heft} lenses={s.lenses} pools={s.pools} />
+        {s.repLine ? <span className="altar-strand__snip">“{s.repLine.excerpt}”</span> : null}
+      </span>
     </button>
   )
 }
@@ -96,15 +106,36 @@ function StrandRow({ s, hero, onOpen }: { s: AltarStrand; hero: boolean; onOpen:
 // looking at. A trailing window also cannot be carried between surfaces or
 // nested inside another, which is what the four surfaces need to read as one.
 type Period = Span
-const PERIODS: { key: Period; label: string }[] = [
-  { key: 'week', label: 'week' },
-  { key: 'month', label: 'month' },
-  { key: 'season', label: 'season' },
-  { key: 'year', label: 'year' },
-  { key: 'all', label: 'all' },
+const PERIODS: Period[] = ['week', 'month', 'season', 'year', 'all']
+
+const LENSES: { key: Lens; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'prayer', label: 'Prayer' },
+  { key: 'sense', label: 'Sense' },
+]
+const VIEWS: { key: Tab; label: string }[] = [
+  { key: 'field', label: 'Subjects' },
+  { key: 'time', label: 'Over time' },
 ]
 
-function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period: Period; onOpen: (id: string) => void }) {
+/** The lit window as milliseconds, its far edge no later than now. */
+function windowMs(period: Period, offset: number): [number, number] {
+  const w = spanWindowAt(period, offset)
+  const now = Date.now()
+  return [w.from ? w.from.getTime() : -Infinity, w.to ? Math.min(w.to.getTime(), now) : now]
+}
+
+function TimeArcs({
+  strands,
+  period,
+  offset,
+  onOpen,
+}: {
+  strands: AltarStrand[]
+  period: Period
+  offset: number
+  onOpen: (id: string) => void
+}) {
   const W = 920
   const H = 280
   const padX = 44
@@ -122,12 +153,11 @@ function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period:
 
   const [viewMin, viewMax] = useMemo((): [number, number] => {
     if (period === 'all') return fullRange
-    const w = spanWindow(period)
     // The axis stops at TODAY, not at the end of the calendar period: drawing an
     // arc into months that haven't happened would leave a third of the season
     // empty and read as missing data rather than as time not yet lived.
-    return [w.from!.getTime(), Math.min(w.to!.getTime(), Date.now())]
-  }, [period, fullRange])
+    return windowMs(period, offset)
+  }, [period, offset, fullRange])
 
   const xMain = (iso: string) => padX + ((Date.parse(iso) - viewMin) / (viewMax - viewMin || 1)) * (W - padX * 2)
 
@@ -224,7 +254,7 @@ function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period:
         </g>
       </svg>
 
-      <p className="altar-voice altar-voice--tight">
+      <p className="altar-time__note">
         Each arc spans from the first time you brought it to the last — the longer the reach, the longer He's
         carried it with you. The tallest are the ones you've returned to most.
       </p>
@@ -363,9 +393,7 @@ export function AltarView({ onOpenEntry }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
-  const [carried, carry] = useCarriedPeriod('year')
-  const period = carried
-  const setPeriod = carry
+  const [period, setPeriod, offset, setOffset] = useCarriedPeriod('year')
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<AltarStrandDetail | null>(null)
@@ -422,9 +450,10 @@ export function AltarView({ onOpenEntry }: Props) {
   // actually returned to this season, not a subject's whole 15-year life.
   const visible = useMemo(() => {
     if (!source) return []
-    const windowed = buildAltarStrands(source, spanStartMs(period))
+    const [from, to] = windowMs(period, offset)
+    const windowed = buildAltarStrands(source, from, to)
     return lens === 'all' ? windowed : windowed.filter((s) => s.type === lens)
-  }, [source, lens, period])
+  }, [source, lens, period, offset])
 
   // Does the altar hold anything all-time? Distinguishes an empty WINDOW (offer a
   // longer range) from a first-run empty altar (offer /pray · /sense).
@@ -462,106 +491,91 @@ export function AltarView({ onOpenEntry }: Props) {
 
   const loading = source === null && !loadError
 
+  // The light line: who the window's prayers circled, from the strands it holds
+  // — a count of what was written, never a reading of it. Nothing to say, and
+  // it says nothing.
   const topNames = visible.filter((s) => s.subjectKind === 'person').slice(0, 3).map((s) => s.label)
-  const fieldVoice =
-    topNames.length > 0
-      ? `Lately your prayers have circled around ${topNames.join(', ')}.`
-      : 'Seeds planted in time — each strand thickens every time you return.'
+  const lightLine =
+    topNames.length === 0
+      ? ''
+      : period === 'all'
+        ? `Across all your pages, your prayers have circled around ${topNames.join(', ')}.`
+        : offset === 0
+          ? `Lately your prayers have circled around ${topNames.join(', ')}.`
+          : `${period === 'week' ? `In the week of ${periodName(period, offset)},` : `In ${periodName(period, offset)}`} your prayers circled around ${topNames.join(', ')}.`
+  const within = period === 'all' ? '' : offset === 0 ? `within this ${period}` : `in ${periodName(period, offset)}`
+
+  const lensPills = <PillSet label="Type" options={LENSES} value={lens} onChange={setLens} />
+  const viewPills = <PillSet label="View" options={VIEWS} value={tab} onChange={setTab} />
+  const when = (layout: 'bar' | 'row') => (
+    <WhenControl
+      spans={PERIODS}
+      span={period}
+      offset={offset}
+      onSpan={setPeriod}
+      onOffset={setOffset}
+      layout={layout}
+      keys={layout === 'bar'}
+    />
+  )
 
   return (
     <div className="altar">
       <div className="altar__bg" aria-hidden />
-      <SurfaceBar label={ENTRY_RETURN_LABEL.altar} />
+      <SurfaceBar label={ENTRY_RETURN_LABEL.altar} what={lensPills} how={viewPills} when={when('bar')} />
       <div className="altar__scroll" data-dim={openId ? 'true' : undefined}>
-        <div className="altar__column">
-          <header className="altar__header">
-            <h1 className="altar__title">Altar</h1>
-            <p className="altar__subtitle">A place of remembrance</p>
-          </header>
+        <div className="room-frame altar__frame">
+          <RoomHead
+            eyebrow={periodEyebrow(period, offset)}
+            title="A place of remembrance"
+            dek="What you keep bringing to God, and what came of it. Each strand thickens every time you return."
+            light={loading || loadError ? null : lightLine}
+            phoneHow={viewPills}
+            phoneWhen={when('row')}
+            phoneWhat={lensPills}
+          />
 
           <SurfaceArrival surface="altar" />
 
-          <div className="altar-tabs">
-            {(
-              [
-                ['field', 'Subjects'],
-                ['time', 'Over time'],
-              ] as [Tab, string][]
-            ).map(([k, l]) => (
-              <button key={k} className={`altar-tab${tab === k ? ' altar-tab--on' : ''}`} onClick={() => setTab(k)}>
-                {l}
-              </button>
-            ))}
-          </div>
-
-          <div className="altar-controls">
-            <div className="altar-chips" role="group" aria-label="Type">
-              {(['all', 'prayer', 'sense'] as Lens[]).map((k) => (
-                <button
-                  key={k}
-                  className="altar-pill"
-                  data-on={lens === k ? 'true' : undefined}
-                  onClick={() => setLens(k)}
-                >
-                  {k}
-                </button>
-              ))}
-            </div>
-            <div className="altar-chips altar-chips--range" role="group" aria-label="Time range">
-              {PERIODS.map((p) => (
-                <button
-                  key={p.key}
-                  className="altar-pill"
-                  data-on={period === p.key ? 'true' : undefined}
-                  onClick={() => setPeriod(p.key)}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {loadError ? (
-            <p className="altar__error">{loadError}</p>
-          ) : loading ? (
-            <SurfaceLoader label="Preparing your altar…" />
-          ) : tab === 'field' ? (
-            <>
-              <p className="altar-voice">{fieldVoice}</p>
-              {visible.length === 0 &&
-                (altarBackfilling ? (
-                  <SurfaceLoader
-                    label="Preparing your altar…"
-                    progress={
-                      harvestJob && isActive(harvestJob.status)
-                        ? { completed: harvestJob.completed, total: harvestJob.total }
-                        : undefined
-                    }
-                  />
-                ) : hasHistory && period !== 'all' ? (
-                  // The altar has strands — just none you've returned to inside this window.
-                  // Offer the way back rather than the "lay something down" first-run copy.
-                  <p className="altar__quiet">
-                    Nothing you've returned to within this {PERIODS.find((p) => p.key === period)!.label}.{' '}
-                    <button type="button" className="altar-quiet__link" onClick={() => setPeriod('all')}>
-                      See all time →
-                    </button>
-                  </p>
-                ) : (
-                  <p className="altar__quiet">
-                    Nothing has gathered here yet. Type <code>/pray</code> or <code>/sense</code> in an entry to
-                    lay something down — strands appear once you've returned to them over time.
-                  </p>
-                ))}
-              {grouped.map((g) => {
+          <div className="room-stage">
+            {loadError ? (
+              <p className="altar__error">{loadError}</p>
+            ) : loading ? (
+              <SurfaceLoader label="Preparing your altar…" />
+            ) : visible.length === 0 ? (
+              altarBackfilling ? (
+                <SurfaceLoader
+                  label="Preparing your altar…"
+                  progress={
+                    harvestJob && isActive(harvestJob.status)
+                      ? { completed: harvestJob.completed, total: harvestJob.total }
+                      : undefined
+                  }
+                />
+              ) : hasHistory && period !== 'all' ? (
+                // The altar has strands — just none you've returned to inside this window.
+                // Offer the way back rather than the "lay something down" first-run copy.
+                <p className="altar__quiet">
+                  Nothing you've returned to {within}.{' '}
+                  <button type="button" className="altar-quiet__link" onClick={() => setPeriod('all')}>
+                    See all time →
+                  </button>
+                </p>
+              ) : (
+                <p className="altar__quiet">
+                  Nothing has gathered here yet. Type <code>/pray</code> or <code>/sense</code> in an entry to
+                  lay something down — strands appear once you've returned to them over time.
+                </p>
+              )
+            ) : tab === 'field' ? (
+              grouped.map((g) => {
                 const shown = g.strands.slice(0, VISIBLE_PER_GROUP)
                 const resting = g.strands.length - shown.length
                 return (
                   <section key={g.kind} className="altar-group">
-                    <header className="altar-group__head">
-                      <h2 className="altar-group__label">{g.label}</h2>
-                      <span className="altar-group__note">{g.note}</span>
-                    </header>
+                    <h2 className="room-rule">
+                      {g.label} <span className="room-rule__note">{g.note}</span>
+                    </h2>
                     <div className="altar-strands">
                       {shown.map((s, i) => (
                         <StrandRow key={s.id} s={s} hero={i === 0} onOpen={openStrand} />
@@ -572,11 +586,11 @@ export function AltarView({ onOpenEntry }: Props) {
                     )}
                   </section>
                 )
-              })}
-            </>
-          ) : (
-            <TimeArcs strands={visible} period={period} onOpen={openStrand} />
-          )}
+              })
+            ) : (
+              <TimeArcs strands={visible} period={period} offset={offset} onOpen={openStrand} />
+            )}
+          </div>
         </div>
       </div>
 

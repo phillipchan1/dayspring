@@ -108,7 +108,8 @@
   border: 0;
 }
 
-/* ── climb rail ─────────────────────────────────────────────────────────── */
+/* ── climb rail — a spacer the ledger preview still draws; the Ascent itself
+   has none since the When took its job (see the framed block at the foot). ── */
 .ascent-rail {
   position: relative;
   z-index: 3;
@@ -117,97 +118,6 @@
   display: flex;
   justify-content: center;
   padding: 60px 0;
-}
-.ascent-rail__track {
-  position: relative;
-  width: 2px;
-  background: color-mix(in srgb, var(--ascent-ink) 10%, transparent);
-  border-radius: 2px;
-  margin: 30px 0;
-}
-.ascent-rail__fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background: linear-gradient(0deg, var(--ascent-gold), var(--ascent-gold-soft));
-  border-radius: 2px;
-  transition: height 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 12px -1px color-mix(in srgb, var(--ascent-gold) 60%, transparent);
-}
-.ascent-station {
-  position: absolute;
-  left: 50%;
-  transform: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0;
-  white-space: nowrap;
-}
-.ascent-station__dot {
-  width: 11px;
-  height: 11px;
-  margin-left: -5.5px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--ascent-ink) 14%, var(--ascent-sky-1));
-  border: 1.5px solid color-mix(in srgb, var(--ascent-ink) 20%, transparent);
-  transition: 0.4s;
-  flex: 0 0 11px;
-  z-index: 2;
-}
-.ascent-station.below .ascent-station__dot {
-  background: var(--ascent-gold);
-  border-color: var(--ascent-gold);
-}
-.ascent-station.on .ascent-station__dot {
-  background: var(--ascent-gold-soft);
-  border-color: var(--ascent-gold-soft);
-  transform: scale(1.5);
-  box-shadow: 0 0 16px -1px color-mix(in srgb, var(--ascent-glow) 80%, transparent);
-}
-.ascent-station__label {
-  display: flex;
-  flex-direction: column;
-  font-size: 14px;
-  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
-  transition: 0.3s;
-  line-height: 1.2;
-  text-align: left;
-  padding: 3px 10px 4px 9px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--ascent-sky-0) 32%, transparent);
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
-}
-.ascent-station__label em {
-  font-family: var(--font-mono);
-  font-style: normal;
-  font-size: 8px;
-  letter-spacing: 0.2em;
-  opacity: 0.6;
-}
-.ascent-station.on .ascent-station__label {
-  color: var(--ascent-gold-soft);
-}
-.ascent-station:hover .ascent-station__label,
-.ascent-station:focus-visible .ascent-station__label {
-  color: var(--ascent-ink);
-}
-.ascent-station:focus-visible {
-  outline: 2px solid var(--ascent-gold-soft);
-  outline-offset: 4px;
-  border-radius: 4px;
-}
-/* Invisible hit-area: the 11px dot alone is far below the 44px touch minimum.
-   Stations sit dozens of px apart on the rail, so the expansion can't overlap. */
-.ascent-station::after {
-  content: '';
-  position: absolute;
-  inset: -16px;
 }
 
 /* ── scroll + main column (scroll spans the canvas; content stays centered) ─ */
@@ -229,28 +139,6 @@
   display: flex;
   flex-direction: column;
 }
-.ascent-head {
-  animation: ascent-rise 0.7s both;
-}
-.ascent-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  color: var(--ascent-gold);
-  opacity: 0.85;
-}
-.ascent-title {
-  /* The palette here is the Ascent's own (see the header note); the type is the
-     voice's. An illustrated surface still gets to be set in the face the reader
-     chose. */
-  font-family: var(--font-display);
-  font-size: 36px;
-  font-weight: 500;
-  font-style: italic;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
-  margin: 14px 0 12px;
-}
 .ascent-line {
   font-size: 16px;
   font-style: italic;
@@ -258,13 +146,6 @@
   max-width: 500px;
   line-height: 1.6;
   margin: 0;
-}
-.ascent-period {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
-  margin: 12px 0 0;
 }
 .ascent-terrain {
   flex: 1;
@@ -727,47 +608,6 @@
   margin: 14px 0 0;
 }
 
-/* ── controls ───────────────────────────────────────────────────────────── */
-.ascent-ctrl {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 30px;
-  padding-top: 24px;
-  border-top: 1px solid color-mix(in srgb, var(--ascent-ink) 7%, transparent);
-}
-.ascent-ctrl-btn {
-  background: color-mix(in srgb, var(--ascent-ink) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ascent-ink) 14%, transparent);
-  color: var(--ascent-ink);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  padding: 10px 18px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: 0.25s;
-}
-.ascent-ctrl-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ascent-ink) 12%, transparent);
-  transform: translateY(-1px);
-}
-.ascent-ctrl-btn:disabled {
-  opacity: 0.25;
-  cursor: default;
-}
-.ascent-ctrl-btn.up {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--ascent-glow) 22%, transparent), color-mix(in srgb, var(--ascent-glow) 12%, transparent));
-  border-color: color-mix(in srgb, var(--ascent-gold) 35%, transparent);
-  color: var(--ascent-gold-soft);
-}
-.ascent-ctrl-alt {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
-  letter-spacing: 0.05em;
-}
-
 /* ── drill-in overlay (the season as a path of your own moments) ──────────── */
 .ascent-drill {
   position: absolute;
@@ -1132,24 +972,6 @@
 .ascent--light .ascent-stars {
   display: none;
 }
-.ascent--light .ascent-rail__track {
-  background: color-mix(in srgb, var(--text) 16%, transparent);
-}
-.ascent--light .ascent-station__dot {
-  background: color-mix(in srgb, var(--text) 18%, var(--bg));
-  border-color: color-mix(in srgb, var(--text) 25%, transparent);
-}
-.ascent--light .ascent-station__label {
-  color: color-mix(in srgb, var(--text) 50%, transparent);
-  background: color-mix(in srgb, var(--bg) 60%, transparent);
-}
-.ascent--light .ascent-station:hover .ascent-station__label,
-.ascent--light .ascent-station:focus-visible .ascent-station__label {
-  color: var(--text-bright);
-}
-.ascent--light .ascent-title {
-  color: var(--text-bright);
-}
 .ascent--light .ascent-line {
   color: color-mix(in srgb, var(--text) 72%, transparent);
 }
@@ -1233,22 +1055,6 @@
   color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
-/* Controls — light */
-.ascent--light .ascent-ctrl {
-  border-top-color: color-mix(in srgb, var(--text) 12%, transparent);
-}
-.ascent--light .ascent-ctrl-btn {
-  background: color-mix(in srgb, var(--text) 6%, transparent);
-  border-color: color-mix(in srgb, var(--text) 18%, transparent);
-  color: var(--text-bright);
-}
-.ascent--light .ascent-ctrl-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--text) 10%, transparent);
-}
-.ascent--light .ascent-ctrl-alt {
-  color: color-mix(in srgb, var(--text) 50%, transparent);
-}
-
 /* Drill-in — light */
 .ascent--light .ascent-drill__scrim {
   background: color-mix(in srgb, var(--ascent-shade) 40%, transparent);
@@ -1285,53 +1091,6 @@
   color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 
-/* Ascend / descend on the rail itself: it stays in view while the page
-   scrolls, so the way up is always where the climb is drawn. On desktop this
-   replaces the row at the foot of the page; phones keep that sticky row. */
-.ascent-rail__steps {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 104px;
-}
-.ascent-rail__step {
-  padding: 6px 10px;
-  border: 1px solid color-mix(in srgb, var(--ascent-ink) 16%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ascent-ink) 4%, transparent);
-  color: color-mix(in srgb, var(--ascent-ink) 70%, transparent);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, opacity 0.2s;
-}
-.ascent-rail__step:hover:not(:disabled) { border-color: var(--ascent-gold); color: var(--ascent-gold); }
-.ascent-rail__step:disabled { opacity: 0.3; cursor: default; }
-@media (min-width: 768px) {
-  /* Room at the foot of the rail for the two steps, under the Week station. */
-  .ascent-rail { padding-bottom: 104px; }
-}
-@media (pointer: coarse) and (min-width: 768px) {
-  /* …and for the same two at a finger's 44px (see the touch block below). */
-  .ascent-rail { padding-bottom: 124px; }
-}
-/* Daybreak's steps sit on the page, not the sky, so they take the page's own
-   ink and surface (before daybreak redefined --ascent-ink, they were white on dawn). */
-.ascent--light .ascent-rail__step {
-  border-color: color-mix(in srgb, var(--text) 22%, transparent);
-  background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);
-  color: color-mix(in srgb, var(--text) 78%, transparent);
-}
-@media (min-width: 768px) {
-  .ascent-ctrl { display: none; }
-}
-
 /* ── responsive ─────────────────────────────────────────────────────────── */
 /* 767px, not 640 — this has to fire exactly when useIsMobile() swaps in
    MobileJournal, which is what hides the shell's safe-area-padded header. */
@@ -1340,51 +1099,14 @@
     width: 30px;
     flex: 0 0 30px;
     padding: calc(40px + var(--safe-top)) 0 40px;
-    /* The dots land ~15px from the left edge, inside the 28px EDGE_ZONE that
-       MobileJournal claims for the entries drawer's edge-swipe — so aiming at a
-       station could open the drawer instead. On a phone the rail is a progress
-       indicator, not a control: the labels are hidden and ascend/descend
-       (.ascent-ctrl, sticky at the bottom) is the real way to move between
-       altitudes. Let the gesture through. */
+    /* Inside the 28px EDGE_ZONE MobileJournal claims for the entries drawer's
+       edge-swipe — let the gesture through. */
     pointer-events: none;
-  }
-  /* Dots only on narrow screens — the labels would overflow into the content,
-   * and the active altitude is already announced in the header. */
-  .ascent-station__label,
-  .ascent-rail__steps {
-    display: none;
-  }
-  .ascent-station {
-    gap: 0;
   }
   /* The mobile shell hides its safe-area-padded header here
      (MobileJournal: canvasAlternateActive) — this is the only status-bar gap. */
   .ascent-main {
     padding: calc(40px + var(--safe-top)) 18px var(--mobile-chrome-h);
-  }
-  /* Keep ascend/descend reachable: it used to scroll away with the content, so
-     once you read down the page you lost the way up. Stick it to the bottom of
-     the scroll area with a soft fade so terrain glides under it. */
-  .ascent-ctrl {
-    position: sticky;
-    bottom: 0;
-    margin-top: 24px;
-    padding-top: 16px;
-    padding-bottom: 12px;
-    /* The 52px .mobile-fab is fixed over this row's right edge, and wins on
-       z-index — reserve its width so "ascend" stays tappable. */
-    padding-right: calc(52px + 1.6rem);
-    background: linear-gradient(180deg, transparent, var(--a1) 42%);
-    border-top: none;
-  }
-  /* With the FAB's width reserved, three items no longer fit: the hint wrapped
-     to three lines and crowded "descend". The buttons already name the action,
-     so drop the explanatory middle on phones and let them breathe. */
-  .ascent-ctrl-alt {
-    display: none;
-  }
-  .ascent-title {
-    font-size: 26px;
   }
   .ascent-oneline {
     font-size: 21px;
@@ -1396,7 +1118,6 @@
     padding: 18px 16px 22px;
   }
 }
-
 
 /* ── WARMTH BANDS — the ropes rendered as abstract light up the altitudes ──────
  * Heft = thickness + saturation; glow pools = when it gathered; hue = which parts
@@ -2275,15 +1996,6 @@
  * and last in the file so it actually wins the cascade over the base rules
  * (`.ascent-years__year`'s padding is declared near the bottom of this one). */
 @media (pointer: coarse) {
-  .ascent-ctrl-btn {
-    min-height: 44px;
-    padding: 12px 20px;
-  }
-  /* ↑ Month / ↓ Week were 26px pills on an iPad; the rail's foot grows to
-     keep both clear of the Week station above them. */
-  .ascent-rail__step {
-    min-height: 44px;
-  }
   /* A four-character year in mono is a 26px target on a rail fifteen years
      long. Widen the row rather than the type. */
   .ascent-years__year {
@@ -2315,52 +2027,78 @@
   }
 }
 
-/* ── the frame's bar, over the rail and the climb ─────────────────────────────
+/* ── the frame's bar, over the climb ───────────────────────────────────────────
  *
- * The same bar the editor and Pages wear (SurfaceBar, `--frame-*`), so coming
- * back from a page you wrote lands with "Ascent" where "‹ Ascent" was. The
- * surface is a row — rail, then climb — so it becomes a two-row grid here with
- * the bar across both columns; `.ascent--framed` is only set by AscentView, and
- * the bar is desktop-only, so the phone and the store shots keep the plain row.
+ * The same bar the editor, Pages, the Lamp and the Altar wear (SurfaceBar,
+ * `--frame-*`), so coming back from a page you wrote lands with "Ascent" where
+ * "‹ Ascent" was — and the When sits at its right end, where it sits in every
+ * room. The climb rail that used to run down the left (with ↑ ↓ at its foot,
+ * month pills and year tabs under the mountain, and ascend / descend at the
+ * bottom of the page) was five ways to say one thing; the When says it once.
+ * So the surface is a column: the bar, then the climb, edge to edge in the
+ * frame like every other room.
  *
  * On the night sky the theme's dim ink and hairline vanish, so both take the
  * Ascent's own ink; the dawn sky is drawn in the theme's inks already. */
-@media (min-width: 768px) {
-  .ascent--framed {
-    display: grid;
-    /* 152, not the rail's own 128: the station you are on reads "Sep 28 –
-       Oct 4", which ran 13px past a 128px rail and its frosted label sat over
-       the first letters of the climb ("YO|UR WORDS"). */
-    grid-template-columns: 152px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .ascent--framed > .ascent-rail {
-    width: 152px;
-    flex-basis: 152px;
-  }
-  .ascent--framed > .frame-bar {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-  .ascent--framed > .ascent-rail {
-    grid-column: 1;
-    grid-row: 2;
-    min-height: 0;
-  }
-  .ascent--framed > .ascent-scroll {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .ascent--framed:not(.ascent--light) .frame-bar__lead {
-    color: color-mix(in srgb, var(--ascent-ink) 55%, transparent);
-  }
-  .ascent--framed:not(.ascent--light) .frame-bar::after {
-    background: linear-gradient(
-      to right,
-      transparent,
-      color-mix(in srgb, var(--ascent-ink) 12%, transparent) 12%,
-      color-mix(in srgb, var(--ascent-ink) 12%, transparent) 88%,
-      transparent
-    );
-  }
+.ascent--framed {
+  flex-direction: column;
+}
+.ascent--framed:not(.ascent--light) .frame-bar__lead,
+.ascent--framed:not(.ascent--light) .pill,
+.ascent--framed:not(.ascent--light) .when__arrow {
+  color: color-mix(in srgb, var(--ascent-ink) 55%, transparent);
+}
+.ascent--framed:not(.ascent--light) .pill:hover,
+.ascent--framed:not(.ascent--light) .when__arrow:hover:not(:disabled),
+.ascent--framed:not(.ascent--light) .when__period {
+  color: var(--ascent-ink);
+}
+.ascent--framed:not(.ascent--light) .pill[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--ascent-gold) 16%, transparent);
+  color: var(--ascent-gold-soft);
+}
+.ascent--framed:not(.ascent--light) .frame-bar::after {
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--ascent-ink) 12%, transparent) 12%,
+    color-mix(in srgb, var(--ascent-ink) 12%, transparent) 88%,
+    transparent
+  );
+}
+.ascent--framed:not(.ascent--light) .when__rule,
+.ascent--framed:not(.ascent--light) .when--row .when__grains {
+  background-color: color-mix(in srgb, var(--ascent-ink) 12%, transparent);
+}
+.ascent--framed:not(.ascent--light) .when--row .when__grains {
+  border-color: color-mix(in srgb, var(--ascent-ink) 10%, transparent);
+  background-color: color-mix(in srgb, var(--ascent-sky-0) 50%, transparent);
+}
+
+/* The masthead, in the sky's inks — the same four lines as every room, set in
+   the Ascent's own light, and rising into place as the camera moves. */
+.ascent-frame {
+  position: relative;
+}
+.ascent-rise {
+  animation: ascent-rise 0.7s both;
+}
+.ascent .room-head__eyebrow {
+  color: var(--ascent-gold);
+  opacity: 0.85;
+}
+.ascent .room-head__title {
+  color: var(--ascent-ink-bright);
+}
+.ascent .room-head__dek {
+  color: color-mix(in srgb, var(--ascent-ink) 60%, transparent);
+}
+.ascent .room-head__light {
+  color: var(--ascent-gold-soft);
+}
+/* Said once, in the light line: the strip and the year keep their pictures and
+   drop the sentence they used to repeat beneath them. */
+.ascent--framed .now-strip__note,
+.ascent--framed .year-now__note {
+  display: none;
 }

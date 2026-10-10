@@ -10,9 +10,10 @@
 
 import { assertSameOwner, cacheGeneration, getCache, onCacheCleared, setCache } from '@/lib/asyncCache'
 import { getRollupForPeriod, listRollups } from '@/lib/insights'
-import { grainWindow } from '@/lib/period'
+import { grainWindow, quarterWindow } from '@/lib/period'
 import { isCapturePreview } from '@/lib/previewMode'
 import { prewarmScripture } from '@/lib/scripture/query'
+import type { DateWindow } from '@/lib/scripture/query'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
 import { yearProgress, yearStones } from './stones'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
@@ -36,7 +37,7 @@ function deriveWindows(now: Date = new Date()): Windows {
   return {
     week: grainWindow('week', now),
     month: grainWindow('month', now),
-    quarter: grainWindow('season', now),
+    quarter: quarterWindow(now),
     year: grainWindow('year', now),
   }
 }
@@ -177,6 +178,24 @@ async function loadAscentOnce(opts?: { fresh?: boolean }): Promise<LoadedAscent>
   assertSameOwner(gen)
   setCache<CachedAscent>(ASCENT_CACHE, { day: todayKey(), data: climb })
   return climb
+}
+
+/**
+ * A past week at the Valley, read on demand — the When's ‹ on the Ascent. The
+ * climb above reads only the current week; stepping back a week reads that
+ * week's own pages, and its weekly rollup's kept lines where one was built.
+ */
+export async function loadWeekAt(window: DateWindow): Promise<AltitudeData> {
+  const empty: AltitudeData = { resolution: 'week', words: null, scripture: null, prayer: null, learning: null }
+  // Capture previews serve fixtures; a past week has none, and must not reach Supabase.
+  if (import.meta.env.DEV && isCapturePreview()) return empty
+  const start = window.from!.toISOString().slice(0, 10)
+  const weekly = await getRollupForPeriod('weekly', start).catch(() => null)
+  const [words, scripture] = await Promise.all([
+    loadWeekWords(weekly ?? undefined, window).catch(() => null),
+    loadScripture('week', window).catch(() => null),
+  ])
+  return { ...empty, words, scripture: withLabel(scripture, words?.periodLabel) }
 }
 
 export type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView }

@@ -2498,9 +2498,11 @@ a {
 .frame-bar {
   z-index: 3;
   flex: none;
-  display: flex;
+  /* What · how · when (SurfaceBar.tsx): a true centre between two equal sides,
+     so a view switch lands on the same pixel whatever either side holds. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
 }
 .frame-bar__lead {
@@ -2518,10 +2520,308 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.frame-bar__sep {
+  flex: none;
+  inline-size: 1px;
+  block-size: 0.9rem;
+  margin-inline-end: -0.3rem;
+  background: var(--border);
+}
+.frame-bar__how {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .frame-bar__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.15rem;
+  min-width: 0;
+}
+
+/*
+ * ═══ THE ROOM — one frame for Pages, the Ascent, the Lamp and the Altar ═══
+ *
+ * Structure is shared; light is local. Every Return room hangs from the bar's
+ * left edge (the frame's gutter, as `.pg__inner` and the bar already do) and
+ * fills the frame, where they used to pick their own columns — 860px on the
+ * Altar, 1120px on the Lamp, 760px after a 152px rail on the Ascent — so the
+ * bar's "Altar" sat 254px to the left of the Altar's own title. Text keeps a
+ * reading measure inside it; the room's picture takes the width.
+ *
+ * What stays each room's own is its light: the Altar's warmth from below, the
+ * Lamp's one pool, the Ascent's sky, the paper of Pages.
+ */
+.room-frame {
+  inline-size: 100%;
+  max-inline-size: var(--frame-max);
+  margin-inline: auto;
+  padding: 2.5rem var(--frame-pad) 5rem;
+}
+@media (max-width: 767px) {
+  /* The mobile shell hides its own safe-area header on these surfaces, so the
+     status-bar gap is the room's to keep — and the tab bar and the + button
+     cover the foot of it. */
+  .room-frame {
+    padding: calc(2rem + var(--safe-top)) 1.25rem var(--mobile-chrome-h);
+  }
+}
+
+/* The masthead (RoomHead.tsx). */
+.room-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.room-head__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.69rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.92;
+}
+.room-head__title {
+  margin: 0.75rem 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(1.9rem, 1.2rem + 1.5vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--text-bright);
+  text-wrap: balance;
+}
+.room-head__dek {
+  margin: 0.6rem 0 0;
+  max-width: 64ch;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.03rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+/* The light line: one true thing about the chosen period, in gold — or nothing,
+   at the same height, so choosing a period never makes the room jump. */
+.room-head__light {
+  margin: 1.1rem 0 0;
+  min-height: 1.6em;
+  max-width: 64ch;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.06rem;
+  line-height: 1.5;
+  color: rgb(var(--scripture-gold));
+}
+/* On paper the lamp-gold washes out (it was 1.6:1 on Dawn); the palette's own
+   accent is the same warmth with enough ink to read. */
+[data-appearance='light'] .room-head__light {
+  color: var(--accent);
+}
+.room-head__how {
+  margin-bottom: 1.25rem;
+}
+.room-head__when {
+  align-self: stretch;
+  margin-top: 1.1rem;
+}
+.room-head__what {
+  margin-top: 0.5rem;
+}
+/* The room's picture, under the masthead. */
+.room-stage {
+  margin-top: 2.1rem;
+}
+
+/* A section of the stage: mono capitals and a hairline to the frame's edge. */
+.room-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.room-rule::after {
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: var(--border-subtle);
+}
+.room-rule__note {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+/* A phone has no room for a label, its note and a hairline on one line: the
+   note drops under the label, the hairline stays beside it. */
+@media (max-width: 767px) {
+  .room-rule {
+    flex-wrap: wrap;
+    row-gap: 0.3rem;
+  }
+  .room-rule__note {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+/* Lists put their names in a margin, the grid the Ascent's told-back climb
+   already reads its threads in (`.is-wide .story`). */
+.room-margin {
+  display: grid;
+  grid-template-columns: 13.75rem minmax(0, 1fr);
+  column-gap: 2.5rem;
+}
+@media (max-width: 899px) {
+  .room-margin {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.6rem;
+  }
+}
+
+/* ONE PILL (PillSet.tsx): the bar's sans, and the rail's own chosen tile. */
+.pill-set {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.65rem;
+  padding: 0 0.65rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: var(--bar-font);
+  font-size: var(--bar-size);
+  line-height: 1;
+  color: var(--bar-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition);
+}
+.pill:hover {
+  color: var(--bar-ink-hover);
+}
+.pill[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.pill:focus-visible,
+.when__arrow:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* A finger's 44pt on every pill and arrow — as a hit area, not as the pill: a
+   44px-tall chosen pill reads as a blob. */
+@media (pointer: coarse) {
+  .pill,
+  .when__arrow {
+    position: relative;
+  }
+  .pill::after,
+  .when__arrow::after {
+    content: '';
+    position: absolute;
+    inset: calc((1.65rem - 2.75rem) / 2) -0.1rem;
+  }
+}
+
+/* THE WHEN (WhenControl.tsx). */
+.when {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.when__step {
+  display: flex;
+  align-items: center;
+}
+.when__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.5rem;
+  block-size: 1.65rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--bar-ink);
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.when__arrow:hover:not(:disabled) {
+  color: var(--bar-ink-hover);
+}
+.when__arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.when__period {
+  min-inline-size: 6.2rem;
+  text-align: center;
+  font-family: var(--bar-font);
+  font-size: var(--bar-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.when__rule {
+  flex: none;
+  inline-size: 1px;
+  block-size: 0.9rem;
+  margin-inline: 0.4rem;
+  background: var(--border);
+}
+/* A narrow window: the period stays, the ladder tightens. */
+@media (max-width: 1099px) {
+  .when--bar .pill {
+    padding-inline: 0.45rem;
+  }
+  .when--bar .when__period {
+    min-inline-size: 0;
+  }
+}
+
+/* On a phone: the ladder full width, a finger's height, the stepper under it. */
+.when--row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+.when--row .when__grains {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+}
+.when--row .pill {
+  min-height: 2.4rem;
+  padding-inline: 0.25rem;
+  font-size: 0.875rem;
+}
+.when--row .when__step {
+  justify-content: space-between;
+}
+.when--row .when__arrow {
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+}
+.when--row .when__period {
+  font-size: 0.875rem;
 }
 /* The same way out as the reader's (`.pg__back`), glyph and all — so the two
    Backs you press in a row are one control in one place, not two lookalikes. */

@@ -100,10 +100,24 @@ function useExtras(from: string, to: string): SpanExtras | null {
 /** The period a climb view has selected — so the mountain above can frame it. */
 type OnPeriod = ((from: string, to: string) => void) | undefined
 
-export function MonthView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPeriod?: OnPeriod }) {
+export function MonthView({
+  onOpenEntry,
+  onPeriod,
+  ym: chosen,
+}: {
+  onOpenEntry: Open
+  onPeriod?: OnPeriod
+  /**
+   * The month the room's When is on. Given, the month is the When's to choose
+   * and this view draws no picker of its own (the Ascent in the frame); absent,
+   * it keeps its own row of recent months (previews, store shots).
+   */
+  ym?: string
+}) {
   const today = todayIso()
   const months = useMemo(() => recentMonths(today, 6), [today])
-  const [ym, setYm] = useState(months[months.length - 1]!)
+  const [picked, setYm] = useState(months[months.length - 1]!)
+  const ym = chosen ?? picked
   const end = monthEnd(ym)
   const open = today <= end
   const [ledger, setLedger] = useState<RangeLedger | null>(null)
@@ -135,13 +149,15 @@ export function MonthView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPeri
 
   return (
     <div className="climb">
-      <nav className="climb__periods" aria-label="Months">
-        {months.map((m) => (
-          <button key={m} type="button" aria-pressed={m === ym} onClick={() => setYm(m)}>
-            {MONTH_SHORT[+m.slice(5, 7) - 1]}
-          </button>
-        ))}
-      </nav>
+      {chosen ? null : (
+        <nav className="climb__periods" aria-label="Months">
+          {months.map((m) => (
+            <button key={m} type="button" aria-pressed={m === ym} onClick={() => setYm(m)}>
+              {MONTH_SHORT[+m.slice(5, 7) - 1]}
+            </button>
+          ))}
+        </nav>
+      )}
       <h2 className="climb__title">
         {monthLabel(ym)} <NameIt key={ym} name={given} onName={setGiven} />
       </h2>
@@ -248,11 +264,20 @@ function Pile({
  * What moved this season — began, came back, carried through, went quiet.
  * Dates, not meanings. Real seasons: "Fall 2026", "Winter 2025–26".
  */
-export function SeasonView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPeriod?: OnPeriod }) {
+export function SeasonView({
+  onOpenEntry,
+  onPeriod,
+  season: chosen,
+}: {
+  onOpenEntry: Open
+  onPeriod?: OnPeriod
+  /** The season the room's When is on; given, this view draws no picker (see MonthView). */
+  season?: Season
+}) {
   const today = todayIso()
   const seasons = useMemo(() => recentSeasons(today, 4), [today])
   const [key, setKey] = useState(seasons[seasons.length - 1]!.key)
-  const season: Season = seasons.find((s) => s.key === key) ?? seasonOf(today)
+  const season: Season = chosen ?? seasons.find((s) => s.key === key) ?? seasonOf(today)
   const prev = previousSeason(season)
   const open = today >= season.from && today <= season.to
   const [view, setView] = useState<SeasonView | null>(null)
@@ -293,14 +318,16 @@ export function SeasonView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPer
   const m = view?.moved
   return (
     <div className="climb">
-      <nav className="climb__periods" aria-label="Seasons">
-        {seasons.map((s) => (
-          <button key={s.key} type="button" aria-pressed={s.key === key} onClick={() => setKey(s.key)}>
-            {s.label}
-          </button>
-        ))}
-        <span className="climb__hemi">{LEDGER_COPY.hemisphere}</span>
-      </nav>
+      {chosen ? null : (
+        <nav className="climb__periods" aria-label="Seasons">
+          {seasons.map((s) => (
+            <button key={s.key} type="button" aria-pressed={s.key === key} onClick={() => setKey(s.key)}>
+              {s.label}
+            </button>
+          ))}
+          <span className="climb__hemi">{LEDGER_COPY.hemisphere}</span>
+        </nav>
+      )}
       <h2 className="climb__title">
         {season.label} <NameIt key={season.key} name={given} onName={setGiven} />
       </h2>

@@ -114,14 +114,6 @@ export const EMPTY_COPY: Record<AltitudeKey, { empty: string; insufficient: stri
   },
 }
 
-/** Climb-control captions (kept off the casino path — no countdowns, no scores). */
-export const CONTROLS = {
-  descend: '↓ descend',
-  ascend: 'ascend ↑',
-  atSummit: 'the whole year',
-  toNext: (label: string) => `climb to see the ${label.toLowerCase()}`,
-}
-
 /** Summit labels — near-silent. The Summit returns the user's own marks; the app
  *  arranges and points, and otherwise goes quiet (no progress, no counts).
  *

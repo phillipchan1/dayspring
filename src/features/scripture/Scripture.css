@@ -11,10 +11,13 @@
   color: var(--text);
 }
 
+/* The Lamp's light: one warm pool, high on the left — a lamp in a dark room,
+   where the Altar's warmth rises from below and the Ascent has a whole sky. */
 .scripture__bg {
   position: absolute;
   inset: 0;
   background:
+    radial-gradient(52% 38% at 10% 0%, rgba(var(--scripture-gold), 0.1), rgba(var(--scripture-gold), 0.025) 50%, transparent 74%),
     var(--journal-glow),
     linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg) 55%);
   pointer-events: none;
@@ -29,68 +32,9 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Wider than the writing column — the canon needs room to breathe. */
-.scripture__column {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 70rem;
-  margin: 0 auto;
-  /* 2rem, the frame's gutter (`--frame-pad` at its widest) and the Altar's:
-     the heading starts under the bar's own label rather than 8px past it. */
-  padding: 2.75rem 2rem 5rem;
-}
-
-.scripture--loading,
 .scripture__error {
-  position: relative;
-  z-index: 1;
-  padding: 2.75rem 2rem;
-  max-width: 70rem;
-  margin: 0 auto;
-}
-
-.scripture--loading {
-  color: var(--text-dim);
-  font-size: 0.9rem;
-}
-
-.scripture__error {
-  color: var(--danger);
-}
-
-/* ── header ──────────────────────────────────────────────────────────────── */
-.scripture__header {
-  margin-bottom: 0.5rem;
-}
-
-.scripture__eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.69rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 0.85rem;
-}
-
-.scripture__title {
-  font-family: var(--font-display);
-  font-weight: 300;
-  font-size: clamp(1.9rem, 4vw, 2.35rem);
-  letter-spacing: -0.01em;
-  line-height: 1.05;
-  color: var(--text-bright);
   margin: 0;
-}
-
-.scripture__sub {
-  font-family: var(--font-serif);
-  font-weight: 300;
-  font-style: italic;
-  font-size: 1.05rem;
-  color: var(--text-dim);
-  margin: 0.65rem 0 0;
-  max-width: 48ch;
-  line-height: 1.45;
+  color: var(--danger);
 }
 
 /* The scan count, once done — a quiet fact about the map, not a boxed status. */
@@ -99,27 +43,13 @@
   font-size: 0.8rem;
   letter-spacing: 0.02em;
   color: var(--text-faint);
-  margin: 0.55rem 0 0;
+  margin: 0 0 1.5rem;
 }
 
 /* ── canon ───────────────────────────────────────────────────────────────── */
-.scripture__testament {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin: 2.5rem 0 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.scripture__testament::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-subtle);
+/* A testament is a section of the stage: the room's rule (`.room-rule`). */
+.scripture__canon + .scripture__testament {
+  margin-top: 2.5rem;
 }
 
 .scripture__canon {
@@ -247,83 +177,6 @@
 }
 
 /* ── season scrubber ─────────────────────────────────────────────────────── */
-/* One horizontal line — chips never wrap, scroll sideways on narrow screens so
-   the time range stays compact and never costs vertical space. */
-.scripture__seasons {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 1.85rem 0 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.scripture__seasons::-webkit-scrollbar {
-  display: none;
-}
-
-/* Touch has no scrollbar, so "Last year" was simply sliced flat by the right
-   edge with nothing to say there was more. Fade the overflow out and snap to
-   chips, so a half-visible chip reads as "keep going" rather than a rendering
-   bug. */
-@media (pointer: coarse) {
-  .scripture__seasons {
-    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2.5rem), transparent);
-    mask-image: linear-gradient(90deg, #000 calc(100% - 2.5rem), transparent);
-    scroll-snap-type: x proximity;
-    padding-right: 2rem;
-  }
-  .scripture__chip {
-    scroll-snap-align: start;
-    min-height: 44px;
-  }
-}
-
-.scripture__chip {
-  flex: 0 0 auto;
-  font-family: var(--font-serif);
-  font-size: 0.86rem;
-  color: var(--text-dim);
-  padding: 0.32rem 0.9rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  background: transparent;
-  cursor: pointer;
-  transition:
-    color var(--transition),
-    border-color var(--transition),
-    background var(--transition);
-}
-
-.scripture__chip:hover {
-  color: var(--text-bright);
-  border-color: var(--border);
-}
-
-.scripture__chip[data-on='true'] {
-  color: var(--bg);
-  background: rgb(var(--scripture-gold));
-  border-color: rgb(var(--scripture-gold));
-}
-
-.scripture__season-note {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 0.95rem;
-  line-height: 1.45;
-  color: rgb(var(--scripture-gold));
-  max-width: 60ch;
-  margin: 0.9rem 0 0;
-  min-height: 1.35rem;
-  opacity: 0;
-  transition: opacity var(--transition-slow);
-}
-
-.scripture__season-note--show {
-  opacity: 0.9;
-}
-
 /* ── scan-imports prompt (calm; only shows when imports are unscanned) ────── */
 .scripture__scan {
   display: flex;
@@ -428,17 +281,6 @@
 /* ── returning strip ─────────────────────────────────────────────────────── */
 .scripture__returning {
   margin-top: 2.85rem;
-  padding-top: 1.6rem;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.scripture__returning-title {
-  font-family: var(--font-serif);
-  font-weight: 300;
-  font-style: italic;
-  font-size: 1.05rem;
-  color: var(--text-dim);
-  margin: 0 0 0.9rem;
 }
 
 .scripture__verses {
@@ -845,16 +687,6 @@
 }
 
 @media (max-width: 767px) {
-  /* The mobile shell hides its safe-area-padded header on this surface
-     (MobileJournal: canvasAlternateActive), so this padding is the only thing
-     between Lamp and the status bar. */
-  /* The bottom padding reserves what the mobile chrome covers — the tab bar
-     plus the fixed .mobile-fab, which was landing on top of the last row of the
-     book grid ("2 Kings"). Without it the grid's final row is flush against the
-     bar and reads as sliced. */
-  .scripture__column {
-    padding: calc(2rem + var(--safe-top)) 1.25rem var(--mobile-chrome-h);
-  }
   .scripture-book__inner {
     padding: calc(2rem + var(--safe-top)) 1.4rem var(--mobile-chrome-h);
   }

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
-import { grainWindow, type Span } from '@/lib/period'
+import { periodEyebrow, periodName, spanWindowAt, type Span } from '@/lib/period'
 import { useCarriedPeriod } from '@/hooks/useCarriedPeriod'
 import { NT_BOOKS, OT_BOOKS, type BibleBook } from '@/lib/bible/canon'
 import { formatOsisRef, osisBookOf } from '@/lib/scripture/format'
@@ -20,6 +20,8 @@ import { ScriptureBookView, type BookTarget } from './ScriptureBookView'
 import { heatColor, intensity, useHeatRamp } from './heat'
 import { useScriptureScan } from './useScriptureScan'
 import { SurfaceBar } from '@/components/SurfaceBar'
+import { RoomHead } from '@/components/RoomHead'
+import { WhenControl } from '@/components/WhenControl'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import './Scripture.css'
 
@@ -74,24 +76,22 @@ function newlyCitedBooks(labels: string[], books: BibleBook[]): Set<string> {
 // array: labels + windows live in one place.
 
 interface Season {
-  /** A carried Span where one applies, so a period picked on another surface
-   *  lands here; `last` is the Lamp's own and is never carried out. */
+  /** The carried Span, so a period picked on another surface lands here. */
   id: Span
+  /** How far back it has been stepped (the When's ‹ ›); 0 = the current one. */
+  offset: number
   label: string
   window: DateWindow
 }
 
 /** The season the Lamp opens on. */
-const DEFAULT_SEASON: Season['id'] = 'year'
+const DEFAULT_SEASON: Span = 'year'
 
-function buildSeasons(now: Date = new Date()): Season[] {
-  return [
-    { id: 'all', label: 'All time', window: {} },
-    { id: 'week', label: 'This week', window: grainWindow('week', now) },
-    { id: 'month', label: 'This month', window: grainWindow('month', now) },
-    { id: 'season', label: 'This season', window: grainWindow('season', now) },
-    { id: 'year', label: 'This year', window: grainWindow('year', now) },
-  ]
+const SPANS: Span[] = ['week', 'month', 'season', 'year', 'all']
+
+function seasonAt(id: Span, offset: number): Season {
+  const label = id === 'all' ? 'All time' : offset === 0 ? `This ${id}` : periodName(id, offset)
+  return { id, offset, label, window: spanWindowAt(id, offset) }
 }
 
 function humanList(items: string[]): string {
@@ -112,7 +112,13 @@ function seasonNote(season: Season, s: SeasonSummary): string {
     return `A quieter stretch — a few passages, mostly ${books[0]}.`
   }
   const lead =
-    season.id === 'all' ? 'Across all your writing, you’ve leaned toward' : 'Here you leaned toward'
+    season.id === 'all'
+      ? 'Across all your writing, you’ve leaned toward'
+      : season.offset === 0
+        ? 'Here you leaned toward'
+        : season.id === 'week'
+          ? `In the week of ${season.label}, you leaned toward`
+          : `In ${season.label} you leaned toward`
   const verse = s.topVerse ? formatOsisRef(s.topVerse.osis_ref) : null
   return verse
     ? `${lead} ${humanList(books)} — ${verse} surfaced most.`
@@ -122,19 +128,15 @@ function seasonNote(season: Season, s: SeasonSummary): string {
 export function ScriptureView({ onOpenEntry }: Props) {
   useHeatRamp()
   const { state, go, back } = useAppNavigation()
-  const seasons = useMemo(() => buildSeasons(), [])
+  // The period carried from the other Remember surfaces, and how far back
+  // through it the reader has stepped.
+  const [seasonId, setSeasonId, offset, setOffset] = useCarriedPeriod(DEFAULT_SEASON)
+  const season = useMemo(() => seasonAt(seasonId, offset), [seasonId, offset])
   // Seed from the season the Lamp actually opens on — seeding from all-time
   // painted a different season's numbers for a frame, then threw them away.
-  const initialCanon = useMemo(() => {
-    const first = seasons.find((s) => s.id === DEFAULT_SEASON) ?? seasons[0]!
-    return getCache<Awaited<ReturnType<typeof loadScriptureCanonPage>>>(
-      `scripture:canon:${windowCacheKey(first.window)}`,
-    )
-  }, [seasons])
-  // The period carried from the other Remember surfaces.
-  const [carried, carry] = useCarriedPeriod(DEFAULT_SEASON as Span)
-  const seasonId: Season['id'] = carried
-  const setSeasonId = carry
+  const [initialCanon] = useState(() =>
+    getCache<Awaited<ReturnType<typeof loadScriptureCanonPage>>>(`scripture:canon:${windowCacheKey(season.window)}`),
+  )
   const [heat, setHeat] = useState<CanonHeat | null>(initialCanon?.heat ?? null)
   const [summary, setSummary] = useState<SeasonSummary | null>(initialCanon?.summary ?? null)
   const [returning, setReturning] = useState<ReturningRef[]>(initialCanon?.returning ?? [])
@@ -178,32 +180,6 @@ export function ScriptureView({ onOpenEntry }: Props) {
     : null
   const openBook = (sel: BookTarget) =>
     go({ scriptureBook: sel.osis, scriptureVerse: sel.focusVerse ?? null })
-
-  const season = seasons.find((s) => s.id === seasonId) ?? seasons[0]!
-
-  /*
-   * The chosen range, in view. On a phone the row scrolls and the default —
-   * This year, fourth of five — opened under the fade at the right edge, so
-   * the one thing the row is for (which range am I looking at?) was the thing
-   * it hid. The row's own scroll, never `scrollIntoView`, which would also
-   * scroll the page to it.
-   */
-  // A callback ref, not an effect on a ref: the row is not in the DOM on the
-  // first render (the surface opens on its loading state), so an effect keyed
-  // on the season ran once against nothing and never again.
-  const seasonsRef = useCallback(
-    (row: HTMLDivElement | null) => {
-      const chip = row?.querySelector<HTMLElement>('[data-on="true"]')
-      if (!row || !chip) return
-      const fade = 40
-      const r = row.getBoundingClientRect()
-      const c = chip.getBoundingClientRect()
-      if (c.right > r.right - fade) row.scrollLeft += c.right - (r.right - fade)
-      else if (c.left < r.left) row.scrollLeft -= r.left - c.left
-    },
-    // Not read inside: a new identity is what re-runs it when the range changes.
-    [season.id],
-  )
 
   useEffect(() => {
     const cacheKey = `scripture:canon:${windowCacheKey(season.window)}`
@@ -251,39 +227,36 @@ export function ScriptureView({ onOpenEntry }: Props) {
 
   const note = summary ? seasonNote(season, summary) : ''
 
-  if (loadError) {
-    return <p className="scripture__error">{loadError}</p>
-  }
-  if (!heat) {
-    return (
-      <div className="scripture">
-        <div className="scripture__bg" aria-hidden />
-        <SurfaceLoader label="Lighting the lamp…" />
-      </div>
-    )
-  }
+  const when = (layout: 'bar' | 'row') => (
+    <WhenControl
+      spans={SPANS}
+      span={seasonId}
+      offset={offset}
+      onSpan={setSeasonId}
+      onOffset={setOffset}
+      layout={layout}
+      keys={layout === 'bar'}
+    />
+  )
 
   return (
     <div className="scripture">
       <div className="scripture__bg" aria-hidden />
-      <SurfaceBar label={ENTRY_RETURN_LABEL.scripture} />
+      <SurfaceBar label={ENTRY_RETURN_LABEL.scripture} when={when('bar')} />
       <div className="scripture__scroll" data-dim={bookTarget ? 'true' : undefined}>
-        <div className="scripture__column">
-          <header className="scripture__header">
-            <h1 className="scripture__title">Where your heart has been leaning</h1>
-            {scan.result && !scan.scanning && !scan.error && (
-              <p className="scripture__lit">
-                Lit {scan.result.refsWritten.toLocaleString()}{' '}
-                {scan.result.refsWritten === 1 ? 'reference' : 'references'} across{' '}
-                {scan.result.booksTouched} {scan.result.booksTouched === 1 ? 'book' : 'books'}.
-              </p>
-            )}
-          </header>
+        <div className="room-frame scripture__frame">
+          <RoomHead
+            eyebrow={periodEyebrow(seasonId, offset)}
+            title="Where your heart has been leaning"
+            dek="Scripture as it has met your pages. Each square is one chapter, lit where you wrote about it."
+            light={heat && !loadError ? note : null}
+            phoneWhen={when('row')}
+          />
 
           <SurfaceArrival surface="scripture" />
 
           {/* Boxed status ONLY while transient (scanning / error). Once it's done,
-              the count is a quiet fact in the header above, not a notification. */}
+              the count is a quiet fact above the canon, not a notification. */}
           {(scan.scanning || scan.error) && (
             <div className="scripture__scan" role="status">
               {scan.scanning ? (
@@ -322,58 +295,59 @@ export function ScriptureView({ onOpenEntry }: Props) {
             </div>
           )}
 
-          <div ref={seasonsRef} className="scripture__seasons" role="group" aria-label="Time range">
-            {seasons.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className="scripture__chip"
-                data-on={s.id === seasonId ? 'true' : undefined}
-                onClick={() => setSeasonId(s.id)}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div className="room-stage">
+            {loadError ? (
+              <p className="scripture__error">{loadError}</p>
+            ) : !heat ? (
+              <SurfaceLoader label="Lighting the lamp…" />
+            ) : (
+              <>
+                {scan.result && !scan.scanning && !scan.error && (
+                  <p className="scripture__lit">
+                    Lit {scan.result.refsWritten.toLocaleString()}{' '}
+                    {scan.result.refsWritten === 1 ? 'reference' : 'references'} across{' '}
+                    {scan.result.booksTouched} {scan.result.booksTouched === 1 ? 'book' : 'books'}.
+                  </p>
+                )}
+
+                <Testament label="Old Testament" books={OT_BOOKS} heat={heat} maxBook={maxBook} newBooks={newBooks} onOpen={openBook} />
+                <Testament label="New Testament" books={NT_BOOKS} heat={heat} maxBook={maxBook} newBooks={newBooks} onOpen={openBook} />
+
+                <div className="scripture__legend" aria-hidden>
+                  <span>seldom</span>
+                  <span className="scripture__ramp">
+                    {[0.2, 0.4, 0.6, 0.8, 1].map((t) => (
+                      <i
+                        key={t}
+                        style={{ background: heatColor(t), boxShadow: `0 0 ${4 + 8 * t}px ${heatColor(t)}` }}
+                      />
+                    ))}
+                  </span>
+                  <span>often</span>
+                  <span className="scripture__legend-note">· each square is one chapter</span>
+                </div>
+
+                {returning.length > 0 && (
+                  <section className="scripture__returning">
+                    <h2 className="room-rule">You keep returning to</h2>
+                    <div className="scripture__verses">
+                      {returning.map((r) => (
+                        <button
+                          key={r.osis_ref}
+                          type="button"
+                          className="scripture__verse-chip"
+                          onClick={() => openBook({ osis: osisBookOf(r.osis_ref), focusVerse: r.osis_ref })}
+                        >
+                          {formatOsisRef(r.osis_ref)}
+                          <span>returned {r.count}×</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
           </div>
-          <p className={`scripture__season-note${note ? ' scripture__season-note--show' : ''}`}>
-            {note}
-          </p>
-
-          <Testament label="Old Testament" books={OT_BOOKS} heat={heat} maxBook={maxBook} newBooks={newBooks} onOpen={openBook} />
-          <Testament label="New Testament" books={NT_BOOKS} heat={heat} maxBook={maxBook} newBooks={newBooks} onOpen={openBook} />
-
-          <div className="scripture__legend" aria-hidden>
-            <span>seldom</span>
-            <span className="scripture__ramp">
-              {[0.2, 0.4, 0.6, 0.8, 1].map((t) => (
-                <i
-                  key={t}
-                  style={{ background: heatColor(t), boxShadow: `0 0 ${4 + 8 * t}px ${heatColor(t)}` }}
-                />
-              ))}
-            </span>
-            <span>often</span>
-            <span className="scripture__legend-note">· each square is one chapter</span>
-          </div>
-
-          {returning.length > 0 && (
-            <div className="scripture__returning">
-              <h3 className="scripture__returning-title">You keep returning to…</h3>
-              <div className="scripture__verses">
-                {returning.map((r) => (
-                  <button
-                    key={r.osis_ref}
-                    type="button"
-                    className="scripture__verse-chip"
-                    onClick={() => openBook({ osis: osisBookOf(r.osis_ref), focusVerse: r.osis_ref })}
-                  >
-                    {formatOsisRef(r.osis_ref)}
-                    <span>returned {r.count}×</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -405,7 +379,7 @@ function Testament({
 }) {
   return (
     <>
-      <div className="scripture__testament">{label}</div>
+      <h2 className="room-rule scripture__testament">{label}</h2>
       <div className="scripture__canon">
         {books.map((book) => (
           <BookTile

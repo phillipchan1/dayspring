@@ -133,7 +133,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 - **Risks:** P1, constantly. Any visual encoding of a matter's "status" edges toward
   scoring someone's answered-prayer rate.
 - **State:** ✅ Shipped P0–P2, flag graduated (default on). Cairns/arcs/encounters,
-  Subjects + Over-time tabs. Backfilled (4 threads).
+  Subjects · Over time in the bar's centre, prayer / sense at its left, the When at its right
+  (D-035). Backfilled (4 threads).
 - **History:** A "Covenant" rename + night-sky visualization was built and **fully
   reverted, unshipped, 2026-07-26.** Its one durable output is the rule now encoded as
   Principle 1: **no vertical valence — height must never imply better/worse.** Don't

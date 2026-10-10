@@ -75,6 +75,9 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Enter'], label: 'Read the page', when: 'on the Pages wall' },
       { keys: ['Esc'], label: 'Close the page', when: 'reading a page' },
       { keys: ['Esc'], label: 'Clear the selection', when: 'on the Pages wall' },
+      { keys: ['Alt', '←', '→'], label: 'An earlier or later period', when: 'in Pages, the Ascent, Lamp and Altar' },
+      { keys: ['Alt', '↑', '↓'], label: 'A longer or shorter period', when: 'in Pages, the Ascent, Lamp and Altar' },
+      { keys: ['↑', '↓'], label: 'Climb or descend', when: 'on the Ascent' },
     ],
   },
   {
@@ -119,6 +122,8 @@ export function renderKey(token: KeyToken, mac = isMac()): string {
       return 'Esc'
     case 'Shift':
       return mac ? '⇧' : 'Shift'
+    case 'Alt':
+      return mac ? '⌥' : 'Alt'
     default:
       return token
   }
