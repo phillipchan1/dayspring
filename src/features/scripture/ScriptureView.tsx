@@ -88,6 +88,7 @@ function buildSeasons(now: Date = new Date()): Season[] {
   const lastYear = new Date(Date.UTC(now.getUTCFullYear() - 1, 6, 1))
   return [
     { id: 'all', label: 'All time', window: {} },
+    { id: 'week', label: 'This week', window: grainWindow('week', now) },
     { id: 'month', label: 'This month', window: grainWindow('month', now) },
     { id: 'season', label: 'This season', window: grainWindow('season', now) },
     { id: 'year', label: 'This year', window: grainWindow('year', now) },
@@ -132,15 +133,12 @@ export function ScriptureView({ onOpenEntry }: Props) {
       `scripture:canon:${windowCacheKey(first.window)}`,
     )
   }, [seasons])
-  // The period carried from the other Remember surfaces. A carried WEEK falls to
-  // the month: a week rarely holds more than a verse or two, and a canon map of
-  // one passage says less than the quieter stretch it came from. The fallback is
-  // not written back — the reader's choice stays theirs where they made it.
+  // The period carried from the other Remember surfaces.
   const [carried, carry] = useCarriedPeriod(DEFAULT_SEASON as Span)
   // 'last' is the Lamp's own view of a sealed year and has no equivalent on the
   // other surfaces, so picking it scopes the Lamp alone and moves nobody else.
   const [lampOnly, setLampOnly] = useState<'last' | null>(null)
-  const seasonId: Season['id'] = lampOnly ?? (carried === 'week' ? 'month' : carried)
+  const seasonId: Season['id'] = lampOnly ?? carried
   const setSeasonId = useCallback(
     (id: Season['id']) => {
       if (id === 'last') {

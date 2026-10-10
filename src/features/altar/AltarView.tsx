@@ -95,8 +95,9 @@ function StrandRow({ s, hero, onOpen }: { s: AltarStrand; hero: boolean; onOpen:
 // Lamp. Three spans, one word, and no way for a reader to know which they were
 // looking at. A trailing window also cannot be carried between surfaces or
 // nested inside another, which is what the four surfaces need to read as one.
-type Period = Extract<Span, 'all' | 'month' | 'season' | 'year' | '5y' | '10y'>
+type Period = Span
 const PERIODS: { key: Period; label: string }[] = [
+  { key: 'week', label: 'week' },
   { key: 'month', label: 'month' },
   { key: 'season', label: 'season' },
   { key: 'year', label: 'year' },
@@ -104,14 +105,6 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: '10y', label: '10 years' },
   { key: 'all', label: 'all' },
 ]
-
-/** A carried WEEK has no Altar field to show: a strand needs to have been
- *  returned to, and nobody returns to anything inside seven days. The Altar
- *  shows the month instead and does NOT write that back — the reader's choice
- *  stays their choice on the surface where they made it. */
-function altarPeriod(span: Span): Period {
-  return span === 'week' ? 'month' : span
-}
 
 function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period: Period; onOpen: (id: string) => void }) {
   const W = 920
@@ -373,7 +366,7 @@ export function AltarView({ onOpenEntry }: Props) {
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
   const [carried, carry] = useCarriedPeriod('year')
-  const period = altarPeriod(carried)
+  const period = carried
   const setPeriod = carry
 
   const [openId, setOpenId] = useState<string | null>(null)
