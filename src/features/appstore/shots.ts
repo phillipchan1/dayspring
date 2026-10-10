@@ -20,9 +20,34 @@ export type ShotSurface =
   | 'rituals'
   | 'scripture'
   | 'prayer'
+  | 'quote'
   | 'lamp'
   | 'history'
   | 'devices'
+  | 'lock'
+
+/**
+ * One element of the screen, lifted out of it and set over the device larger —
+ * the line the shot is about, made legible at gallery size.
+ *
+ * It is the REAL element, not a restyled quote: the frame loads the same
+ * snippet again, hides everything but this, and crops to its box. So a lifted
+ * line is verbatim by construction, the same grounding the product keeps.
+ */
+export interface Pop {
+  /** CSS selector inside the snippet. */
+  select: string
+  /** Of the matches, the first whose text includes this. */
+  text?: string
+  /** How much larger than it sits on the screen. Default 1.32. */
+  lift?: number
+  /**
+   * App pt to set the card below (or, negative, above) the element's own centre.
+   * Lifted larger, a card overhangs its neighbours equally above and below; this
+   * lets it overhang blank page instead of half-covering a line of writing.
+   */
+  drop?: number
+}
 
 export interface Shot {
   /** URL key (`?__preview=listing-<id>`) and output filename stem. */
@@ -40,32 +65,33 @@ export interface Shot {
   subcaption: string
   surface: ShotSurface
   /**
-   * Palette for this shot's card. Defaults to `ink`, the shipped dark default.
+   * Palette for the screen. Defaults to `ink`, the shipped dark default.
    *
    * The set is deliberately mixed. Ascent and Lamp are built on glow — a lit
    * chapter cell only reads as lit against darkness — while the writing surfaces
    * go to `dawn`, which is what `appearance: 'auto'` actually gives anyone on a
-   * light-mode phone. It also makes shot 02's "themes — light or dark"
-   * something the gallery shows rather than merely claims.
+   * light-mode phone.
    */
   theme?: ThemeId
   /**
-   * Device px to shift the snippet up inside its card, cropping from the top.
+   * App pt to scroll the snippet up under the status bar, cropping from its top.
    * Only for surfaces whose own header repeats what the caption already says.
+   * iPhone only — the iPad shows the whole shell.
    */
   cropTop?: number
-  /**
-   * Device px of breathing room to give back at the top after cropping. A crop
-   * lands wherever it lands — often mid-padding, which butts the first control
-   * against the card's rounded corner and reads as a clipping bug.
-   */
+  /** App pt of the screen's own paper between the status bar and a crop. */
   padTop?: number
   /**
-   * The card fades out at its bottom edge so a mid-content cut reads as "more
-   * below" rather than as breakage. Set false when the bottom of the snippet is
-   * the subject and must stay at full contrast.
+   * App pt of screen the snippet lays out in, when it is not the whole screen.
+   * The frame's foot cuts the device off ~50pt above its true end, which is
+   * right for most surfaces and wrong for one anchored to the bottom (the
+   * capture bar, a ritual's Next) — those lay out short so the bar is in view.
    */
-  fadeBottom?: boolean
+  screen?: number
+  /** Lift one element out of the screen. */
+  pop?: Pop
+  /** The quote slide's words. Real, and attributed as the site attributes them. */
+  quote?: { text: string; attribution: string; context: string }
 }
 
 /**
@@ -74,8 +100,9 @@ export interface Shot {
  * (a journal built for spiritual growth — the front door D-001 chose), what it
  * gives back (the year, read back in your own words), and what it holds when
  * you don't know how to start (the rituals). The rest deepen it in the order a
- * reader asks: Scripture, prayer, the long view of the Bible, the archive, and
- * whether it fits how they live.
+ * reader asks: Scripture, prayer, what someone who uses it says, the long view of
+ * the Bible, the archive, whether it fits how they live — and last, whether it
+ * is safe to write the truest things there.
  *
  * One fictional writer runs through the whole strip. The prayer for Dad on the
  * page in 01 is the thread the year carries in 02 and 05 — the claim "your
@@ -93,8 +120,8 @@ export const SHOTS: Shot[] = [
     subcaption: 'Scripture, prayer, and the practices of the church — right in the page you’re writing.',
     surface: 'capture',
     theme: 'dawn',
-    // The capture bar sits at the bottom edge and IS half the shot.
-    fadeBottom: false,
+    screen: 836,
+    pop: { select: '.cm-mark-line--prayer', lift: 1.28, drop: 24 },
   },
   {
     // The Ascent at the year: the climb, then what the year kept returning to.
@@ -124,6 +151,7 @@ export const SHOTS: Shot[] = [
     // so every iPhone shows one column; a 2x3 grid would be a layout that does
     // not exist on the device this listing is for.
     cropTop: 405,
+    pop: { select: '.practice-card', text: 'Luther', lift: 1.22 },
   },
   {
     // A scripture ritual as it is walked on a phone: the passage, a phrase
@@ -135,7 +163,8 @@ export const SHOTS: Shot[] = [
     subcaption: 'Lectio Divina, SOAP, Discovery Bible Study — the passage open above the page while you write.',
     surface: 'scripture',
     theme: 'dawn',
-    fadeBottom: false,
+    screen: 820,
+    pop: { select: '.psg', lift: 1.24 },
   },
   {
     // One thread of the year, ask to now. The Altar's own surface draws a
@@ -147,14 +176,31 @@ export const SHOTS: Shot[] = [
     headline: { lead: 'Your prayers,', accent: 'remembered.' },
     subcaption: 'Every time you brought it to God, gathered in order — so you can see what came of it.',
     surface: 'prayer',
-    // Down the year to its first thread — its name, then every line of it, ask
-    // to now, inside the card. No pad: the Ascent's sky is a gradient, and a
-    // band of flat card paper above it reads as a seam.
+    // Down the year to its first thread — its name, then every line of it.
     cropTop: 585,
+    pop: { select: '.story__line', text: 'Maya prayed', lift: 1.3 },
+  },
+  {
+    // The one frame with no screen. A real beta interview, quoted as the
+    // marketing site quotes it (site/src/content/home.ts → testimonial):
+    // anonymous, because her name is withheld until she consents to it. No
+    // stars, no rating, no user count — there are none yet, and BRANDSCRIPT
+    // forbids implying social proof we do not have.
+    id: 'listing-quote',
+    file: '06-quote',
+    eyebrow: 'From the beta',
+    headline: { lead: '', accent: '' },
+    subcaption: '',
+    surface: 'quote',
+    quote: {
+      text: 'It kind of sparked and brought some things alive — a new way to engage my heart with God.',
+      attribution: 'A therapist and spiritual director',
+      context: 'on the rituals and the contemplative forms',
+    },
   },
   {
     id: 'listing-lamp',
-    file: '06-lamp',
+    file: '07-lamp',
     eyebrow: 'The Lamp',
     headline: { lead: 'Find the verses that', accent: 'actually met you.' },
     subcaption: 'Every passage you’ve written about, lit across the whole Bible.',
@@ -162,13 +208,14 @@ export const SHOTS: Shot[] = [
     // Past the surface's own title (the caption already says it) and its range
     // row, onto "Here you leaned toward…" and the canon. The row scrolls on a
     // phone so the chosen range stays in view, which leaves "All time" cut at
-    // the left edge — right in the app, and a clipping bug in a card.
+    // the left edge — right in the app, and a clipping bug in a frame.
     cropTop: 158,
-    padTop: 24,
+    padTop: 8,
+    pop: { select: '.scripture__book', text: 'Psalms', lift: 1.5 },
   },
   {
     id: 'listing-history',
-    file: '07-history',
+    file: '08-history',
     eyebrow: 'Your history',
     headline: { lead: 'Bring your journal', accent: 'with you.' },
     subcaption:
@@ -177,12 +224,14 @@ export const SHOTS: Shot[] = [
     // Paper, between the Lamp's dark and the devices' — and the reading
     // surface is where the light palette is most at home.
     theme: 'dawn',
+    // A row in the phone's list, a page card on the iPad's wall.
+    pop: { select: '.pgr, .pgc', text: 'Early service', lift: 1.24 },
   },
   {
-    // The one shot that isn't a single card: two real layouts side by side is the
-    // only way to say "both" without asking the reader to take it on faith.
+    // The one shot that isn't a single screen: two real layouts side by side is
+    // the only way to say "both" without asking the reader to take it on faith.
     id: 'listing-devices',
-    file: '08-devices',
+    file: '09-devices',
     eyebrow: 'Mac · iPhone · Web',
     headline: { lead: 'Start on your phone,', accent: 'finish on your Mac.' },
     // No subcaption: the lines under the devices carry the facts, and stacking
@@ -190,10 +239,25 @@ export const SHOTS: Shot[] = [
     subcaption: '',
     surface: 'devices',
   },
+  {
+    // The close: whether it is safe to write the truest things here. Every
+    // claim is one the product already makes in public — the lock is D-023,
+    // "encrypted on the way and in storage" is the privacy page's own line —
+    // and none says end-to-end, which would be false (PRINCIPLES #7).
+    id: 'listing-lock',
+    file: '10-private',
+    eyebrow: 'Yours alone',
+    headline: { lead: 'Private &', accent: 'secure.' },
+    subcaption: 'Lock it with a PIN or Face ID. Encrypted on the way and in storage — never sold, never used for training.',
+    surface: 'lock',
+    // The strip ends in first light: the summit, and the morning palette.
+    theme: 'dawn',
+    pop: { select: 'input[aria-label="PIN"]', lift: 1.2 },
+  },
 ]
 
 /** The shots a platform's set holds, in order. The phone-and-Mac composite
- *  argues the wrong thing on an iPad sheet, so the iPad set ends before it. */
+ *  argues the wrong thing on an iPad sheet, so the iPad set goes without it. */
 export function shotsFor(platform: 'iphone' | 'ipad'): Shot[] {
   return platform === 'ipad' ? SHOTS.filter((s) => s.surface !== 'devices') : SHOTS
 }
