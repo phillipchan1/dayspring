@@ -5,7 +5,7 @@ section: settings
 order: 1
 requires: [capability.editor]
 keywords: [theme, dark mode, light mode, font, appearance, palette, colour, color, oled, typeface]
-updated: 2026-09-06
+updated: 2026-10-10
 ---
 
 **Settings → Appearance.**
@@ -23,7 +23,8 @@ decoration that belongs to that theme alone.
 
 Dawn is the default — sunrise on paper. Vellum is aged paper set in one
 Garamond throughout, with the scripture reference picked out in red the way a
-scribe would have done it. Cloister is cool stone and north light. Sabbath is
+scribe would have done it. Cloister is cool stone and north light, and the
+one theme set in a clean sans-serif from title to last line. Sabbath is
 the quiet one, with the widest line spacing and no decoration at all. Plainsong
 is plain text, in a monospace, for people who like it that way. Vigil is dimmed
 right down for reading in a dark room.

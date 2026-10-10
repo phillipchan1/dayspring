@@ -16,7 +16,7 @@ export const featuresIntro = {
 export const voices = [
   { id: "dawn", label: "Dawn", blurb: "Sunrise on paper. The one that welcomes.", modes: ["light", "dark"], swatch: "#c2683a" },
   { id: "vellum", label: "Vellum", blurb: "Aged paper, ink that bites. The manuscript.", modes: ["light", "dark"], swatch: "#8a5324" },
-  { id: "cloister", label: "Cloister", blurb: "Cool stone, north light. The institution.", modes: ["light", "dark"], swatch: "#3d6d8f" },
+  { id: "cloister", label: "Cloister", blurb: "Cool stone, north light. The sans-serif one.", modes: ["light", "dark"], swatch: "#3d6d8f" },
   { id: "sabbath", label: "Sabbath", blurb: "Sage and pine. The quiet one.", modes: ["light", "dark"], swatch: "#3f7d6a" },
   { id: "plainsong", label: "Plainsong", blurb: "One line, unadorned. The plaintext voice.", modes: ["light", "dark"], swatch: "#a06a1e" },
   { id: "vigil", label: "Vigil", blurb: "Dimmed all the way down, for dark rooms.", modes: ["dark"], swatch: "#8a7f6a" },

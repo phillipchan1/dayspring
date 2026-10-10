@@ -62,14 +62,12 @@ import '@fontsource/inter/700-italic.css'
 // and usePracticeInsertion.ts mean anything for the first time; against the
 // static instances the app shipped before, it was inert.
 //
-// Italic is imported for the three that become `--font-serif`, because that is
-// the app's OWN voice and it speaks in 300-weight italic. Archivo is Cloister's
-// display face only, so it needs neither.
+// Italic is imported for each, because every one becomes `--font-serif`: the
+// app's OWN voice, and it speaks in 300-weight italic.
 import '@fontsource-variable/eb-garamond' // Vellum
 import '@fontsource-variable/eb-garamond/wght-italic.css'
-import '@fontsource-variable/archivo' // Cloister — display
-import '@fontsource-variable/source-serif-4' // Cloister — body
-import '@fontsource-variable/source-serif-4/wght-italic.css'
+import '@fontsource-variable/archivo' // Cloister
+import '@fontsource-variable/archivo/wght-italic.css'
 import '@fontsource-variable/crimson-pro' // Sabbath
 import '@fontsource-variable/crimson-pro/wght-italic.css'
 import './styles/global.css'
