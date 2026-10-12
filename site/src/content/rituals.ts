@@ -37,7 +37,7 @@ export type EraId = "ancient" | "6th" | "16th" | "18th" | "today";
 export const intro = {
   eyebrow: "Rituals",
   heading: "When you don't know where to <em>begin.</em>",
-  lead: "Thirteen contemplative forms from the praying church — and a few modern ones beside them. Type <em>/ritual</em>, pick the one that fits the hour, and write into a structure that knows where to start without telling you what to say.",
+  lead: "Fifteen contemplative forms from the praying church — and a few modern ones beside them. Type <em>/ritual</em>, pick the one that fits the hour, and write into a structure that knows where to start without telling you what to say.",
   shotAlt:
     "The Dayspring ritual library on the morning shelf: The Morning Offering, New Every Morning, Luther's Garland, Lectio Divina, SOAP and the Prayer of Recollection, each with its origin and tradition.",
   caption: "The shelf in the morning. It knows the hour, so the rituals to begin the day come first.",
@@ -135,6 +135,22 @@ export const rituals: Ritual[] = [
     era: "today",
   },
   {
+    name: "Discovery Bible Study",
+    origin: "Disciple-making movements, 20th century",
+    tradition: "Missional",
+    quote: "What does it say? What does it show us about God, and about us? What will I do?",
+    rhythm: "morning",
+    era: "today",
+  },
+  {
+    name: "Open Reading",
+    origin: "No framework — a passage, and a page",
+    tradition: "Any",
+    quote: "Read it. Then write whatever comes.",
+    rhythm: "morning",
+    era: "today",
+  },
+  {
     name: "Prayer of Recollection",
     origin: "Teresa of Ávila, 16th century",
     tradition: "Carmelite",
@@ -205,5 +221,5 @@ export const rituals: Ritual[] = [
 // duplicate CTA. Plain text: the footer headline doesn't take markup.
 export const close = {
   heading: "Begin with the one that fits the hour.",
-  sub: "Thirteen forms, one /ritual away.",
+  sub: "Fifteen forms, one /ritual away.",
 };
