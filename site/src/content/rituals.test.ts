@@ -44,10 +44,9 @@ describe("/rituals matches the app's shelf", () => {
     expect(app.length).toBeGreaterThan(10);
   });
 
-  // Every live practice that has reached STABLE. A practice on the alpha shelf
-  // only (Discovery Bible Study and Open Reading, Sept 2026) may wait: the site
-  // is public, and must not offer a ritual beta users can't open yet. Once the
-  // stable manifest carries it, this fails until the page lists it too.
+  // Every live practice that has reached STABLE. The site is public and must
+  // not offer a ritual beta users can't open yet; once the stable manifest
+  // carries it, the page has to list it too.
   it("lists every live practice that has reached stable", () => {
     const stable = onStable();
     expect(stable.size).toBeGreaterThan(10);
