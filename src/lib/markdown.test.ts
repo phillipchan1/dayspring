@@ -131,3 +131,87 @@ describe('renderMarkdown — read as written', () => {
     expect(renderMarkdown('**a** *b*')).toContain('</strong> <em>')
   })
 })
+
+/**
+ * The editor keeps each blank after the title as its own line. CommonMark
+ * drops them as the heading/paragraph separator. `--title-blanks` on the
+ * following block is how the reader puts the same count back, in body em.
+ */
+function titleBodyFlow(md: string, opts?: Parameters<typeof renderMarkdown>[1]): string[] {
+  const root = document.createElement('div')
+  root.innerHTML = renderMarkdown(md, opts)
+  const out: string[] = []
+  for (const el of Array.from(root.children)) {
+    if (el.tagName === 'H1') {
+      out.push(`title:${el.textContent}`)
+    } else if (el.tagName === 'P') {
+      const blanks = Number.parseInt(
+        (el as HTMLElement).style.getPropertyValue('--title-blanks') || '0',
+        10,
+      )
+      for (let i = 0; i < blanks; i++) out.push('blank')
+      out.push(`body:${el.textContent}`)
+    } else {
+      out.push(`${el.tagName.toLowerCase()}:${el.textContent}`)
+    }
+  }
+  return out
+}
+
+describe('renderMarkdown — title + blank line + body positions', () => {
+  it('keeps one blank line after the title', () => {
+    expect(titleBodyFlow('Morning\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'body:The lake was still.',
+    ])
+    expect(titleBodyFlow('# Morning\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('keeps two and three blank lines after the title', () => {
+    expect(titleBodyFlow('Morning\n\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'blank',
+      'body:The lake was still.',
+    ])
+    expect(titleBodyFlow('Morning\n\n\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'blank',
+      'blank',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('treats a whitespace-only line as a blank, the way the editor does', () => {
+    expect(titleBodyFlow('Morning\n   \nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('does not invent a blank line when the body follows the title immediately', () => {
+    expect(titleBodyFlow('Morning\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('still renders a blank line between paragraphs as two body blocks', () => {
+    // Paragraph gaps are already `--block-gap` on each <p>; they must not pick
+    // up the title's extra line, or every page would grow.
+    expect(titleBodyFlow('One paragraph.\n\nAnother.', { asTitle: false })).toEqual([
+      'body:One paragraph.',
+      'body:Another.',
+    ])
+    expect(renderMarkdown('One paragraph.\n\nAnother.', { asTitle: false })).not.toContain(
+      'read-title-blank',
+    )
+  })
+})

@@ -8,6 +8,7 @@ import {
   isNonTitleLine,
   isThematicBreak,
   markdownForDisplay,
+  blankLinesAfterTitle,
 } from './entryMarkdown'
 
 describe('isExplicitHeading', () => {
@@ -97,6 +98,37 @@ describe('markdownForDisplay', () => {
       '```dayspring-scripture 53430d30-3e0c-4d5a-9b1a-000000000000\nBe still.\nPsalm 46:10 · ESV\n```\nresting in that'
     // The block leads; "resting in that" stays body, never an H1.
     expect(markdownForDisplay(body)).toBe(body)
+  })
+})
+
+describe('blankLinesAfterTitle', () => {
+  it('counts 0 when the body follows the title on the next line', () => {
+    expect(blankLinesAfterTitle(markdownForDisplay('Morning\nThe lake was still.'))).toBe(0)
+    expect(blankLinesAfterTitle('# Morning\nThe lake was still.')).toBe(0)
+  })
+
+  it('counts one blank line — auto or explicit title', () => {
+    expect(blankLinesAfterTitle(markdownForDisplay('Morning\n\nThe lake was still.'))).toBe(1)
+    expect(blankLinesAfterTitle('# Morning\n\nThe lake was still.')).toBe(1)
+  })
+
+  it('counts two and three blank lines separately', () => {
+    expect(blankLinesAfterTitle('# Morning\n\n\nThe lake was still.')).toBe(2)
+    expect(blankLinesAfterTitle('# Morning\n\n\n\nThe lake was still.')).toBe(3)
+  })
+
+  it('treats a whitespace-only line as a blank, the way the editor does', () => {
+    expect(blankLinesAfterTitle('# Morning\n   \nThe lake was still.')).toBe(1)
+    expect(blankLinesAfterTitle('# Morning\n \n \nThe lake was still.')).toBe(2)
+  })
+
+  it('does not count a trailing newline as a blank line', () => {
+    expect(blankLinesAfterTitle('# Morning\n')).toBe(0)
+    expect(blankLinesAfterTitle('# Morning')).toBe(0)
+  })
+
+  it('does not treat a section heading as the entry title', () => {
+    expect(blankLinesAfterTitle('## Later\n\nMore')).toBe(0)
   })
 })
 
