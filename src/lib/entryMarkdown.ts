@@ -81,18 +81,30 @@ export function markdownForDisplay(markdown: string, opts: DisplayOptions = {}):
 }
 
 /**
- * True when display markdown opens with an H1 and the next line is blank.
+ * How many blank lines sit between the entry title and the body.
  *
- * CommonMark treats that blank as the heading/paragraph separator and drops
- * it. The editor keeps it as its own line, so the reader has to put it back
- * or the body jumps one line when the page is opened for writing.
+ * CommonMark treats them as the heading/paragraph separator and drops every
+ * one. The editor keeps each as its own line — empty or whitespace-only —
+ * so the reader has to put the same count back or the body jumps when the
+ * page is opened for writing.
  */
-export function titleFollowedByBlankLine(displayMarkdown: string): boolean {
+export function blankLinesAfterTitle(displayMarkdown: string): number {
   const lines = displayMarkdown.split('\n')
   const first = (lines[0] ?? '').trim()
   // An H1 title only — `##` is a section heading, not the entry title.
-  if (!/^#\s/.test(first) || first.startsWith('##')) return false
-  // A real blank line after the title, not the phantom empty string from a
-  // trailing newline (`'Title\n'` → `['Title', '']`).
-  return lines.length > 2 && (lines[1] ?? '').trim() === ''
+  if (!/^#\s/.test(first) || first.startsWith('##')) return 0
+
+  let n = 0
+  let sawBody = false
+  for (let i = 1; i < lines.length; i++) {
+    if ((lines[i] ?? '').trim() !== '') {
+      sawBody = true
+      break
+    }
+    n++
+  }
+  // split() on a trailing newline yields a final empty string that is not a
+  // written line. Only drop it when nothing follows (no body).
+  if (!sawBody && n > 0 && displayMarkdown.endsWith('\n')) n -= 1
+  return n
 }

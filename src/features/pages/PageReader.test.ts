@@ -191,11 +191,12 @@ describe('PageReader', () => {
     renderReader(vi.fn(), [], undefined, true)
     entry.body_markdown = previous
     const body = host!.querySelector<HTMLElement>('.pg-read1__body')!
-    const title = body.querySelector(':scope > h1')!
-    const paragraph = body.querySelector(':scope > p')!
+    const title = body.querySelector<HTMLElement>(':scope > h1')!
+    const paragraph = body.querySelector<HTMLElement>(':scope > p')!
     expect(title.textContent).toBe('Morning')
     expect(title.classList.contains('read-title-blank')).toBe(true)
     expect(paragraph.textContent).toBe('The lake was still.')
+    expect(paragraph.style.getPropertyValue('--title-blanks')).toBe('1')
     expect(title.nextElementSibling).toBe(paragraph)
   })
 })

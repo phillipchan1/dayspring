@@ -133,9 +133,9 @@ describe('renderMarkdown — read as written', () => {
 })
 
 /**
- * The editor keeps a blank line after the title as its own line. CommonMark
- * drops it as the heading/paragraph separator, so the body used to sit one
- * line higher read than written (QA on 1.0.1168: ~34px iPhone, ~41px iPad).
+ * The editor keeps each blank after the title as its own line. CommonMark
+ * drops them as the heading/paragraph separator. `--title-blanks` on the
+ * following block is how the reader puts the same count back, in body em.
  */
 function titleBodyFlow(md: string, opts?: Parameters<typeof renderMarkdown>[1]): string[] {
   const root = document.createElement('div')
@@ -144,8 +144,12 @@ function titleBodyFlow(md: string, opts?: Parameters<typeof renderMarkdown>[1]):
   for (const el of Array.from(root.children)) {
     if (el.tagName === 'H1') {
       out.push(`title:${el.textContent}`)
-      if (el.classList.contains('read-title-blank')) out.push('blank')
     } else if (el.tagName === 'P') {
+      const blanks = Number.parseInt(
+        (el as HTMLElement).style.getPropertyValue('--title-blanks') || '0',
+        10,
+      )
+      for (let i = 0; i < blanks; i++) out.push('blank')
       out.push(`body:${el.textContent}`)
     } else {
       out.push(`${el.tagName.toLowerCase()}:${el.textContent}`)
@@ -155,13 +159,37 @@ function titleBodyFlow(md: string, opts?: Parameters<typeof renderMarkdown>[1]):
 }
 
 describe('renderMarkdown — title + blank line + body positions', () => {
-  it('keeps the blank line after the title so the body sits one line lower', () => {
+  it('keeps one blank line after the title', () => {
     expect(titleBodyFlow('Morning\n\nThe lake was still.')).toEqual([
       'title:Morning',
       'blank',
       'body:The lake was still.',
     ])
     expect(titleBodyFlow('# Morning\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('keeps two and three blank lines after the title', () => {
+    expect(titleBodyFlow('Morning\n\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'blank',
+      'body:The lake was still.',
+    ])
+    expect(titleBodyFlow('Morning\n\n\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'blank',
+      'blank',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('treats a whitespace-only line as a blank, the way the editor does', () => {
+    expect(titleBodyFlow('Morning\n   \nThe lake was still.')).toEqual([
       'title:Morning',
       'blank',
       'body:The lake was still.',

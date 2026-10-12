@@ -1,6 +1,6 @@
 import { marked, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
-import { markdownForDisplay, titleFollowedByBlankLine, type DisplayOptions } from './entryMarkdown'
+import { blankLinesAfterTitle, markdownForDisplay, type DisplayOptions } from './entryMarkdown'
 import { revealRitualsForDisplay } from './ritualDisplay'
 import { revealMarkingsForDisplay } from './markingDisplay'
 import { isHighlightColor, NAMED_COLOR_PATTERN, type HighlightColor } from './highlightColors'
@@ -113,20 +113,28 @@ function dropInterTagNewlines(html: string): string {
 }
 
 /**
- * Mark the opening H1 when the source kept a blank line under the title.
+ * Restore the blank lines CommonMark ate after the title.
  *
- * A title, a blank line, and a body parse to the same `<h1>` + `<p>` as a
- * title with the body on the next line. The class is how the reader puts
- * that blank back (see `.read-title-blank`).
+ * The class on the H1 is the hook; `--title-blanks` lives on the NEXT
+ * element so `1em` is the body's, not the title's (QA: a gap on the H1
+ * was 1.7em of the heading face — 59px on a phone, not one 34px line).
  */
 function markBlankAfterTitle(html: string, prepared: string): string {
-  if (!titleFollowedByBlankLine(prepared)) return html
-  return html.replace(/^<h1(\s[^>]*)?>/, (_full, attrs: string | undefined) => {
-    if (attrs && /\bclass="/.test(attrs)) {
-      return `<h1${attrs.replace(/class="([^"]*)"/, 'class="$1 read-title-blank"')}>`
-    }
-    return `<h1${attrs ?? ''} class="read-title-blank">`
-  })
+  const n = blankLinesAfterTitle(prepared)
+  if (n === 0) return html
+  return html.replace(
+    /^(<h1(\s[^>]*)?>)([\s\S]*?<\/h1>)(<[a-zA-Z][^>]*?)>/,
+    (_full, _open: string, attrs: string | undefined, rest: string, nextOpen: string) => {
+      const h1Open =
+        attrs && /\bclass="/.test(attrs)
+          ? `<h1${attrs.replace(/class="([^"]*)"/, 'class="$1 read-title-blank"')}>`
+          : `<h1${attrs ?? ''} class="read-title-blank">`
+      const next = /\sstyle="/i.test(nextOpen)
+        ? nextOpen.replace(/\sstyle="/i, ` style="--title-blanks:${n};`)
+        : `${nextOpen} style="--title-blanks:${n}"`
+      return `${h1Open}${rest}${next}>`
+    },
+  )
 }
 
 /** Render markdown to sanitized HTML for the read-only reading view. */
@@ -146,7 +154,7 @@ export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
       // nothing today — it's here so a future major that tightens the default
       // can't silently grey out every printed highlight. markdown.test.ts asserts
       // the class survives.
-      ADD_ATTR: ['class'],
+      ADD_ATTR: ['class', 'style'],
     }),
     prepared,
   )
