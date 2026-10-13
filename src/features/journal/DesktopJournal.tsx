@@ -1,4 +1,5 @@
 import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Rail } from './Rail'
 import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
@@ -43,6 +44,8 @@ export function DesktopJournal(props: JournalViewProps) {
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
+  // An iPad without a trackpad. Same test the touch chrome uses (global.css).
+  const touch = useMediaQuery('(pointer: coarse)')
   const activeEntry = entries.find((e) => e.id === activeId)
   const topbarLabel = bulkActive
     ? `${bulkCount} entries selected`
@@ -157,7 +160,18 @@ export function DesktopJournal(props: JournalViewProps) {
         </div>
       </main>
 
-      <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      {/*
+        On an iPad the corner carries Focus, as it does on the phone. The top
+        bar's "Focus" reads as one more word in its status line, and the corner
+        is where a finger already finds the appearance toggle. A pointer keeps
+        the top bar and ⌘⏎.
+      */}
+      <WritingControls
+        settings={settings}
+        update={updateSettings}
+        focus={focus}
+        {...(touch && journalChrome ? { onEnterFocus: focus.enter } : {})}
+      />
     </div>
   )
 }

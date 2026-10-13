@@ -12,13 +12,36 @@ import { Prec, type Extension } from '@codemirror/state'
  * EARLIER wins, so registered after `editorTheme` (as the compartment is) the
  * base `paddingBottom: 40vh` beat `--tw-pad` and the caret on the last lines
  * of an entry — where writing happens — settled below centre.
+ *
+ * **Centre means the centre of what the keyboard leaves.** iOS shrinks the
+ * visual viewport for the on-screen keyboard and leaves the layout viewport,
+ * and so this scroller, alone. The phone's shell follows the visual viewport
+ * down, so there the two agree; the iPad's wide layout does not, and a third to
+ * a half of its scroller sits under the keyboard — in landscape, the "centred"
+ * line landed on the keyboard's top edge. So the covered band is a scroll
+ * margin (CodeMirror centres the caret plus its margins, which puts the caret
+ * mid-way up the visible part), and the padding is measured on the visible
+ * part, with the band added below so the last line can still rise to centre.
  */
 const typewriterTheme = Prec.high(EditorView.theme({
   '.cm-content': {
     paddingTop: 'var(--tw-pad, 0px)',
-    paddingBottom: 'var(--tw-pad, 0px)',
+    paddingBottom: 'var(--tw-pad-bottom, var(--tw-pad, 0px))',
   },
 }))
+
+/** How much of the scroller's foot the on-screen keyboard covers, in px. */
+function keyboardBand(view: EditorView): number {
+  const vv = window.visualViewport
+  if (!vv) return 0
+  const bottom = view.scrollDOM.getBoundingClientRect().bottom
+  return Math.max(0, Math.round(bottom - (vv.offsetTop + vv.height)))
+}
+
+const clearOfKeyboard = EditorView.scrollMargins.of((view) => {
+  const bottom = keyboardBand(view)
+  return bottom > 0 ? { bottom } : null
+})
 
 const keepCentered = ViewPlugin.fromClass(
   class {
@@ -26,6 +49,9 @@ const keepCentered = ViewPlugin.fromClass(
     private padFrame = 0
     private pressed = false
     private dom: HTMLElement | null = null
+    private view: EditorView
+    /** The keyboard's band as the padding last measured it. */
+    private band = 0
     // Only the primary button presses. A right-click opens WebKit's native
     // context menu, which swallows the release — counted as a press, it left
     // `pressed` true and typewriter silently off for the rest of the session.
@@ -33,6 +59,7 @@ const keepCentered = ViewPlugin.fromClass(
     private onPointerRelease = () => { this.pressed = false }
 
     constructor(view: EditorView) {
+      this.view = view
       this.syncPadding(view)
       this.schedule(view)
       if (view.scrollDOM.clientHeight === 0) {
@@ -53,6 +80,17 @@ const keepCentered = ViewPlugin.fromClass(
       window.addEventListener('pointerup', this.onPointerRelease)
       window.addEventListener('pointercancel', this.onPointerRelease)
       window.addEventListener('blur', this.onPointerRelease)
+      // The keyboard rising or falling changes no geometry CodeMirror sees, so
+      // it would sit out of centre until the next keystroke. Only a change in
+      // the band counts: a desktop window resizing is geometry, handled below.
+      window.visualViewport?.addEventListener('resize', this.onViewport)
+    }
+
+    private onViewport = () => {
+      const view = this.view
+      if (keyboardBand(view) === this.band) return
+      this.syncPadding(view)
+      if (view.state.selection.main.empty && !this.pressed) this.schedule(view)
     }
 
     update(update: ViewUpdate) {
@@ -80,10 +118,13 @@ const keepCentered = ViewPlugin.fromClass(
     private syncPadding(view: EditorView): boolean {
       const h = view.scrollDOM.clientHeight
       if (h <= 0) return false
-      const next = `${Math.round(h * 0.45)}px`
-      const current = view.dom.style.getPropertyValue('--tw-pad')
-      if (current === next) return true
-      view.dom.style.setProperty('--tw-pad', next)
+      this.band = Math.min(keyboardBand(view), h)
+      const pad = Math.round((h - this.band) * 0.45)
+      const top = `${pad}px`
+      const bottom = `${pad + this.band}px`
+      const style = view.dom.style
+      if (style.getPropertyValue('--tw-pad') !== top) style.setProperty('--tw-pad', top)
+      if (style.getPropertyValue('--tw-pad-bottom') !== bottom) style.setProperty('--tw-pad-bottom', bottom)
       return true
     }
 
@@ -111,6 +152,7 @@ const keepCentered = ViewPlugin.fromClass(
       window.removeEventListener('pointerup', this.onPointerRelease)
       window.removeEventListener('pointercancel', this.onPointerRelease)
       window.removeEventListener('blur', this.onPointerRelease)
+      window.visualViewport?.removeEventListener('resize', this.onViewport)
     }
   },
 )
@@ -123,4 +165,4 @@ const keepCentered = ViewPlugin.fromClass(
  */
 const typewriterMarker = EditorView.editorAttributes.of({ class: 'cm-typewriter' })
 
-export const typewriterExtension: Extension = [typewriterTheme, typewriterMarker, keepCentered]
+export const typewriterExtension: Extension = [typewriterTheme, typewriterMarker, keepCentered, clearOfKeyboard]
