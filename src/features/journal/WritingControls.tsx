@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import type { Settings } from '@/lib/settings'
 import type { FocusMode } from './useFocusMode'
@@ -8,8 +8,9 @@ interface Props {
   settings: Settings
   update: (patch: Partial<Settings>) => void
   focus: FocusMode
-  /** When set (mobile), offer a way into focus mode from this floating cluster.
-   *  Desktop enters focus from its top bar, so it leaves this undefined. */
+  /** When set (touch: the phone, and an iPad without a trackpad), offer a way
+   *  into focus mode from this floating cluster. A pointer enters focus from
+   *  the top bar (or ⌘⏎), so the Mac and the web leave this undefined. */
   onEnterFocus?: (() => void) | undefined
 }
 
@@ -24,6 +25,11 @@ interface Props {
  * kinds. Nothing here is in the editor's render or input path, so expanding
  * costs the writing nothing.
  *
+ * **A finger is not a hover.** A tap sends the whole hover sequence at once —
+ * enter, down, up, LEAVE, then click — so with hover driving it, every tap on
+ * `typewriter` or `dim` closed the cluster before its click landed: the click
+ * fell through the folded pill and the toggle never flipped. Touch opens and
+ * closes it with the handle, or with a tap anywhere else.
  */
 export function WritingControls({
   settings,
@@ -33,17 +39,39 @@ export function WritingControls({
 }: Props) {
   const docked = !focus.active
   const [expanded, setExpanded] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   // Only focus mode collapses. Docked, the cluster is already one or two icons
   // in a corner nobody is writing near, and hiding those would be fussier than
   // showing them.
   const collapsed = !docked && !expanded
 
+  // Every focus session starts folded, however the last one was left.
+  useEffect(() => {
+    if (docked) setExpanded(false)
+  }, [docked])
+
+  // Open, a press anywhere else folds it — the page, mostly, going back to the
+  // words. Hover already does this for a pointer; this is the finger's version.
+  useEffect(() => {
+    if (!expanded) return
+    const onDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node | null)) setExpanded(false)
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    return () => window.removeEventListener('pointerdown', onDown, true)
+  }, [expanded])
+
   return (
     <div
+      ref={rootRef}
       className={`focus-controls${docked ? ' focus-controls--docked' : ''}`}
       data-collapsed={collapsed}
-      onPointerEnter={() => setExpanded(true)}
-      onPointerLeave={() => setExpanded(false)}
+      onPointerEnter={(e) => {
+        if (e.pointerType !== 'touch') setExpanded(true)
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType !== 'touch') setExpanded(false)
+      }}
       onFocusCapture={() => setExpanded(true)}
       onBlurCapture={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setExpanded(false)
