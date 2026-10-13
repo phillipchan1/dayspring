@@ -44,6 +44,19 @@ export const editorTheme = EditorView.theme({
      * `.pg-read1__slide` makes in Pages.css, for the same reason.
      */
     touchAction: 'pan-y',
+    /*
+     * No scrollbar on the writing surface. The scroll-past-end room below
+     * (`.cm-content`'s 40vh) plus the page's top padding make even a
+     * three-paragraph entry a few pixels taller than the window, so a Mac set
+     * to show scroll bars always (or with a mouse plugged in) drew a full-height
+     * bar down the right edge of every page, the appearance toggle sitting on
+     * its foot. That's chrome on the page for nothing. Wheel, trackpad and keys
+     * all still scroll, and the caret is always kept in view.
+     */
+    scrollbarWidth: 'none',
+  },
+  '.cm-scroller::-webkit-scrollbar': {
+    display: 'none',
   },
   '.cm-content': {
     caretColor: 'var(--accent)',
