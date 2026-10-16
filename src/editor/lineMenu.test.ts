@@ -1,6 +1,33 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { plusRect } from './lineMenu'
+import { createMoveGate, plusRect } from './lineMenu'
+
+describe('createMoveGate', () => {
+  it('treats the first position as an anchor, not a move', () => {
+    expect(createMoveGate().moved(300, 200)).toBe(false)
+  })
+
+  it('ignores a synthetic move at the resting spot and trackpad drift', () => {
+    const gate = createMoveGate(10)
+    gate.moved(300, 200)
+    expect(gate.moved(300, 200)).toBe(false)
+    expect(gate.moved(302, 201)).toBe(false)
+    expect(gate.moved(297, 204)).toBe(false)
+  })
+
+  it('counts a real reach for the mouse', () => {
+    const gate = createMoveGate(10)
+    gate.moved(300, 200)
+    expect(gate.moved(300, 211)).toBe(true)
+  })
+
+  it('starts over after reset', () => {
+    const gate = createMoveGate(10)
+    gate.moved(0, 0)
+    gate.reset()
+    expect(gate.moved(500, 500)).toBe(false)
+  })
+})
 
 /** A line with a known box and leading. jsdom does no layout, so both are stated. */
 function line(box: { left: number; top: number; height: number }, style: Partial<CSSStyleDeclaration>) {

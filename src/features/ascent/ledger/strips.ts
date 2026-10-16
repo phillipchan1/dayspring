@@ -57,16 +57,20 @@ export function weekLabel(day: string): string {
   return from.slice(5, 7) === to.slice(5, 7) ? `${shortDate(from)} – ${+to.slice(8, 10)}` : `${shortDate(from)} – ${shortDate(to)}`
 }
 
-export function weekStrip(today: string): Strip {
-  const from = weekStart(today)
+/** The week containing `day` (default: this one), seen from `today`. */
+export function weekStrip(today: string, day: string = today): Strip {
+  const from = weekStart(day)
   const days = Array.from({ length: 7 }, (_, i) => addDays(from, i))
-  const nowIx = days.indexOf(today)
   const sunday = days[6]!
+  const nowIx = today > sunday ? 7 : today < from ? -1 : days.indexOf(today)
   return {
     cells: days.map((d, i) => ({ key: d, label: WEEKDAY_SHORT[i]! })),
     nowIx,
     nowFill: 0.5,
-    note: `It’s ${WEEKDAY_LONG[nowIx]}. This week is still being written — it closes Sunday, ${shortDate(sunday)}.`,
+    note:
+      nowIx >= 7
+        ? `The week of ${weekLabel(from)} closed on Sunday, ${shortDate(sunday)}.`
+        : `It’s ${WEEKDAY_LONG[nowIx]}. This week is still being written — it closes Sunday, ${shortDate(sunday)}.`,
   }
 }
 

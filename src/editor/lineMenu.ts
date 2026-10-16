@@ -253,34 +253,87 @@ export function hitPlus(
   return inside ? { el, pos: line.from } : null
 }
 
+/** How far the pointer must travel, in px, before it counts as aimed at something. */
+const MOVE_INTENT_PX = 10
+
 /**
- * Mark the content as "being typed into", and unmark it on the next real
- * pointer movement.
+ * Tells a pointer that was *moved* from one that merely *reported in*.
  *
- * Cheap on purpose: a class toggle on one element, set from an update that has
- * already happened and cleared from a listener that removes itself the moment
- * it fires. Nothing measures, nothing runs per frame, and no keystroke waits on
+ * The first position seen is the anchor, and nothing counts until the pointer
+ * is `threshold` away from it. That one rule swallows both ways the old "any
+ * `pointermove` at all" test gave the `+` back to a mouse nobody was touching:
+ * the browser's own synthetic move after a layout change (typing reflows the
+ * page under a resting pointer, and the engine re-asks which element is
+ * hovered) reports the *same* spot as the anchor, and trackpad drift is a pixel
+ * or two. A hand reaching for a line travels far further than 10px.
+ */
+export function createMoveGate(threshold = MOVE_INTENT_PX) {
+  let anchor: { x: number; y: number } | null = null
+  return {
+    reset() {
+      anchor = null
+    },
+    moved(x: number, y: number): boolean {
+      if (!anchor) {
+        anchor = { x, y }
+        return false
+      }
+      return Math.hypot(x - anchor.x, y - anchor.y) >= threshold
+    },
+  }
+}
+
+/** Keys that do not mean "I am writing" — they are chorded with the mouse as often as not. */
+const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Fn'])
+
+/**
+ * Mark the content as "being typed into", and unmark it only when the pointer
+ * is deliberately moved (or pressed).
+ *
+ * Typing is a key press or a change to the document, so arrowing through your
+ * own text counts as much as typing in it: the caret's `+` is the one that
+ * should show, whatever line the mouse was left over.
+ *
+ * Cheap on purpose: a class toggle on one element, set from an event that has
+ * already happened and cleared from listeners that remove themselves the moment
+ * they fire. Nothing measures, nothing runs per frame, and no keystroke waits on
  * it — Principle 3 is a hard constraint on this surface.
  */
 function typingPlugin() {
   return ViewPlugin.define((view: EditorView) => {
     let typing = false
-    const stop = () => {
+    const gate = createMoveGate()
+    const onMove = (e: PointerEvent) => {
+      if (gate.moved(e.clientX, e.clientY)) stop()
+    }
+    function stop() {
       if (!typing) return
       typing = false
       view.contentDOM.classList.remove('cm-typing')
-      window.removeEventListener('pointermove', stop)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerdown', stop, true)
     }
+    const begin = () => {
+      if (typing) return
+      typing = true
+      gate.reset()
+      view.contentDOM.classList.add('cm-typing')
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerdown', stop, true)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (!MODIFIER_KEYS.has(e.key)) begin()
+    }
+    view.contentDOM.addEventListener('keydown', onKey)
     return {
       update(update: ViewUpdate) {
-        if (!update.docChanged) return
-        if (!typing) {
-          typing = true
-          view.contentDOM.classList.add('cm-typing')
-          window.addEventListener('pointermove', stop)
-        }
+        // Dictation, IME and paste change the document without a plain keydown.
+        if (update.docChanged) begin()
       },
-      destroy: stop,
+      destroy() {
+        view.contentDOM.removeEventListener('keydown', onKey)
+        stop()
+      },
     }
   })
 }

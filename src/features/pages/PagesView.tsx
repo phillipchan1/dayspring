@@ -38,6 +38,9 @@ import { LitChips, type LookChip } from './LitChips'
 import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
 import { Stretch, StretchPeriods } from './Stretch'
+import { PAGES_SPANS, maxOffsetFor, stepTo, whenOf } from './pagesWhen'
+import { WhenControl } from '@/components/WhenControl'
+import type { Grain, Span as Period } from '@/lib/period'
 import { inSpan, monthsAcross, spanBounds, spanText, type Span } from './band'
 import { localNoonIso } from './wallItems'
 import { PageReader, type ReaderArrival } from './PageReader'
@@ -613,6 +616,41 @@ export function PagesView({
     const to = at(v.to)
     return from >= 0 && to >= 0 ? { from, to } : null
   }, [openVolume, volumes, months])
+
+  /*
+   * The room's When, read off the band's bracket (`pagesWhen.ts`): the same
+   * control in the same place as on the Ascent, the Lamp and the Altar. It
+   * names a bracket a calendar would and steps through them; a dragged bracket
+   * shows as its months with no grain lit.
+   */
+  const shownSpan = openVolume !== null ? (volumeSpan ?? span) : span
+  const when = useMemo(() => whenOf(shownSpan, months), [shownSpan, months])
+  const onWhenSpan = (next: Period) => {
+    if (next === 'all') return onStretchSpan(null)
+    const hit = stepTo(next, months, 0, 1)
+    if (hit) onStretchSpan(hit.span)
+  }
+  const onWhenOffset = (next: number) => {
+    if (!when.span || when.span === 'all') return
+    const hit = stepTo(when.span, months, next, next > when.offset ? 1 : -1)
+    if (hit) onStretchSpan(hit.span)
+  }
+  const archiveLabel =
+    months.length > 0 ? `${months[0]!.year} – ${months[months.length - 1]!.year}` : 'All time'
+  const whenControl = (layout: 'bar' | 'row') =>
+    months.length < 2 ? null : (
+      <WhenControl
+        spans={PAGES_SPANS}
+        span={when.span}
+        offset={when.offset}
+        onSpan={onWhenSpan}
+        onOffset={onWhenOffset}
+        maxOffset={(g: Grain) => maxOffsetFor(g, months)}
+        label={shownSpan ? spanText(shownSpan, months) : archiveLabel}
+        layout={layout}
+        keys={layout === 'bar'}
+      />
+    )
   // The shelf holds the volumes that overlap the dates you bracketed.
   const shelfVolumes = useMemo(() => {
     const w = subjectWindow
@@ -1354,8 +1392,13 @@ export function PagesView({
                 </svg>
               </button>
             ) : null}
+            {/* WHEN — the last thing in the row, where every room keeps it. */}
+            {narrow ? null : <div className="pg-when">{whenControl('bar')}</div>}
           </div>
           )}
+
+          {/* On a phone the When is a row of its own, above the band it brackets. */}
+          {narrow && !openPage ? <div className="pg-when pg-when--row">{whenControl('row')}</div> : null}
 
           {/*
             The stretch — the archive's months, and a way to bracket them.

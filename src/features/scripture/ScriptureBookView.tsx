@@ -104,6 +104,9 @@ export function ScriptureBookView({
   const [widenedFor, setWidenedFor] = useState<string | null>(null)
   const widened = widenedFor !== null && widenedFor === bookOsis
   const scoped = Boolean(seasonWindow.from || seasonWindow.to)
+  // "this year" reads in a sentence; a stepped-back "Summer 2026" or
+  // "October 2026" keeps its capitals.
+  const said = /^This /.test(seasonLabel) ? seasonLabel.toLowerCase() : seasonLabel
   const activeWindow: DateWindow = widened ? {} : seasonWindow
   const windowKey = windowCacheKey(activeWindow)
 
@@ -220,13 +223,13 @@ export function ScriptureBookView({
 
               {scoped && (
                 <div className="scripture-book__scope">
-                  <span>{widened ? 'All time' : `Showing ${seasonLabel.toLowerCase()}`}</span>
+                  <span>{widened ? 'All time' : `Showing ${said}`}</span>
                   <button
                     type="button"
                     className="scripture-book__clear"
                     onClick={() => setWidenedFor(widened ? null : bookOsis)}
                   >
-                    {widened ? `back to ${seasonLabel.toLowerCase()}` : 'see all time'}
+                    {widened ? `back to ${said}` : 'see all time'}
                   </button>
                 </div>
               )}
@@ -236,7 +239,7 @@ export function ScriptureBookView({
               ) : summary!.distinctEntries === 0 ? (
                 <p className="scripture-book__loading">
                   {scoped && !widened
-                    ? `Nothing from ${book.name} in ${seasonLabel.toLowerCase()} — it may still be lit further back.`
+                    ? `Nothing from ${book.name} in ${said} — it may still be lit further back.`
                     : `When you write near ${book.name}, it will begin to light here.`}
                 </p>
               ) : (

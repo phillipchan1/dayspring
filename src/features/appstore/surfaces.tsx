@@ -98,11 +98,11 @@ export function renderSurface(shot: Shot) {
       // The same climb, framed twice: 02 from the top (the mountain, the year
       // strip), 05 cropped down to the first thread. The surface's own head
       // stays in — "Looking back down the year." says what the mountain is.
-      // The ascend / descend pair is sticky to the foot of a phone screen —
-      // chrome, like the tab bar, and in a card it sits on the year's lines.
+      // The When under the title is the room's control — chrome, like the tab
+      // bar, and in a card it sits between the head and the year's lines.
       return (
         <Canvas>
-          <style>{'.ascent-ctrl { display: none; }'}</style>
+          <style>{'.room-head__when { display: none; }'}</style>
           <YearClimb />
         </Canvas>
       )

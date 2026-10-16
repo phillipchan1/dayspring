@@ -11,10 +11,18 @@
  *
  * 1. **Calendar, never trailing.** A trailing window cannot be named, shared or
  *    nested — nobody remembers what happened in "the last 91 days". Calendar
- *    periods nest exactly (52 weeks inside 12 months inside 4 seasons inside a
- *    year), which is the only reason a stone laid in March has an unambiguous
- *    place on the year's trail, and the only reason the yearly rollup can be
- *    composed from the year's monthlies.
+ *    periods nest (weeks inside months inside seasons), which is the only reason
+ *    a stone laid in March has an unambiguous place on the year's trail, and the
+ *    only reason the yearly rollup can be composed from the year's monthlies.
+ *
+ *    A season is a NAMED season — winter, spring, summer, fall — the way the
+ *    Ascent's told-back climb already said them (`ascent/ledger/seasons.ts`).
+ *    It used to be a calendar quarter here, so on October 10 the Altar's
+ *    "season" ran Oct–Dec while the Ascent's "Fall 2026" ran Sep–Nov: one word,
+ *    two spans, again. Nobody lives in Q4; they live in the fall. The one cost
+ *    is that winter straddles New Year, so a season does not always sit inside
+ *    one year. The rollup engine's quarter is a different thing and keeps its
+ *    own window (`quarterWindow`).
  *
  * 2. **UTC day boundaries.** The rollup engine already stores periods as UTC
  *    `date` strings (`api/_lib/dates.ts`), so the surfaces match it rather than
@@ -61,9 +69,24 @@ export function mondayOf(d: Date): Date {
   return new Date(dayStart(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).getTime() - back * DAY_MS)
 }
 
-/** 0–3. A season is a calendar quarter; "season" is what we call it out loud. */
+/** 0–3, the calendar quarter a month falls in — the rollup engine's tier, not a season. */
 export function seasonIndex(monthIndex: number): number {
   return Math.floor(monthIndex / 3)
+}
+
+/** The calendar quarter containing `now` — what the quarterly rollup is built on. */
+export function quarterWindow(now: Date = new Date()): Required<PeriodWindow> {
+  const y = now.getUTCFullYear()
+  const q = seasonIndex(now.getUTCMonth())
+  return { from: dayStart(y, q * 3, 1), to: dayEnd(y, q * 3 + 3, 0) }
+}
+
+/** The month index (−1 = the December before) a named season starts on:
+ *  Dec–Feb, Mar–May, Jun–Aug, Sep–Nov. */
+function seasonStart(monthIndex: number): number {
+  if (monthIndex === 11) return 11
+  if (monthIndex <= 1) return -1
+  return Math.floor((monthIndex - 2) / 3) * 3 + 2
 }
 
 /** The calendar window for a grain, containing `now`. */
@@ -83,12 +106,41 @@ export function grainWindow(grain: Grain, now: Date = new Date()): Required<Peri
     case 'month':
       return { from: dayStart(y, m, 1), to: dayEnd(y, m + 1, 0) }
     case 'season': {
-      const q = seasonIndex(m)
-      return { from: dayStart(y, q * 3, 1), to: dayEnd(y, q * 3 + 3, 0) }
+      const start = seasonStart(m)
+      return { from: dayStart(y, start, 1), to: dayEnd(y, start + 3, 0) }
     }
     case 'year':
       return { from: dayStart(y, 0, 1), to: dayEnd(y, 11, 31) }
   }
+}
+
+/**
+ * A grain's window, `offset` periods back from the one containing `now` — the
+ * stepper's ‹. Offset 0 is the current period; 1 is last week, last month, last
+ * season, last year.
+ */
+export function periodWindow(grain: Grain, offset = 0, now: Date = new Date()): Required<PeriodWindow> {
+  const back = Math.max(0, Math.floor(offset))
+  if (back === 0) return grainWindow(grain, now)
+  const current = grainWindow(grain, now)
+  const y = current.from.getUTCFullYear()
+  const m = current.from.getUTCMonth()
+  switch (grain) {
+    case 'week':
+      return grainWindow('week', new Date(current.from.getTime() - back * 7 * DAY_MS))
+    case 'month':
+      return grainWindow('month', dayStart(y, m - back, 1))
+    case 'season':
+      return grainWindow('season', dayStart(y, m - back * 3, 1))
+    case 'year':
+      return grainWindow('year', dayStart(y - back, 0, 1))
+  }
+}
+
+/** Any span's window at an offset. `all` is unbounded and has no offsets. */
+export function spanWindowAt(span: Span, offset = 0, now: Date = new Date()): PeriodWindow {
+  if (span === 'all') return {}
+  return periodWindow(span, offset, now)
 }
 
 /** The window for any span. `all` is unbounded. */
@@ -124,25 +176,57 @@ function dayLabel(d: Date): string {
   return `${MONTHS_SHORT[d.getUTCMonth()]} ${d.getUTCDate()}`
 }
 
+const SEASON_NAMES: Record<number, string> = { 11: 'Winter', 2: 'Spring', 5: 'Summer', 8: 'Fall' }
+
 /**
- * How a period says its own name. Long enough to be unambiguous when it is the
- * only thing on screen, because these labels travel between surfaces — a reader
- * who picked "season" on the Altar and crossed to the Lamp needs to see the same
- * months named there.
+ * How a period says its own name, the way a calendar would: "Oct 5 – 11",
+ * "October 2026", "Fall 2026", "Winter 2025–26", "2026". Long enough to be
+ * unambiguous when it is the only thing on screen, because these labels travel
+ * between surfaces — a reader who picked a season on the Altar and crossed to
+ * the Lamp needs to see the same months named there.
  */
-export function grainLabel(grain: Grain, now: Date = new Date()): string {
-  const w = grainWindow(grain, now)
+export function periodName(grain: Grain, offset = 0, now: Date = new Date()): string {
+  const w = periodWindow(grain, offset, now)
   const y = w.from.getUTCFullYear()
   switch (grain) {
-    case 'week':
-      return `${dayLabel(w.from)} – ${dayLabel(w.to)}`
+    case 'week': {
+      const sameMonth = w.from.getUTCMonth() === w.to.getUTCMonth()
+      const end = sameMonth ? String(w.to.getUTCDate()) : dayLabel(w.to)
+      // A week from another year says so; one that only reaches back over New
+      // Year ("Dec 29 – Jan 4") is clear from the months alone.
+      const year = w.to.getUTCFullYear() === now.getUTCFullYear() ? '' : `, ${w.from.getUTCFullYear()}`
+      return `${dayLabel(w.from)} – ${end}${year}`
+    }
     case 'month':
       return `${MONTHS_LONG[w.from.getUTCMonth()]} ${y}`
-    case 'season':
-      return `${MONTHS_SHORT[w.from.getUTCMonth()]} – ${MONTHS_SHORT[w.to.getUTCMonth()]} ${y}`
+    case 'season': {
+      const name = SEASON_NAMES[w.from.getUTCMonth()]!
+      return name === 'Winter' ? `${name} ${y}–${String(y + 1).slice(2)}` : `${name} ${y}`
+    }
     case 'year':
       return String(y)
   }
+}
+
+/** The current period's name. Kept for callers that only ever mean "this one". */
+export function grainLabel(grain: Grain, now: Date = new Date()): string {
+  return periodName(grain, 0, now)
+}
+
+const GRAIN_WORD: Record<Grain, string> = { week: 'week', month: 'month', season: 'season', year: 'year' }
+
+/**
+ * The line above a room's title: which period the room is lit for, in words.
+ * "This season · Fall 2026" for the current one, "Season · Summer 2026" for one
+ * stepped back to, "All time" for everything. Sentence case — the eyebrow's own
+ * CSS sets it in capitals.
+ */
+export function periodEyebrow(span: Span, offset = 0, now: Date = new Date()): string {
+  if (span === 'all') return 'All time'
+  const name = periodName(span, offset, now)
+  if (offset <= 0) return `This ${GRAIN_WORD[span]} · ${name}`
+  const word = GRAIN_WORD[span]
+  return `${word[0]!.toUpperCase()}${word.slice(1)} · ${name}`
 }
 
 /** The short word a picker shows. Spans say what they are. */
@@ -170,6 +254,21 @@ function parse(value: string | null): Span | null {
   return VALID.includes(value as Span) ? (value as Span) : null
 }
 
+/*
+ * How far back the reader has stepped, carried for this session only.
+ *
+ * Step back to last summer on the Altar, cross to the Lamp, and you are still
+ * in last summer — the same promise the grain makes. But it is never written to
+ * storage: opening the app next week should open on the present, not on a
+ * summer you stopped looking at days ago.
+ */
+let carriedOffset = 0
+
+/** The offset carried with the period this session (0 = the current one). */
+export function readCarriedOffset(): number {
+  return carriedOffset
+}
+
 /** The carried period, or `fallback` when nothing has been picked (or storage
  *  is unavailable — a private window, blocked site data, a preview harness). */
 export function readCarriedPeriod(fallback: Span = 'year'): Span {
@@ -182,20 +281,21 @@ export function readCarriedPeriod(fallback: Span = 'year'): Span {
 
 /** Carry a period to the other surfaces. Broadcasts in-tab (the `storage` event
  *  only fires in OTHER tabs, which is exactly the case we don't have). */
-export function carryPeriod(span: Span): void {
+export function carryPeriod(span: Span, offset = 0): void {
   try {
     localStorage.setItem(STORAGE_KEY, span)
   } catch {
     // A viewing preference is never worth failing a render over.
   }
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: span }))
+  carriedOffset = span === 'all' ? 0 : Math.max(0, Math.floor(offset))
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { span, offset: carriedOffset } }))
 }
 
 /** Subscribe to the carried period. Returns the unsubscribe. */
-export function onCarriedPeriod(fn: (span: Span) => void): () => void {
+export function onCarriedPeriod(fn: (span: Span, offset: number) => void): () => void {
   const handler = (e: Event) => {
-    const span = (e as CustomEvent<Span>).detail
-    if (span && VALID.includes(span)) fn(span)
+    const detail = (e as CustomEvent<{ span: Span; offset: number }>).detail
+    if (detail && VALID.includes(detail.span)) fn(detail.span, detail.offset ?? 0)
   }
   window.addEventListener(EVENT, handler)
   return () => window.removeEventListener(EVENT, handler)

@@ -13,6 +13,13 @@ describe('where we stand', () => {
     expect(weekStrip('2026-09-27').nowIx).toBe(6) // Sunday is the week's last day
   })
 
+  it('lays out a past week as closed, from the day it is read', () => {
+    const past = weekStrip('2026-09-23', '2026-09-10')
+    expect(past.cells[0]!.key).toBe('2026-09-07')
+    expect(past.nowIx).toBe(7)
+    expect(past.note).toBe('The week of Sep 7 – 13 closed on Sunday, Sep 13.')
+  })
+
   it('marks the day of the month, and a past month as closed', () => {
     const open = monthStrip('2026-09', '2026-09-21')
     expect(open.cells).toHaveLength(30)

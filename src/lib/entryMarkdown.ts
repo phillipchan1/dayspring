@@ -79,3 +79,32 @@ export function markdownForDisplay(markdown: string, opts: DisplayOptions = {}):
 
   return lines.map((line) => (isTaskLine(line) ? normalizeTaskLineForDisplay(line) : line)).join('\n')
 }
+
+/**
+ * How many blank lines sit between the entry title and the body.
+ *
+ * CommonMark treats them as the heading/paragraph separator and drops every
+ * one. The editor keeps each as its own line — empty or whitespace-only —
+ * so the reader has to put the same count back or the body jumps when the
+ * page is opened for writing.
+ */
+export function blankLinesAfterTitle(displayMarkdown: string): number {
+  const lines = displayMarkdown.split('\n')
+  const first = (lines[0] ?? '').trim()
+  // An H1 title only — `##` is a section heading, not the entry title.
+  if (!/^#\s/.test(first) || first.startsWith('##')) return 0
+
+  let n = 0
+  let sawBody = false
+  for (let i = 1; i < lines.length; i++) {
+    if ((lines[i] ?? '').trim() !== '') {
+      sawBody = true
+      break
+    }
+    n++
+  }
+  // split() on a trailing newline yields a final empty string that is not a
+  // written line. Only drop it when nothing follows (no body).
+  if (!sawBody && n > 0 && displayMarkdown.endsWith('\n')) n -= 1
+  return n
+}

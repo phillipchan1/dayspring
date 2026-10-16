@@ -23,6 +23,45 @@ agenda.
 
 ---
 
+## D-035 — One frame, four lights: every room shares its edge, its bar and its When
+**2026-10-10** · **Status:** Decided (Phil)
+
+**Decision:** Pages, the Ascent, the Lamp and the Altar share one structure and keep
+their own light. **Shared:** every room hangs from the bar's left edge and fills the
+frame (`.room-frame`, the `--frame-*` edges Pages and the editor already use); every
+room's controls live in its bar as **what · how · when** (`SurfaceBar`): what you are
+looking for on the left (the Altar's prayer / sense), how you are looking in the centre
+(Subjects · Over time, Pages · Volumes), and **the When** at the right end — one control,
+`‹ period ›  Week · Month · Season · Year · All`, smallest to largest, All last, a grain a
+room cannot show left out rather than greyed (`WhenControl`). Every Return room opens on
+the same masthead — an eyebrow naming the period in calendar words, a Fraunces title,
+one dim line, and the gold **light line** saying one true thing about the period, or
+nothing (`RoomHead`). One pill for every choice, wearing the rail's chosen tile. On a
+phone the bar folds into the room in the same order, the When always the first row
+under the title. **Kept local:** each room's atmosphere and picture — the Altar's warmth
+from below, the Lamp's one pool, the Ascent's sky and mountain, Pages' paper and band.
+**Two consequences:** a "season" is now a **named** season everywhere (Fall 2026 =
+Sep–Nov), where the Altar, Lamp and Pages counted a calendar quarter and the Ascent did
+not; and the When's ‹ › lets the Lamp and the Altar look at a past season, not only this
+one. The period picked carries between rooms as before; how far back you stepped
+carries for the session only.
+**Why:** The bar was unified in September and everything under it was still each room's
+own. At 1440px the rooms began at four different x positions (104, 228, 320, 358) under
+one bar label; the time was chosen in eight places across four rooms (the Ascent alone
+had five: a rail, its foot, month pills, year tabs, and a row at the bottom); titles came
+in three weights and two slants; "season" meant two spans. A reader crossing rooms had
+to re-learn where time lived each time. The rooms' distinctness was never in those
+differences — it is in their light, which this keeps.
+**What would change our mind:** A room whose picture genuinely needs a narrower measure
+to be read (the Altar's strands read worse at frame width in a reading test), or readers
+who miss the Ascent's rail as the thing that made it feel like a climb — then the rail
+comes back as the room's *picture*, never as a second control.
+**Cost accepted:** The Ascent loses its vertical climb rail, the most physical control in
+the app. Winter straddles New Year, so a season no longer always sits inside one year.
+Prototypes and the audit: the "One frame, four lights" canvas (Oct 2026).
+
+---
+
 ## D-034 — A photo shows in the list as a print in its own colour, never as our glyph
 **2026-10-03** · **Status:** Decided (Phil)
 

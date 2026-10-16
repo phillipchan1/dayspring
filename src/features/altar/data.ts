@@ -127,8 +127,13 @@ export interface AltarSource {
  * returned to them over time"), and the recurrence/span language assumes ≥2
  * moments. Pass windowStartMs = -Infinity for the all-time field.
  */
-export function buildAltarStrands(src: AltarSource, windowStartMs: number): AltarStrand[] {
-  const bands = buildBands(src.rawThreads, [], src.rawMembers, 4, Date.now(), windowStartMs)
+export function buildAltarStrands(
+  src: AltarSource,
+  windowStartMs: number,
+  /** The window's far edge — a past period ends before today. Defaults to now. */
+  windowEndMs: number = Date.now(),
+): AltarStrand[] {
+  const bands = buildBands(src.rawThreads, [], src.rawMembers, 4, windowEndMs, windowStartMs)
   return bands
     .filter((b) => b.heft >= 2)
     .map((b): AltarStrand => {

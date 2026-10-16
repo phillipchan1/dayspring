@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { Entry } from '@/lib/types'
 import { bandFor, cellLabel, spanFrom, spanText, type Span } from './band'
-import { grainWindow, spanLabel, type Grain } from '@/lib/period'
 import { eraLabel, erasFrom } from './eras'
 
 /**
@@ -31,31 +30,12 @@ import { eraLabel, erasFrom } from './eras'
  * life, and a thin month in it would read as a failure rather than as a busy
  * fortnight at work.
  */
-/**
- * The spans worth one press — the shared calendar's grains (`src/lib/period.ts`),
- * so "month", "season" and "year" bracket the same days here as on the Altar, the
- * Lamp and the Ascent. No "week": the band's cells are months, and a bracket the
- * timeline cannot show would filter pages the reader cannot see selected.
+/*
+ * The calendar's brackets — month, season, year — are not pressed here any
+ * more. They are the room's When, at the right end of the bar where every room
+ * keeps it (`pagesWhen.ts`), and set the same bracket a drag sets; the band
+ * lights to match whichever is chosen there.
  */
-const PRESET_GRAINS: Grain[] = ['month', 'season', 'year']
-
-/** The band cells a calendar grain covers, or null when the archive has none there. */
-function grainSpan(grain: Grain, months: { year: number; month: number }[]): Span | null {
-  const w = grainWindow(grain)
-  const lo = w.from.getUTCFullYear() * 12 + w.from.getUTCMonth()
-  const hi = w.to.getUTCFullYear() * 12 + w.to.getUTCMonth()
-  let first = -1
-  let last = -1
-  months.forEach((m, i) => {
-    const n = m.year * 12 + m.month
-    if (n >= lo && n <= hi) {
-      if (first < 0) first = i
-      last = i
-    }
-  })
-  return first < 0 ? null : spanFrom(first, last, months.length)
-}
-
 export function Stretch({
   entries,
   months,
@@ -80,7 +60,7 @@ export function Stretch({
    */
   caption: string
   /**
-   * Whether the periods and the month/season/year presets sit under the band.
+   * Whether the periods — the archive's own eras — sit under the band.
    *
    * Off on a phone. There the header was five ways through time stacked above
    * the first page — band, periods, presets, the rail, Pages|Volumes — and the
@@ -175,7 +155,6 @@ export function Stretch({
         <span className="pg-stretch__year">{months[0] ? months[0].year : ''}</span>
 
         <span className="pg-stretch__mid">
-          {periods ? <Presets months={months} span={span} onSpan={onSpan} /> : null}
 
           {/*
             What is bracketed, and the way out of it — beside the count, so the
@@ -270,54 +249,17 @@ function Periods({ entries, months, span, onSpan }: PeriodProps) {
   )
 }
 
-/*
- * RELATIVE TIME, beside the bracket it sets.
- *
- * Dragging the band has always bracketed a span, and nothing said so — a
- * control you have to discover by trying to drag a decoration is a control most
- * people never find. These set the same span a drag sets, so there is one time
- * filter with two ways in, and putting them here teaches the drag by sitting
- * next to it.
- *
- * Calendar periods, the same ones every other surface names: "this season" means
- * the same days here as on the Altar and the Lamp. Nothing here ranks or scores a span — it only changes which months are
- * counted (see the note at the top).
- */
-function Presets({ months, span, onSpan }: Omit<PeriodProps, 'entries'>) {
-  return (
-    <span className="pg-stretch__presets">
-      {PRESET_GRAINS.map((g) => {
-        const next = grainSpan(g, months)
-        const on = next !== null && span !== null && span.from === next.from && span.to === next.to
-        return (
-          <button
-            type="button"
-            key={g}
-            className="pg-stretch__preset"
-            data-on={on ? 'true' : undefined}
-            aria-pressed={on}
-            disabled={next === null}
-            onClick={() => onSpan(on ? null : next)}
-          >
-            {spanLabel(g)}
-          </button>
-        )
-      })}
-    </span>
-  )
-}
-
 /**
- * The periods and the presets on their own — the phone's "when" group in the
- * `look for` sheet. The same brackets the band's drag makes, so the band above
- * the wall lights to match whichever one is pressed here.
+ * The periods on their own — the phone's "when" group in the `look for` sheet.
+ * The same brackets the band's drag makes, so the band above the wall lights to
+ * match whichever one is pressed here. (The calendar's month, season and year
+ * are the room's When, under the band on a phone.)
  */
 export function StretchPeriods(props: PeriodProps) {
   if (props.months.length < 2) return null
   return (
     <div className="pg-stretch pg-stretch--periods">
       <Periods {...props} />
-      <Presets months={props.months} span={props.span} onSpan={props.onSpan} />
     </div>
   )
 }

@@ -22,6 +22,14 @@ interface Props {
   onOpenEntry?: ((entryId: string) => void) | undefined
   /** The year on show, for the mountain above to frame. */
   onYearShown?: ((year: number) => void) | undefined
+  /**
+   * The year the room's When is on. Given, the year is the When's to choose and
+   * the Summit draws no year rail of its own (the Ascent in the frame); absent,
+   * it keeps its rail (previews, store shots).
+   */
+  year?: number | undefined
+  /** The years there is anything to climb, newest first — so the When knows how far back ‹ goes. */
+  onYears?: ((years: number[]) => void) | undefined
 }
 
 /** A stone is only worth a long look after a few months are under it. Below
@@ -55,12 +63,23 @@ const MONTHS = [
  * the trail with its stones · the refrain · the verse · the long look, folded ·
  * the writer's own naming of the year.
  */
-export function Summit({ view: openYear, scripture: openScripture, onScriptureDrill, onOpenEntry, onYearShown }: Props) {
+export function Summit({
+  view: openYear,
+  scripture: openScripture,
+  onScriptureDrill,
+  onOpenEntry,
+  onYearShown,
+  year: chosenYear,
+  onYears,
+}: Props) {
   // The rail. The open year is what you land on; a sealed year is loaded on
   // demand, because an archive of fifteen years must not cost fifteen rollup
   // payloads to open the Ascent.
   const [years, setYears] = useState<number[]>([openYear.year])
-  const [shownYear, setShownYear] = useState(openYear.year)
+  const [pickedYear, setShownYear] = useState(openYear.year)
+  const shownYear = chosenYear ?? pickedYear
+  const controlled = chosenYear !== undefined
+  useEffect(() => onYears?.(years), [years, onYears])
   const [loaded, setLoaded] = useState<SummitView | null>(null)
 
   useEffect(() => {
@@ -183,7 +202,7 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
   if (!hasAnything) {
     return (
       <div className="ascent-summit">
-        <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
+        {controlled ? null : <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />}
         {ledgerReading ? null : (
           <SummitTrail year={year} progress={progress} stones={[]} selectedId={null} onSelect={() => {}} />
         )}
@@ -222,7 +241,7 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
     // and its telling.
     return (
       <div className="ascent-summit">
-        <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
+        {controlled ? null : <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />}
 
         <div className="ascent-stack ascent-stack--summit">
           {ledgerView ? (
@@ -238,7 +257,7 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
 
   return (
     <div className="ascent-summit">
-      <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
+      {controlled ? null : <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />}
 
       <SummitTrail
         year={year}

@@ -1,6 +1,6 @@
 import { marked, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
-import { markdownForDisplay, type DisplayOptions } from './entryMarkdown'
+import { blankLinesAfterTitle, markdownForDisplay, type DisplayOptions } from './entryMarkdown'
 import { revealRitualsForDisplay } from './ritualDisplay'
 import { revealMarkingsForDisplay } from './markingDisplay'
 import { isHighlightColor, NAMED_COLOR_PATTERN, type HighlightColor } from './highlightColors'
@@ -112,21 +112,50 @@ function dropInterTagNewlines(html: string): string {
   return html.replace(/>[ \t]*\n\s*</g, '><')
 }
 
+/**
+ * Restore the blank lines CommonMark ate after the title.
+ *
+ * The class on the H1 is the hook; `--title-blanks` lives on the NEXT
+ * element so `1em` is the body's, not the title's (QA: a gap on the H1
+ * was 1.7em of the heading face — 59px on a phone, not one 34px line).
+ */
+function markBlankAfterTitle(html: string, prepared: string): string {
+  const n = blankLinesAfterTitle(prepared)
+  if (n === 0) return html
+  return html.replace(
+    /^(<h1(\s[^>]*)?>)([\s\S]*?<\/h1>)(<[a-zA-Z][^>]*?)>/,
+    (_full, _open: string, attrs: string | undefined, rest: string, nextOpen: string) => {
+      const h1Open =
+        attrs && /\bclass="/.test(attrs)
+          ? `<h1${attrs.replace(/class="([^"]*)"/, 'class="$1 read-title-blank"')}>`
+          : `<h1${attrs ?? ''} class="read-title-blank">`
+      const next = /\sstyle="/i.test(nextOpen)
+        ? nextOpen.replace(/\sstyle="/i, ` style="--title-blanks:${n};`)
+        : `${nextOpen} style="--title-blanks:${n}"`
+      return `${h1Open}${rest}${next}>`
+    },
+  )
+}
+
 /** Render markdown to sanitized HTML for the read-only reading view. */
 export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
   // Markings first: they are found by character offset, which the ritual pass
   // would shift.
   const shown = revealRitualsForDisplay(revealMarkingsForDisplay(md))
   // A set of photos is its own paragraph, whatever it was written against.
-  const raw = marked.parse(setPhotoSetsApart(markdownForDisplay(shown, opts)), {
+  const prepared = setPhotoSetsApart(markdownForDisplay(shown, opts))
+  const raw = marked.parse(prepared, {
     async: false,
   })
-  return DOMPurify.sanitize(liftTasks(dropInterTagNewlines(raw)), {
-    USE_PROFILES: { html: true },
-    // `class` is already in DOMPurify's default ALLOWED_ATTR, so this changes
-    // nothing today — it's here so a future major that tightens the default
-    // can't silently grey out every printed highlight. markdown.test.ts asserts
-    // the class survives.
-    ADD_ATTR: ['class'],
-  })
+  return markBlankAfterTitle(
+    DOMPurify.sanitize(liftTasks(dropInterTagNewlines(raw)), {
+      USE_PROFILES: { html: true },
+      // `class` is already in DOMPurify's default ALLOWED_ATTR, so this changes
+      // nothing today — it's here so a future major that tightens the default
+      // can't silently grey out every printed highlight. markdown.test.ts asserts
+      // the class survives.
+      ADD_ATTR: ['class', 'style'],
+    }),
+    prepared,
+  )
 }

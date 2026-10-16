@@ -1699,50 +1699,6 @@ button.pg__sense-q:hover {
   min-inline-size: 0;
 }
 
-/* The relative spans, beside the bracket they set. Quiet until pressed — this
-   sits under a band on every visit to the surface and has to earn its pixels. */
-.pg-stretch__presets {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.1rem;
-  flex: none;
-}
-.pg-stretch__preset {
-  padding: 0.12rem 0.35rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-faint);
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition:
-    color var(--transition),
-    background var(--transition);
-}
-.pg-stretch__preset:hover:not(:disabled) {
-  color: var(--text-dim);
-  background: var(--bg-hover);
-}
-.pg-stretch__preset[data-on='true'] {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.pg-stretch__preset:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-.pg-stretch__preset:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  outline-offset: 1px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .pg-stretch__preset {
-    transition: none;
-  }
-}
-
 .pg-stretch__count {
   font-family: var(--font-sans);
   font-size: 0.72rem;
@@ -6373,28 +6329,45 @@ button.pg__sense-q:hover {
 }
 
 /* VOLUMES (alpha): the way onto the shelf */
+/* How you are looking, in the one pill every room's bar uses (`.pill`,
+   global.css): no track, and the chosen side wears the rail's chosen tile. */
 .pg-volumes {
   display: inline-flex;
-  padding: 2px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  background: var(--bg-elevated);
+  gap: 0.1rem;
   white-space: nowrap;
 }
 .pg-volumes button {
+  min-height: 1.65rem;
   border: 0;
   border-radius: 999px;
   background: none;
-  padding: 0.24rem 0.75rem;
+  padding: 0 0.65rem;
   font-family: var(--bar-font);
   font-size: var(--bar-size);
   color: var(--bar-ink);
   cursor: pointer;
+  transition: color var(--transition), background-color var(--transition);
 }
-.pg-volumes button:hover { color: var(--text-bright); }
+.pg-volumes button:hover { color: var(--bar-ink-hover); }
 .pg-volumes button[aria-checked='true'] {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--text-bright);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* The room's When: the last thing in the header row, at its right edge — where
+   it sits in every room's bar. */
+.pg-when {
+  flex: none;
+  display: flex;
+  align-items: center;
+  margin-inline-start: auto;
+}
+.pg-now + .pg-when {
+  margin-inline-start: 0.25rem;
+}
+.pg-when--row {
+  display: block;
+  margin: 0;
 }
 
 /*
@@ -6423,7 +6396,8 @@ button.pg__sense-q:hover {
 /*
  * WHEN, as the first group of the look-for sheet (phone only — see
  * `StretchPeriods`). In a sheet there is room to wrap, so the periods wrap
- * rather than scroll, and the presets say what they are.
+ * rather than scroll. The calendar's month, season and year are the room's
+ * When, on its own row above the band.
  */
 .pg-sheet .pg-stretch--periods {
   display: flex;
@@ -6443,8 +6417,7 @@ button.pg__sense-q:hover {
 
 /* The same pill as every other option in the sheet — at the chips' old size
    and faint ink they read as disabled beside "in order". */
-.pg-sheet .pg-stretch--periods .pg-stretch__era,
-.pg-sheet .pg-stretch--periods .pg-stretch__preset {
+.pg-sheet .pg-stretch--periods .pg-stretch__era {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -6464,25 +6437,8 @@ button.pg__sense-q:hover {
   color: var(--text-faint);
 }
 
-.pg-sheet .pg-stretch--periods .pg-stretch__era[data-on='true'],
-.pg-sheet .pg-stretch--periods .pg-stretch__preset[data-on='true'] {
+.pg-sheet .pg-stretch--periods .pg-stretch__era[data-on='true'] {
   color: var(--accent);
-}
-
-.pg-sheet .pg-stretch--periods .pg-stretch__preset[data-on='true'] {
-  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
-}
-
-.pg-sheet .pg-stretch--periods .pg-stretch__presets {
-  gap: 0.4rem;
-}
-
-.pg-sheet .pg-stretch--periods .pg-stretch__presets::before {
-  content: 'the last';
-  margin-inline-end: 0.15rem;
-  font-family: var(--font-sans);
-  font-size: 0.82rem;
-  color: var(--text-faint);
 }
 
 @media (max-width: 767px) {
@@ -6681,9 +6637,9 @@ mark.read-drawn.is-lit { background: rgba(var(--scripture-gold), 0.42); }
     touch-action: manipulation;
   }
 
-  /* 2px of padding and a 1px border either side of the buttons. */
+  /* A finger's row, the same height as the bar it sits in. */
   .pg-volumes button {
-    min-block-size: calc(var(--frame-bar-row) - 6px);
+    min-block-size: var(--frame-bar-row);
     padding-inline: 0.95rem;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -6695,18 +6651,6 @@ mark.read-drawn.is-lit { background: rgba(var(--scripture-gold), 0.42); }
     min-block-size: var(--frame-bar-row);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-  }
-
-  .pg-stretch__preset {
-    position: relative;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-
-  .pg-stretch__preset::after {
-    content: '';
-    position: absolute;
-    inset: -14px -3px;
   }
 
 }
