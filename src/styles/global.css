@@ -4214,11 +4214,17 @@ html[data-chapter-pane] .focus-controls--docked {
 }
 
 .settings-modal {
+  /* Widest a tab's content column grows. Keeps lines and sliders readable on a
+     wide dialog while still filling the pane on a landscape iPad. */
+  --settings-content-max: 44rem;
   display: flex;
-  width: min(94vw, 56rem);
-  /* 50rem, not 40: a 40rem dialog on a 1194pt iPad left 280pt of empty scrim
-     above and below and cut its own list off at the bottom. */
-  height: min(86dvh, 50rem);
+  /* Scales with the viewport instead of stopping at a fixed 56rem: a 1194pt
+     landscape iPad got a dialog barely three-quarters of its width. The floor
+     is the old size (or the screen, if narrower); the ceiling keeps a huge
+     desktop window from stretching the controls past usefulness. */
+  width: clamp(min(94vw, 56rem), 78vw, 72rem);
+  /* Tall enough that a landscape iPad (~834pt) doesn't cut its list off. */
+  height: min(88dvh, 56rem);
   border-radius: 18px;
   animation: glass-modal-in var(--transition-slow) both;
 }
@@ -4466,7 +4472,7 @@ html[data-chapter-pane] .focus-controls--docked {
   display: flex;
   flex-direction: column;
   gap: 1.4rem;
-  max-width: 30rem;
+  max-width: var(--settings-content-max);
 }
 
 @media (max-width: 767px) {
@@ -4530,7 +4536,7 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-dim);
   font-size: 0.85rem;
   line-height: 1.55;
-  max-width: 34rem;
+  max-width: 40rem;
 }
 .settings-section__heading {
   margin: 0 0 0.75rem;
@@ -4604,7 +4610,7 @@ html[data-chapter-pane] .focus-controls--docked {
   display: flex;
   flex-direction: column;
   gap: 1.4rem;
-  max-width: 30rem;
+  max-width: var(--settings-content-max);
 }
 
 .settings-about__header {
