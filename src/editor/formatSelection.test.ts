@@ -227,6 +227,38 @@ function apply(doc: string, from: number, to: number, action: FormatAction, time
   return next
 }
 
+describe('applyFormat — whitespace stays outside the markers', () => {
+  it('does not wrap a selected trailing space (`*word *` would not render)', () => {
+    expect(apply('say hello now', 4, 10, 'italic')).toBe('say *hello* now')
+    expect(apply('say hello now', 4, 10, 'bold')).toBe('say **hello** now')
+    expect(apply('say hello now', 4, 10, 'strike')).toBe('say ~~hello~~ now')
+    expect(apply('say hello now', 4, 10, 'underline')).toBe('say ++hello++ now')
+    expect(apply('say hello now', 4, 10, 'highlight')).toBe('say ==hello== now')
+  })
+
+  it('handles leading and both-sides whitespace', () => {
+    expect(apply('say  hello now', 3, 10, 'italic')).toBe('say  *hello* now')
+    expect(apply('a  two words  b', 1, 14, 'italic')).toBe('a  *two words*  b')
+  })
+
+  it('toggles back off with the space still selected, leaving it where it was', () => {
+    expect(apply('say *hello* now', 4, 11, 'italic')).toBe('say hello now')
+    expect(apply('say hello now', 4, 10, 'italic', 2)).toBe('say hello now')
+  })
+
+  it('leaves an all-whitespace selection to the old behaviour', () => {
+    expect(apply('a   b', 1, 4, 'italic')).toBe('a*   *b')
+  })
+
+  it('keeps the selection on the formatted text, not the spaces', () => {
+    const view = viewWith('say hello now', 4, 10)
+    applyFormat(view, 'italic')
+    const { from, to } = view.state.selection.main
+    expect(view.state.sliceDoc(from, to)).toBe('*hello*')
+    view.destroy()
+  })
+})
+
 describe('applyFormat — never stacks markers', () => {
   it('toggles bold on a selection instead of wrapping again', () => {
     expect(apply('hello', 0, 5, 'bold')).toBe('**hello**')

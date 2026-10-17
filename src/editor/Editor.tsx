@@ -9,7 +9,7 @@ import { JournalEditorView } from './journalView'
 import { editorInvariant } from './invariant'
 import { proseHighlighting } from './proseHighlighting'
 import { nativeTyping, rearmNativeTypingAfterPaint } from './nativeTyping'
-import { HighlightExtension, UnderlineExtension } from './markdownMarks'
+import { HighlightExtension, SpacedCloserExtension, UnderlineExtension } from './markdownMarks'
 import { highlightDecoration } from './highlightDecoration'
 import { concealMarkersExtension } from './concealMarkers'
 import { listLayoutExtension } from './listLayout'
@@ -656,6 +656,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           //
           // Highlight/Underline — `==text==` and `++text++`, which CommonMark
           // has no syntax for. Always parsed, regardless of the conceal setting.
+          //
+          // SpacedCloser — `*text *` closes like `*text*`. CommonMark makes it
+          // literal; in a live editor that just looks like formatting broke.
           markdown({
             base: markdownLanguage,
             codeLanguages: [],
@@ -663,6 +666,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               { remove: ['IndentedCode', 'SetextHeading'] },
               HighlightExtension,
               UnderlineExtension,
+              SpacedCloserExtension,
             ],
           }),
           // Skip mark decorations on the word being typed so Safari / WKWebView

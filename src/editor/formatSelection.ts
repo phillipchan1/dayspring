@@ -640,7 +640,14 @@ function applyInlineTransform(
     return true
   }
 
-  const raw = view.state.sliceDoc(from, to)
+  const full = view.state.sliceDoc(from, to)
+  // A double-click or drag selection often swallows the space after the word.
+  // Markers wrapped around it (`*word *`) don't close in markdown, so the
+  // whitespace stays OUTSIDE them — and is left where it was on a toggle-off.
+  const blank = empty || full.trim() === ''
+  const lead = blank ? '' : (/^\s*/.exec(full)?.[0] ?? '')
+  const trail = blank ? '' : (/\s*$/.exec(full)?.[0] ?? '')
+  const raw = full.slice(lead.length, full.length - trail.length)
   const linkParsed = empty ? null : parseLink(raw)
   const { plain, marks } = empty
     ? { plain: '', marks: empty.marks }
@@ -654,10 +661,10 @@ function applyInlineTransform(
   const placedEmpty = sel.empty && plain === ''
 
   view.dispatch({
-    changes: { from, to, insert },
+    changes: { from, to, insert: lead + insert + trail },
     selection: placedEmpty
       ? { anchor: from + openingMarkerLength(next) }
-      : { anchor: from, head: from + insert.length },
+      : { anchor: from + lead.length, head: from + lead.length + insert.length },
   })
   view.focus()
   return true

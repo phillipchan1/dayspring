@@ -2,7 +2,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { syntaxTree } from '@codemirror/language'
 import { EditorState } from '@codemirror/state'
 import { describe, expect, it } from 'vitest'
-import { HighlightExtension, UnderlineExtension } from './markdownMarks'
+import { HighlightExtension, SpacedCloserExtension, UnderlineExtension } from './markdownMarks'
 
 const mdExtension = markdown({
   base: markdownLanguage,
@@ -11,6 +11,7 @@ const mdExtension = markdown({
     { remove: ['IndentedCode', 'SetextHeading'] },
     HighlightExtension,
     UnderlineExtension,
+    SpacedCloserExtension,
   ],
 })
 
@@ -140,5 +141,66 @@ describe('the two together', () => {
 
   it('leaves a leading "+ " list marker alone', () => {
     expect(names('+ an item')).not.toContain('Underline')
+  })
+})
+
+describe('spaced closers (`*text *`)', () => {
+  const span = (doc: string, name: string) => find(doc, name).map((n) => n.text)
+
+  it('closes every inline mark when spaces sit before the closer', () => {
+    expect(span('*a *', 'Emphasis')).toEqual(['*a *'])
+    expect(span('_a _', 'Emphasis')).toEqual(['_a _'])
+    expect(span('**a **', 'StrongEmphasis')).toEqual(['**a **'])
+    expect(span('__a __', 'StrongEmphasis')).toEqual(['__a __'])
+    expect(span('~~a ~~', 'Strikethrough')).toEqual(['~~a ~~'])
+    expect(span('++a ++', 'Underline')).toEqual(['++a ++'])
+    expect(span('==a ==', 'Highlight')).toEqual(['==a =='])
+  })
+
+  it('takes several spaces or a tab, and sits fine mid-sentence', () => {
+    expect(span('x *a  * y', 'Emphasis')).toEqual(['*a  *'])
+    expect(span('x *a\t* y', 'Emphasis')).toEqual(['*a\t*'])
+    expect(span('***a ***', 'StrongEmphasis')).toEqual(['**a **'])
+  })
+
+  it('still marks only the asterisks, so concealment hides exactly them', () => {
+    expect(find('*a *', 'EmphasisMark').map((n) => n.text)).toEqual(['*', '*'])
+  })
+
+  it('works inside headings, quotes and lists, and around other marks', () => {
+    expect(names('# *a *')).toContain('Emphasis')
+    expect(names('> *a *')).toContain('Emphasis')
+    expect(names('- *a *')).toContain('Emphasis')
+    expect(names('*a `b` c *')).toContain('Emphasis')
+    expect(names('*a **b** c *')).toContain('StrongEmphasis')
+    expect(names('**a *b* c **')).toContain('Emphasis')
+  })
+
+  it('does not reach across a line break or touch code', () => {
+    expect(names('*a\n*')).not.toContain('Emphasis')
+    expect(names('`*a *`')).not.toContain('Emphasis')
+    expect(names('\\*a *')).not.toContain('Emphasis')
+  })
+
+  it('closes before sentence punctuation, but not before a bracket or quote', () => {
+    expect(span('**Amen **.', 'StrongEmphasis')).toEqual(['**Amen **'])
+    expect(span('*so far *, then', 'Emphasis')).toEqual(['*so far *'])
+    expect(span('x *(a)* y', 'Emphasis')).toEqual(['*(a)*'])
+    expect(span('x *"a"* y', 'Emphasis')).toEqual(['*"a"*'])
+  })
+
+  it('leaves an opener alone: a run followed by text is never a closer', () => {
+    expect(span('x *(a)* y', 'Emphasis')).toEqual(['*(a)*'])
+    expect(span('*a *b*', 'Emphasis')).toEqual(['*b*'])
+    expect(span('*a* *b *', 'Emphasis')).toEqual(['*a*', '*b *'])
+  })
+
+  it('keeps the strict rules everywhere else', () => {
+    expect(names('a_b_c')).not.toContain('Emphasis')
+    expect(names('* text*')).not.toContain('Emphasis')
+    expect(names('5 * 3 and 2 * 4')).not.toContain('Emphasis')
+    expect(names('a ** b and c ** d')).not.toContain('StrongEmphasis')
+    expect(names('a ~~ b ~~ c')).not.toContain('Strikethrough')
+    expect(names('C++ and C++')).not.toContain('Underline')
   })
 })

@@ -1,4 +1,5 @@
-import type { DelimiterType, InlineContext, MarkdownConfig } from '@lezer/markdown'
+import { markdownLanguage } from '@codemirror/lang-markdown'
+import type { DelimiterType, InlineContext, InlineParser, MarkdownConfig } from '@lezer/markdown'
 import { tags } from '@lezer/highlight'
 import { NAMED_COLOR_PATTERN } from '@/lib/highlightColors'
 
@@ -37,7 +38,83 @@ const COLOR_RE = new RegExp(`^\\{(?:${NAMED_COLOR_PATTERN})\\}`)
 const COLOR_WINDOW = 8
 
 const CHAR_EQUALS = 61 /* '=' */
+const CHAR_STAR = 42 /* '*' */
+const CHAR_UNDERSCORE = 95 /* '_' */
+const CHAR_TILDE = 126 /* '~' */
 const CHAR_PLUS = 43 /* '+' */
+
+const SPACED_CLOSER_FOLLOWER = /^(?:[\s.,;:!?…)\]}”’»—–]|)$/
+
+/**
+ * A delimiter run that CommonMark would refuse to close only because spaces
+ * sit just before it: `*text *`, `**text **`, `~~text ~~`.
+ *
+ * Writers produce this shape all the time — a double-click or drag selection
+ * that swallowed the trailing space, then the format bar or a hand-typed
+ * closer. CommonMark's answer ("not right-flanking, so literal") reads as a
+ * bug to anyone typing in a live-preview editor, and `==text ==` already
+ * paints, so the marks have to agree.
+ *
+ * Deliberately narrow, so the new closers can't eat ordinary prose:
+ *  - spaces or tabs only, never a newline (`*a\n*` stays literal), with a
+ *    real character before them (not the start of the line);
+ *  - the run must be followed by whitespace, the end of the text, or closing
+ *    punctuation (`**Amen **.`). A run followed by a letter, a bracket or a
+ *    quote is an OPENER (`a *(x)*`, `a *b*`, `a *"q"*`) and keeps its
+ *    CommonMark meaning.
+ * It only ever makes a delimiter able to close; with no opener before it
+ * the delimiter stays inert, exactly as before.
+ */
+export function isSpacedCloser(cx: InlineContext, from: number, to: number): boolean {
+  if (!SPACED_CLOSER_FOLLOWER.test(cx.slice(to, to + 1))) return false
+  let i = from
+  while (/^[ \t]$/.test(cx.slice(i - 1, i))) i--
+  if (i === from) return false
+  const lead = cx.slice(i - 1, i)
+  return lead !== '' && !/\s/.test(lead)
+}
+
+/**
+ * Wrap one of the library's own inline parsers so a spaced closer is judged as
+ * if it were flush against the text. The delimiter types the library pairs on
+ * (`Emphasis*`, strikethrough) are private, so re-using its parser — fed a
+ * context whose view of "the character before" is a letter — is the only way
+ * to produce delimiters that still resolve with the originals, `**`/`***`
+ * run-length handling and the rule of three included.
+ */
+function withSpacedClosers(name: string, chars: number[]): InlineParser | null {
+  const base = markdownLanguage.parser as unknown as {
+    inlineParsers: (InlineParser['parse'] | undefined)[]
+    inlineNames: string[]
+  }
+  const parse = base.inlineParsers[base.inlineNames.indexOf(name)]
+  if (!parse) return null
+  return {
+    name,
+    parse(cx, next, pos) {
+      if (!chars.includes(next)) return parse(cx, next, pos)
+      let end = pos + 1
+      while (cx.char(end) == next) end++
+      if (!isSpacedCloser(cx, pos, end)) return parse(cx, next, pos)
+      // Prototype-linked rather than a Proxy: `parts` stays the one real array.
+      const flush = Object.create(cx) as InlineContext
+      flush.slice = (from, to) => (from === pos - 1 && to === pos ? 'x' : cx.slice(from, to))
+      return parse(flush, next, pos)
+    },
+  }
+}
+
+const spacedEmphasis = withSpacedClosers('Emphasis', [CHAR_STAR, CHAR_UNDERSCORE])
+const spacedStrike = withSpacedClosers('Strikethrough', [CHAR_TILDE])
+
+/**
+ * `*text *`, `_text _`, `**text **`, `~~text ~~` — see `isSpacedCloser`. Replaces
+ * the library's parsers of the same name in place, so every other rule about
+ * emphasis and strikethrough is still the library's.
+ */
+export const SpacedCloserExtension: MarkdownConfig = {
+  parseInline: [spacedEmphasis, spacedStrike].filter((p): p is InlineParser => p !== null),
+}
 
 function flanking(cx: InlineContext, from: number, to: number) {
   const before = cx.slice(from - 1, from)
@@ -109,7 +186,7 @@ export const UnderlineExtension: MarkdownConfig = {
         if (next != CHAR_PLUS || cx.char(pos + 1) != CHAR_PLUS) return -1
         if (cx.char(pos + 2) == CHAR_PLUS) return -1
         const { open, close } = flanking(cx, pos, pos + 2)
-        return cx.addDelimiter(UnderlineDelim, pos, pos + 2, open, close)
+        return cx.addDelimiter(UnderlineDelim, pos, pos + 2, open, close || isSpacedCloser(cx, pos, pos + 2))
       },
       after: 'Emphasis',
     },

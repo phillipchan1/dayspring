@@ -7,7 +7,7 @@ import { tags } from '@lezer/highlight'
 import { afterEach, describe, expect, it } from 'vitest'
 import { concealMarkersExtension } from './concealMarkers'
 import { markdownHighlight } from './highlight'
-import { HighlightExtension, UnderlineExtension } from './markdownMarks'
+import { HighlightExtension, SpacedCloserExtension, UnderlineExtension } from './markdownMarks'
 import { proseHighlighting } from './proseHighlighting'
 import { spiritualBlocksField } from './spiritualBlocksField'
 
@@ -26,7 +26,12 @@ import { spiritualBlocksField } from './spiritualBlocksField'
 const mdExtension = markdown({
   base: markdownLanguage,
   codeLanguages: [],
-  extensions: [{ remove: ['IndentedCode', 'SetextHeading'] }, HighlightExtension, UnderlineExtension],
+  extensions: [
+    { remove: ['IndentedCode', 'SetextHeading'] },
+    HighlightExtension,
+    UnderlineExtension,
+    SpacedCloserExtension,
+  ],
 })
 
 const STYLE: Record<string, string> = {
@@ -312,6 +317,31 @@ describe('live formatting — inline marks', () => {
   })
 })
 
+describe('live formatting — a space before the closing marker', () => {
+  const cases: [string, string, string][] = [
+    ['*italic *', 'em', 'italic '],
+    ['_italic _', 'em', 'italic '],
+    ['**bold **', 'strong', 'bold '],
+    ['__bold __', 'strong', 'bold '],
+    ['~~gone ~~', 'strike', 'gone '],
+    ['++under ++', 'underline', 'under '],
+  ]
+  for (const [src, style, text] of cases) {
+    it(`paints ${JSON.stringify(src)} the moment the closer lands, markers hidden once you move on`, () => {
+      const { after } = typeAndPaint(`x ${src} y`)
+      expect(after(`x ${src.slice(0, -1)}`).styles[style]).toBeUndefined()
+      expect(after(`x ${src}`).styles[style]).toContain(text)
+      expect(after(`x ${src} y`).visible).toBe(`x ${text} y`)
+    })
+  }
+
+  it('is exactly what the reported `* text *` looked like: italic, asterisks gone', () => {
+    const { after } = typeAndPaint('*hello world * and on')
+    expect(after('*hello world * and on').visible).toBe('hello world  and on')
+    expect(after('*hello world * and on').styles.em).toBe('hello world ')
+  })
+})
+
 describe('live formatting — doubled and nested marks', () => {
   it('***both*** is bold and italic, with all six markers hidden', () => {
     const p = typeAndPaint('a ***both*** b').after('a ***both*** b')
@@ -370,6 +400,10 @@ describe('live formatting — prose that only looks like markup', () => {
     '****',
     '**unclosed and still going',
     'price was $5 ~ $6 ~ish',
+    '5 * 3 and 2 * 4 and 6 * 7',
+    '* * *',
+    'a * b',
+    'a ~~ b ~~ c',
   ]
   for (const text of prose) {
     it(`leaves ${JSON.stringify(text)} alone`, () => {
