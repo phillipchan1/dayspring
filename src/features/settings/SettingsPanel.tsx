@@ -20,7 +20,7 @@ import { useGuestMode } from '@/context/GuestMode'
 import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
 import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
-import { HELP_URL, HELP_CONTACT_URL } from '@/lib/support'
+import { HELP_URL, HELP_CONTACT_URL, INSTAGRAM_HANDLE, INSTAGRAM_URL } from '@/lib/support'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
@@ -456,6 +456,17 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
               rel="noreferrer noopener"
             >
               Get in touch
+            </a>
+          </div>
+          <div className="settings-about__row">
+            <span className="settings-field__label">Instagram</span>
+            <a
+              className="btn btn--ghost"
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {INSTAGRAM_HANDLE}
             </a>
           </div>
         </div>
