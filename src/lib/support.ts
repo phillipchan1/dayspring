@@ -16,3 +16,7 @@ export const HELP_CONTACT_URL = `${HELP_URL}/contact`
 
 /** The support inbox, for the places a mailto genuinely is the right answer. */
 export const SUPPORT_EMAIL = 'hello@usedayspring.app'
+
+/** Public Instagram. Opened from Settings → About, same as the help links. */
+export const INSTAGRAM_URL = 'https://www.instagram.com/dayspringjournal/'
+export const INSTAGRAM_HANDLE = '@dayspringjournal'

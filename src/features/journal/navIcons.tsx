@@ -142,6 +142,21 @@ export function IconFocus(props: { size?: number }) {
 }
 
 /**
+ * Typewriter — the line being written, held in the middle, the lines either
+ * side of it gone quiet. The caret is what says "this one".
+ */
+export function IconTypewriter(props: { size?: number }) {
+  return (
+    <NavIcon {...props}>
+      <path d="M5 6h14" opacity="0.4" />
+      <path d="M5 12h10" />
+      <path d="M18.5 9v6" />
+      <path d="M5 18h12" opacity="0.4" />
+    </NavIcon>
+  )
+}
+
+/**
  * Sliders — three tracks, each with a knob at a different position.
  *
  * `WritingControls`' collapsed handle used to be a bare "⋯", which reads as

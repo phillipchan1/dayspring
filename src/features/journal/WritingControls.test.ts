@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createElement, act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type Settings } from '@/lib/settings'
 import { WritingControls } from './WritingControls'
 import type { FocusMode } from './useFocusMode'
@@ -51,6 +51,24 @@ function tap(target: Element) {
 const pill = (root: HTMLElement, label: string) =>
   [...root.querySelectorAll('.toggle-pill')].find((b) => b.textContent?.includes(label))!
 
+/**
+ * jsdom has no `matchMedia`, and the cluster asks the device what it is. A Mac
+ * unless a test says otherwise; `phone` is the narrow layout, `coarse` a finger
+ * as the primary pointer.
+ */
+function stubDevice({ phone = false, coarse = false } = {}) {
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes('max-width: 767px') ? phone : query.includes('pointer: coarse') ? coarse : false,
+    media: query,
+    addEventListener: noop,
+    removeEventListener: noop,
+  })) as unknown as typeof window.matchMedia
+}
+
+beforeEach(() => {
+  stubDevice()
+})
+
 afterEach(() => {
   document.body.innerHTML = ''
 })
@@ -67,7 +85,8 @@ describe('WritingControls in focus mode', () => {
     tap(cluster().querySelector('.focus-controls__handle')!)
     expect(cluster().dataset.collapsed).toBe('false')
     tap(pill(cluster(), 'typewriter'))
-    expect(update).toHaveBeenCalledWith({ typewriter: !DEFAULT_SETTINGS.typewriter })
+    // In focus mode with the default (In focus) it is on, so the pill turns it off.
+    expect(update).toHaveBeenCalledWith({ typewriter: false, typewriterAlways: false })
     expect(cluster().dataset.collapsed).toBe('false')
     unmount()
   })
@@ -96,5 +115,64 @@ describe('WritingControls in focus mode', () => {
     render(true)
     expect(cluster().dataset.collapsed).toBe('true')
     unmount()
+  })
+})
+
+describe('the typewriter switch, by device', () => {
+  const corner = (host: HTMLElement) => host.querySelector('.focus-controls')!
+  const docked = (host: HTMLElement) =>
+    corner(host).querySelector<HTMLButtonElement>('button[aria-label="Typewriter scrolling"]')
+  const focusPill = (host: HTMLElement) =>
+    corner(host).querySelector<HTMLButtonElement>('.toggle-pill[title^="Typewriter"]')
+
+  it('sits beside light/dark in the normal editor on a Mac, and turns Always on', () => {
+    const { update, cluster, unmount } = mount(false)
+    const btn = docked(cluster().parentElement!)!
+    expect(btn).toBeTruthy()
+    expect(btn.getAttribute('aria-pressed')).toBe('false')
+    act(() => btn.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(update).toHaveBeenCalledWith({ typewriter: true, typewriterAlways: true })
+    unmount()
+  })
+
+  it('shows as on in the normal editor once it is Always', () => {
+    const update = vi.fn()
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+    act(() =>
+      root.render(
+        createElement(WritingControls, {
+          settings: { ...DEFAULT_SETTINGS, typewriter: true, typewriterAlways: true },
+          update,
+          focus: focusMode(false),
+        }),
+      ),
+    )
+    expect(docked(host)!.getAttribute('aria-pressed')).toBe('true')
+    act(() => root.unmount())
+  })
+
+  it('is not there on a phone, in the normal editor or in focus mode', () => {
+    stubDevice({ phone: true, coarse: true })
+    const normal = mount(false)
+    expect(docked(normal.cluster().parentElement!)).toBeNull()
+    normal.unmount()
+    const focused = mount(true)
+    expect(focusPill(focused.cluster().parentElement!)).toBeNull()
+    // The rest of focus mode's controls are untouched.
+    expect(pill(focused.cluster(), 'dim')).toBeTruthy()
+    expect(pill(focused.cluster(), 'esc')).toBeTruthy()
+    focused.unmount()
+  })
+
+  it('is not there on an iPad that is only being touched', () => {
+    stubDevice({ coarse: true })
+    const normal = mount(false)
+    expect(docked(normal.cluster().parentElement!)).toBeNull()
+    normal.unmount()
+    const focused = mount(true)
+    expect(focusPill(focused.cluster().parentElement!)).toBeNull()
+    focused.unmount()
   })
 })

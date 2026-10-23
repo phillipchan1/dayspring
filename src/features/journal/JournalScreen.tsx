@@ -12,6 +12,8 @@ import { useSettings } from '@/hooks/useSettings'
 import { FONT_SIZE_MIN, FONT_SIZE_DEFAULT, FONT_SIZE_MAX } from '@/lib/settings'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
+import { useTypewriterAvailable } from '@/hooks/useTypewriterAvailable'
+import { resolveTypewriter } from '@/lib/typewriterMode'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { beginArrivals, dropArrival } from '@/lib/photoArrival'
 import { asEntryMarkdown } from '@/lib/entryLabels'
@@ -660,6 +662,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     })
     return () => cancelAnimationFrame(id)
   }, [focus.active])
+
+  // Is the line being centred, here, now? The setting (Off / In focus / Always)
+  // says where; the device says whether it can at all. With the on-screen
+  // keyboard up the extension centres in what the keyboard leaves, so that is
+  // not this file's business.
+  const typewriterAvailable = useTypewriterAvailable()
+  const { shown: typewriterShown, on: typewriterOn } = resolveTypewriter(settings, {
+    focusActive: focus.active,
+    available: typewriterAvailable,
+    focusEditorReady,
+  })
 
   /**
    * A capture command was chosen — from `/`, from the `+`, or from the touch bar.
@@ -2027,15 +2040,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
      * the same line, so the words have nowhere to go. A plain cross-fade of
      * the screen leaves them standing while the bars change around them.
      *
-     * `morph`: the one place the two cannot agree — the top of an entry in
-     * focus mode, which has no bar and no lead above the first line. There the
-     * words are carried across as a shared element instead. Never once the
-     * opening has scrolled away: that snapshot is the whole column, drawn
-     * without the scroller's clip, and the paragraphs that had gone up under
-     * the top bar would reappear over it for the length of the fade.
+     * `morph`: the places the two cannot agree — the top of an entry in focus
+     * mode, which has no bar and no lead above the first line, and the top of
+     * an entry under typewriter, whose first line sits at the middle of the
+     * page. There the words are carried across as a shared element instead.
+     * Never once the opening has scrolled away: that snapshot is the whole
+     * column, drawn without the scroller's clip, and the paragraphs that had
+     * gone up under the top bar would reappear over it for the length of the
+     * fade.
      */
     const root = document.documentElement
-    const apart = focus.active && !place.scrolled
+    const apart = (focus.active || typewriterShown) && !place.scrolled
     root.dataset.entryHandoff = landingId && apart ? 'morph' : 'still'
     const transition = document.startViewTransition(
       () =>
@@ -2486,7 +2501,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     if (!ritualPage && !reducedMotion && fromOpenPage && document.startViewTransition) {
       // The editor opens the page where the reader had it, so the words stand
       // still and the screen cross-fades around them — see `leaveEditorUp`.
-      document.documentElement.dataset.entryHandoff = 'still'
+      // Under typewriter it cannot: the first line opens at the page's middle,
+      // so the words are carried there instead.
+      document.documentElement.dataset.entryHandoff = typewriterShown ? 'morph' : 'still'
       endEntryHandoff(document.startViewTransition(openEditor))
     } else {
       openEditor()
@@ -2738,7 +2755,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               })}
               autofocus={!touchFirst}
               skipAutofocusRef={skipEditorAutofocusRef}
-              typewriter={focus.active && focusEditorReady && settings.typewriter}
+              typewriter={typewriterOn}
               dimming={focus.active && focusEditorReady && settings.dimming}
               titleStyling={settings.firstLineTitle}
               dateline={dateline}

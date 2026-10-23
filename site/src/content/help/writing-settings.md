@@ -5,7 +5,7 @@ section: settings
 order: 2
 requires: [capability.editor]
 keywords: [font size, line height, width, column, comfortable, reading, typography, title]
-updated: 2026-08-10
+updated: 2026-10-23
 ---
 
 **Settings → Writing.**
@@ -44,7 +44,13 @@ once you know them.
 
 ## Typewriter and dimming
 
-Both on by default, both explained in [focus mode](/help/focus-mode).
+**Typewriter scrolling** keeps the line you're writing in the middle of the page.
+Choose **Off**, **In focus** (the default), or **Always**. It's there on a Mac,
+in a browser, and on an iPad with a keyboard; on iPhone it isn't offered.
+
+**Paragraph dimming** fades the paragraphs you aren't in, in focus mode.
+
+Both are explained in [focus mode](/help/focus-mode).
 
 ---
 
