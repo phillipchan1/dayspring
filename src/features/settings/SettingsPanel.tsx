@@ -23,6 +23,8 @@ import { isDesktopTauri, isTauri } from '@/lib/platform'
 import { HELP_URL, HELP_CONTACT_URL, INSTAGRAM_HANDLE, INSTAGRAM_URL } from '@/lib/support'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
+import { useTypewriterAvailable } from '@/hooks/useTypewriterAvailable'
+import { TYPEWRITER_MODES, typewriterMode, typewriterPatch, type TypewriterMode } from '@/lib/typewriterMode'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
@@ -253,7 +255,15 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
   )
 }
 
+const TYPEWRITER_HINT: Record<TypewriterMode, string> = {
+  off: 'The page scrolls the way pages do.',
+  focus: 'Keeps the line you’re writing in the middle of the page, in focus mode.',
+  always: 'Keeps the line you’re writing in the middle of the page, whenever you write.',
+}
+
 function WritingTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
+  const typewriterAvailable = useTypewriterAvailable()
+  const mode = typewriterMode(settings)
   return (
     <div className="settings-stack">
       {/* On mobile the settings panel covers the journal full-screen, so a
@@ -344,12 +354,27 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         checked={settings.settleWhileWriting}
         onChange={(v) => update({ settleWhileWriting: v })}
       />
-      <Toggle
-        label="Typewriter scrolling"
-        hint="Keep the active line centered (focus mode)"
-        checked={settings.typewriter}
-        onChange={(v) => update({ typewriter: v })}
-      />
+      {/* Not offered where it can't work: a phone, or an iPad with no keyboard.
+          The corner switch is the quick version of this. */}
+      {typewriterAvailable && (
+        <Field label="Typewriter scrolling" hint={TYPEWRITER_HINT[mode]}>
+          <div className="segmented" role="group" aria-label="Typewriter scrolling">
+            {TYPEWRITER_MODES.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className="segmented__btn"
+                data-active={mode === opt.value}
+                aria-pressed={mode === opt.value}
+                title={opt.title}
+                onClick={() => update(typewriterPatch(opt.value))}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
       <Toggle
         label="Paragraph dimming"
         hint="Fade all but the current paragraph (focus mode)"

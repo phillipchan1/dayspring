@@ -44,6 +44,10 @@ thing that came out of it.)*
   (desktop, on by default): once you type, the rail and top bar fade where they
   stand and a pointer move or Esc brings them back — Diarly's ⌘N-to-focus feel
   without a mode (`useSettle.ts`, prototype in `docs/prototypes/new-entry-focus.html`).
+  **Typewriter** is Off / In focus (default) / Always, one switch in the corner
+  cluster (`WritingControls`) and the full choice in Settings → Writing; offered
+  on desktop and an iPad with a keyboard, never on iPhone or an iPad on glass
+  (`useTypewriterAvailable`, `lib/typewriterMode.ts`).
 - **Audit:** *Has anything been added to the editor since last review that adds latency
   or chrome?* This surface degrades by accretion, one reasonable addition at a time.
 

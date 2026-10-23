@@ -98,9 +98,21 @@ const LEGACY_DENSITY_ZOOM: Record<LegacyPagesDensity, number> = {
 export type EntriesGroupBy = 'flat' | 'month' | 'year'
 
 export interface Settings {
-  // Focus-mode behaviour
-  typewriter: boolean // keep the active line vertically centered
-  dimming: boolean // fade non-active paragraphs
+  // Writing behaviour
+  /**
+   * Keep the active line vertically centred. The master switch, and still a
+   * plain boolean: stable reads this key out of the same synced row, and a
+   * string there would read as truthy for "off". Where it applies is
+   * `typewriterAlways`; `typewriterMode` folds the two into one choice.
+   */
+  typewriter: boolean
+  /**
+   * With `typewriter` on: centre in the normal editor too, not only inside
+   * focus mode. A later key — an older client that has never heard of it still
+   * reads `typewriter` correctly, and round-trips this one untouched.
+   */
+  typewriterAlways: boolean
+  dimming: boolean // fade non-active paragraphs (focus mode)
   /** Desktop: fade the rail and top bar once you start writing (see useSettle). */
   settleWhileWriting: boolean
 
@@ -265,6 +277,7 @@ export interface Settings {
 
 const DEFAULTS: Settings = {
   typewriter: true,
+  typewriterAlways: false,
   dimming: true,
   settleWhileWriting: true,
   fontSize: 24,

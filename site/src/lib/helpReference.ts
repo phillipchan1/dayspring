@@ -107,7 +107,11 @@ export const REFERENCE_PAGES: ReferencePage[] = [
 export const SETTING_DESCRIPTIONS: Record<string, { label: string; note: string }> = {
   typewriter: {
     label: "Typewriter scrolling",
-    note: "Keeps the line you're writing vertically centred instead of drifting to the bottom.",
+    note: "Keeps the line you're writing vertically centred instead of drifting to the bottom. Off turns it off everywhere; on, it centres in focus mode (see the next setting for the normal editor). Not offered on iPhone.",
+  },
+  typewriterAlways: {
+    label: "Typewriter in the normal editor",
+    note: "With typewriter scrolling on, centre the line outside focus mode too. Set from Settings → Writing as Off, In focus, or Always. Not offered on iPhone, or on an iPad with no keyboard.",
   },
   dimming: {
     label: "Paragraph dimming",
