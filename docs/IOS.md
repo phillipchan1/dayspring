@@ -243,6 +243,46 @@ requires an Apple Distribution cert instead.
 After the first green run: App Store Connect → TestFlight → Internal Testing →
 add yourself; then enable **Automatic Updates** in the TestFlight app.
 
+## Xcode Cloud
+
+Xcode Cloud archives the committed Tauri project (`src-tauri/gen/apple/app.xcodeproj`,
+scheme `app_iOS`, bundle `com.phillipchan.dayspring`) and uploads to TestFlight.
+Custom scripts live next to that project at
+[`src-tauri/gen/apple/ci_scripts/`](../src-tauri/gen/apple/ci_scripts/)
+([Writing custom build scripts](https://developer.apple.com/documentation/xcode/writing-custom-build-scripts)).
+They mirror the pre-archive half of `ios-release.yml` (Node 20, Rust stable +
+`aarch64-apple-ios`, `npm install`, `pod install` if the Podfile lists pods,
+`scripts/ios-postinit.sh`). Signing and the TestFlight upload are native Cloud
+steps. **The GitHub workflow is still in place** until Cloud is proven.
+
+The workflow itself is created in Xcode on a Mac (**Integrate → Create Workflow…**),
+not in this repo. Leave **Manage Version and Build Number** on. Do **not** let
+the scripts stamp `CFBundleVersion` / `CURRENT_PROJECT_VERSION` — set
+**Next Build Number** in App Store Connect → Xcode Cloud → Settings above the
+latest TestFlight build first
+([docs](https://developer.apple.com/documentation/xcode/setting-the-next-build-number-for-xcode-cloud-builds)).
+
+### Environment variables to set on the workflow
+
+Secret values: mark **Secret**. Never commit them. Same names as
+`.github/workflows/ios-release.yml`.
+
+| Variable | Secret? | Value |
+|---|---|---|
+| `VITE_SUPABASE_URL` | yes | same as the desktop / GH iOS secret |
+| `VITE_SUPABASE_ANON_KEY` | yes | same as the desktop / GH iOS secret |
+| `VITE_API_BASE_URL` | no | `https://dayspring-eosin.vercel.app` |
+| `VITE_RELEASE_CHANNEL` | no | `appstore` (required — a TestFlight IPA promoted to App Review is this binary) |
+| `APPLE_DEVELOPMENT_TEAM` | no | `4629AQ24Z2` |
+
+`ci_post_clone.sh` and `ci_pre_xcodebuild.sh` fail the build if any of these are
+missing, or if `VITE_RELEASE_CHANNEL` is not `appstore`. They never print the
+anon key.
+
+Do **not** add the GH `APPSTORE_*` / `IOS_*` signing secrets — Xcode Cloud signs
+and uploads. Xcode Cloud already provides `CI`, `CI_XCODE_CLOUD`,
+`CI_BUILD_NUMBER`, `CI_PRIMARY_REPOSITORY_PATH`, `CI_XCODE_SCHEME`.
+
 ## Local / TestFlight commands
 
 Building by hand is still supported (and is what to fall back on if CI is
