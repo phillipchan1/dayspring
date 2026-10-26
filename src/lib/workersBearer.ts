@@ -5,6 +5,8 @@
  */
 export const WORKERS_BEARER_KEY = 'dayspring.workers.bearer'
 
+let memory: string | null = null
+
 export function isSignedWorkersBearer(token: string | null | undefined): boolean {
   if (!token) return false
   const dot = token.indexOf('.')
@@ -20,21 +22,22 @@ function storage(): Storage | null {
 }
 
 export function readWorkersBearer(): string | null {
-  const raw = storage()?.getItem(WORKERS_BEARER_KEY) ?? null
-  return isSignedWorkersBearer(raw) ? raw : null
+  const stored = storage()?.getItem(WORKERS_BEARER_KEY) ?? memory
+  return isSignedWorkersBearer(stored) ? stored : null
 }
 
 export function rememberWorkersBearer(token: string | null | undefined): void {
-  const store = storage()
-  if (!store) return
   if (!isSignedWorkersBearer(token) || !token) {
-    store.removeItem(WORKERS_BEARER_KEY)
+    memory = null
+    storage()?.removeItem(WORKERS_BEARER_KEY)
     return
   }
-  store.setItem(WORKERS_BEARER_KEY, token)
+  memory = token
+  storage()?.setItem(WORKERS_BEARER_KEY, token)
 }
 
 export function clearWorkersBearer(): void {
+  memory = null
   storage()?.removeItem(WORKERS_BEARER_KEY)
 }
 

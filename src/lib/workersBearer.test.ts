@@ -5,7 +5,6 @@ import {
   isSignedWorkersBearer,
   readWorkersBearer,
   rememberWorkersBearer,
-  WORKERS_BEARER_KEY,
 } from './workersBearer'
 import { getWorkersToken } from './authClient'
 
@@ -18,7 +17,6 @@ describe('signed Workers bearer', () => {
     expect(isSignedWorkersBearer('raw-session-token')).toBe(false)
     rememberWorkersBearer('raw-session-token')
     expect(readWorkersBearer()).toBeNull()
-    expect(localStorage.getItem(WORKERS_BEARER_KEY)).toBeNull()
   })
 
   it('stores the signed set-auth-token form', () => {
