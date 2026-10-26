@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   POST,
+  bindContactEnv,
   validateContact,
   renderContactEmail,
   renderAutoReply,
@@ -427,5 +428,31 @@ describe("deliveryChain", () => {
     // The endpoint returns 503 on an empty chain rather than a false success —
     // a form that silently swallows mail is worse than no form at all.
     expect(deliveryChain(null, null, null)).toEqual([]);
+  });
+});
+
+describe("bindContactEnv", () => {
+  afterEach(() => {
+    bindContactEnv(null);
+    delete process.env.GITHUB_TOKEN;
+    delete process.env.SUPPORT_REPO;
+    vi.restoreAllMocks();
+  });
+
+  it("lets the Worker supply the same env var names without process.env", async () => {
+    delete process.env.GITHUB_TOKEN;
+    delete process.env.SUPPORT_REPO;
+    bindContactEnv({ GITHUB_TOKEN: "gh_bound", SUPPORT_REPO: "owner/repo" });
+    vi.stubGlobal("fetch", async () => new Response('{"number":1}', { status: 201 }));
+
+    const res = await POST(
+      new Request("https://www.usedayspring.app/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-real-ip": "203.0.113.80" },
+        body: JSON.stringify(good),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
   });
 });

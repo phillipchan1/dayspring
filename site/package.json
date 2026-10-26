@@ -10,7 +10,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy:cf": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.1",
@@ -19,6 +20,7 @@
     "posthog-js": "^1.415.3"
   },
   "devDependencies": {
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.50.0"
   }
 }

@@ -1,0 +1,12 @@
+# Ported from the live Vercel origin (usedayspring.app) and site/vercel.json.
+# vercel.json has no headers block; these are the headers Vercel currently
+# sends on static responses. Cloudflare already defaults Cache-Control to
+# `public, max-age=0, must-revalidate` — restated so the port is explicit.
+#
+# Do not invent extra security headers here. PostHog / Google Ads / Meta
+# tags (when present) must keep loading from their existing origins.
+
+/*
+  Access-Control-Allow-Origin: *
+  Strict-Transport-Security: max-age=63072000
+  Cache-Control: public, max-age=0, must-revalidate
