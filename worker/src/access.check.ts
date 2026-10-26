@@ -39,6 +39,7 @@ import {
   listDueReminders,
   listEchoCandidates,
   listEntries,
+  listEntriesSince,
   listInsights,
   listKeptSubjects,
   listMarks,
@@ -50,6 +51,7 @@ import {
   listSpiritualItems,
   listThreadMembers,
   listThreads,
+  replaceEntry,
   updateEntry,
   upsertAttachment,
   upsertEchoCandidate,
@@ -100,6 +102,7 @@ async function count(table: string, where: string, params: unknown[]): Promise<n
 
 ok((await listEntries(storeA)).every((e) => e.id === ENTRY_A), 'listEntries: A sees only A')
 ok((await listEntries(storeB)).every((e) => e.id === ENTRY_B), 'listEntries: B sees only B')
+ok((await listEntriesSince(storeA, '1970-01-01T00:00:00.000Z')).every((e) => e.id !== ENTRY_B), 'listEntriesSince: A misses B')
 ok((await getEntry(storeA, ENTRY_B)) === null, 'getEntry: A cannot read B entry')
 ok((await getEntry(storeB, ENTRY_B))?.id === ENTRY_B, 'getEntry: B can read B entry')
 ok((await countEntries(storeA)) === 1, 'countEntries: A count is 1')
@@ -113,6 +116,7 @@ ok(
 ok((await deleteEntry(storeA, ENTRY_B)) === false, 'deleteEntry: A cannot delete B')
 ok((await count('entries', 'id = $1', [ENTRY_B])) === 1, 'deleteEntry: B row remains')
 
+const bUpdatedAt = await scalar<string>('SELECT updated_at::text FROM entries WHERE id = $1', [ENTRY_B])
 const conflict = await upsertEntryChecked(storeA, {
   id: ENTRY_B,
   created_at: '2020-01-01T00:00:00.000Z',
@@ -123,7 +127,7 @@ const conflict = await upsertEntryChecked(storeA, {
   word_count: 2,
   source: 'native',
   external_id: null,
-  base_updated_at: '2020-01-01T00:00:00.000Z',
+  base_updated_at: bUpdatedAt ?? '2020-01-01T00:00:00.000Z',
   circumstances: {},
 })
 ok(
@@ -131,6 +135,25 @@ ok(
   'upsertEntryChecked: A cannot overwrite B body',
 )
 ok(conflict.conflicted === true, 'upsertEntryChecked: A conflicts on B id')
+ok(
+  (await replaceEntry(storeA, {
+    id: ENTRY_B,
+    created_at: '2020-01-01T00:00:00.000Z',
+    body_markdown: 'stolen body',
+    title: 'stolen',
+    mood: null,
+    tags: [],
+    word_count: 2,
+    source: 'native',
+    external_id: null,
+    circumstances: {},
+  })) === null,
+  'replaceEntry: A cannot replace B',
+)
+ok(
+  (await scalar<string>('SELECT body_markdown FROM entries WHERE id = $1', [ENTRY_B])) === 'Ben wrote this.',
+  'replaceEntry: B body unchanged',
+)
 
 const planted = await insertEntry(storeA, { body_markdown: 'Ada two', word_count: 2 })
 ok(planted.id !== ENTRY_B, 'insertEntry: A insert is a new id')
@@ -170,6 +193,11 @@ await upsertAttachment(storeA, { hash: 'ada-2', storage_key: `${OWNER_A}/ada-2.j
 
 ok((await listMarks(storeA)).every((r) => r.id !== MARK_B), 'listMarks: A misses B')
 ok((await deleteMark(storeA, MARK_B)) === false, 'deleteMark: A cannot delete B')
+await upsertMark(storeA, { entry_id: ENTRY_B, quote: 'Ben quote', kind: 'stolen' })
+ok(
+  (await scalar<string | null>('SELECT kind FROM marks WHERE id = $1', [MARK_B])) !== 'stolen',
+  'upsertMark: A cannot rewrite B mark',
+)
 await upsertMark(storeA, { entry_id: ENTRY_A, quote: 'new ada mark' })
 
 ok((await listKeptSubjects(storeA)).every((r) => r.id !== KEPT_B), 'listKeptSubjects: A misses B')
@@ -192,7 +220,7 @@ await enqueueJob(storeA, 'concordance')
 
 ok((await listConcordance(storeA)).every((r) => r.id !== 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb12'), 'listConcordance: A misses B')
 await insertConcordanceEvent(storeA, { kind: 'seen' })
-ok((await count('concordance_events', 'owner = $1', [OWNER_B])) === 0, 'insertConcordanceEvent: did not land on B')
+ok((await count('concordance_events', 'owner = $1', [OWNER_B])) === 1, 'insertConcordanceEvent: did not land on B')
 
 ok((await listScriptureRefs(storeA)).every((r) => r.id !== 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb13'), 'listScriptureRefs: A misses B')
 await insertScriptureRef(storeA, { canonical: 'Ps.23.1' })
@@ -204,13 +232,14 @@ ok(
   'upsertEchoCandidate: B candidate unchanged',
 )
 await insertEchoDismissal(storeA, ENTRY_A)
-ok((await count('echo_dismissals', 'owner = $1', [OWNER_B])) === 0, 'insertEchoDismissal: not on B')
+ok((await count('echo_dismissals', 'owner = $1', [OWNER_B])) === 1, 'insertEchoDismissal: not on B')
 
 ok((await listPrayerThreads(storeA)).every((r) => r.id !== PRAYER_B), 'listPrayerThreads: A misses B')
 ok((await deletePrayerThread(storeA, PRAYER_B)) === false, 'deletePrayerThread: A cannot delete B')
 await insertPrayerThread(storeA, 'Ada extra cairn')
 
 ok((await getWelcomeDrip(storeA))?.owner === OWNER_A, 'getWelcomeDrip: A sees A')
+ok((await getWelcomeDrip(storeB))?.owner === OWNER_B, 'getWelcomeDrip: B sees B')
 ok((await getWelcomeDrip(storeA))?.owner !== OWNER_B, 'getWelcomeDrip: A is not B')
 
 const bEntriesBefore = await count('entries', 'owner = $1', [OWNER_B])
@@ -218,8 +247,33 @@ const bProfilesBefore = await count('profiles', 'owner = $1', [OWNER_B])
 await deleteOwnedAccount(storeA)
 ok((await count('entries', 'owner = $1', [OWNER_B])) === bEntriesBefore, 'deleteOwnedAccount: B entries remain')
 ok((await count('profiles', 'owner = $1', [OWNER_B])) === bProfilesBefore, 'deleteOwnedAccount: B profile remains')
+ok((await count('marks', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B marks remain')
+ok((await count('insights', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B insights remain')
+ok((await count('reminders', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B reminders remain')
+ok((await count('attachments', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B attachments remain')
+ok((await count('kept_subjects', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B kept_subjects remain')
+ok((await count('threads', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B threads remain')
+ok((await count('ropes', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B ropes remain')
+ok((await count('processing_jobs', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B jobs remain')
+ok((await count('concordance', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B concordance remain')
+ok((await count('scripture_refs', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B scripture_refs remain')
+ok((await count('echo_candidates', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B echo_candidates remain')
+ok((await count('prayer_threads', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B prayer_threads remain')
+ok((await count('welcome_drip_enrollments', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B drip remain')
+ok((await count('spiritual_items', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B spiritual_items remain')
+ok((await count('thread_members', 'thread_id = $1', [THREAD_B])) === 1, 'deleteOwnedAccount: B thread_members remain')
+ok((await count('echo_dismissals', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B echo_dismissals remain')
+ok((await count('resurface_dismissals', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B resurface_dismissals remain')
+ok((await count('altar_candidates', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B altar_candidates remain')
+ok((await count('altar_candidate_dismissals', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B altar dismissals remain')
+ok((await count('item_subjects', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B item_subjects remain')
+ok((await count('encounters', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B encounters remain')
+ok((await count('concordance_events', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B concordance_events remain')
+ok((await count('concordance_occurrences', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B concordance_occurrences remain')
+ok((await count('concordance_shadow', 'owner = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B concordance_shadow remain')
 ok((await count('entries', 'owner = $1', [OWNER_A])) === 0, 'deleteOwnedAccount: A entries gone')
 ok((await count('profiles', 'owner = $1', [OWNER_A])) === 0, 'deleteOwnedAccount: A profile gone')
+ok((await getWelcomeDrip(storeA)) === null, 'deleteOwnedAccount: A drip gone')
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {

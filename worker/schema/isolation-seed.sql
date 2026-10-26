@@ -90,3 +90,48 @@ INSERT INTO welcome_drip_enrollments (owner, source, status)
 VALUES
   ('11111111-1111-1111-1111-111111111111', 'signup', 'active'),
   ('22222222-2222-2222-2222-222222222222', 'signup', 'active');
+
+INSERT INTO echo_dismissals (owner, entry_id)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1'),
+  ('22222222-2222-2222-2222-222222222222', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
+
+INSERT INTO resurface_dismissals (owner, source_type, source_id)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'entry', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1'),
+  ('22222222-2222-2222-2222-222222222222', 'entry', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
+
+INSERT INTO altar_candidates (owner, thread_id)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa14'),
+  ('22222222-2222-2222-2222-222222222222', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb14');
+
+INSERT INTO altar_candidate_dismissals (owner, thread_id, entry_id)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa14', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1'),
+  ('22222222-2222-2222-2222-222222222222', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb14', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
+
+INSERT INTO item_subjects (owner, subject_key)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'mercy'),
+  ('22222222-2222-2222-2222-222222222222', 'mercy');
+
+INSERT INTO encounters (owner, thread_id, entry_id)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa14', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1'),
+  ('22222222-2222-2222-2222-222222222222', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb14', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
+
+INSERT INTO concordance_events (owner, kind)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'seen'),
+  ('22222222-2222-2222-2222-222222222222', 'seen');
+
+INSERT INTO concordance_occurrences (owner, term, entry_id)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'grace', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1'),
+  ('22222222-2222-2222-2222-222222222222', 'grace', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
+
+INSERT INTO concordance_shadow (owner)
+VALUES
+  ('11111111-1111-1111-1111-111111111111'),
+  ('22222222-2222-2222-2222-222222222222');

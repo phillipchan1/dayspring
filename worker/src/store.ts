@@ -123,6 +123,39 @@ export async function deleteEntry(store: ConnectedStore, id: string): Promise<bo
   return rows.length > 0
 }
 
+export async function replaceEntry(
+  store: ConnectedStore,
+  input: {
+    id: string
+    created_at: string
+    body_markdown: string
+    title: string | null
+    mood: string | null
+    tags: string[]
+    word_count: number
+    source: string
+    external_id: string | null
+    circumstances: unknown
+  },
+): Promise<EntryRow | null> {
+  const rows = await store.sql<EntryRow[]>`
+    UPDATE entries SET
+      created_at = ${input.created_at},
+      body_markdown = ${input.body_markdown},
+      title = ${input.title},
+      mood = ${input.mood},
+      tags = ${input.tags},
+      word_count = ${input.word_count},
+      source = ${input.source},
+      external_id = ${input.external_id},
+      circumstances = ${jsonParam(store.sql, input.circumstances ?? {})}
+    WHERE id = ${input.id}
+      AND owner = ${store.ownerId}
+    RETURNING id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances
+  `
+  return rows[0] ?? null
+}
+
 export async function upsertEntryChecked(
   store: ConnectedStore,
   input: {
@@ -139,13 +172,7 @@ export async function upsertEntryChecked(
     circumstances: unknown
   },
 ): Promise<{ conflicted: boolean; entry: EntryRow }> {
-  const existing = await store.sql<Array<EntryRow & { owner: string }>>`
-    SELECT id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances, owner
-    FROM entries
-    WHERE id = ${input.id}
-      AND owner = ${store.ownerId}
-  `
-  const current = existing[0]
+  const current = await getEntry(store, input.id)
   if (!current) {
     try {
       const entry = await insertEntry(store, {
@@ -180,22 +207,7 @@ export async function upsertEntryChecked(
   if (current.updated_at !== input.base_updated_at) {
     return { conflicted: true, entry: current }
   }
-  const rows = await store.sql<EntryRow[]>`
-    UPDATE entries SET
-      created_at = ${input.created_at},
-      body_markdown = ${input.body_markdown},
-      title = ${input.title},
-      mood = ${input.mood},
-      tags = ${input.tags},
-      word_count = ${input.word_count},
-      source = ${input.source},
-      external_id = ${input.external_id},
-      circumstances = ${jsonParam(store.sql, input.circumstances ?? {})}
-    WHERE id = ${input.id}
-      AND owner = ${store.ownerId}
-    RETURNING id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances
-  `
-  const entry = rows[0]
+  const entry = await replaceEntry(store, input)
   if (!entry) throw new Error('upsertEntryChecked update returned no row')
   return { conflicted: false, entry }
 }

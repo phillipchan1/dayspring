@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process'
 const storePath = 'worker/src/store.ts'
 const originalStore = readFileSync(storePath, 'utf8')
 
-const OWNER_FILTER = /(?:t\.)?owner = \$\{store\.ownerId\}/g
+const OWNER_FILTER = /(?:[\w.]+\.)?owner = \$\{store\.ownerId\}/g
 
 function restore() {
   writeFileSync(storePath, originalStore)
@@ -31,12 +31,18 @@ function collectFilters() {
   const items = []
   OWNER_FILTER.lastIndex = 0
   for (const match of originalStore.matchAll(OWNER_FILTER)) {
+    const index = match.index ?? 0
+    const lineStart = originalStore.lastIndexOf('\n', index) + 1
+    const lineEnd = originalStore.indexOf('\n', index)
+    const line = originalStore.slice(lineStart, lineEnd === -1 ? undefined : lineEnd)
+    const trimmed = line.trimStart()
+    if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/**')) continue
     items.push({
       path: storePath,
       source: originalStore,
-      index: match.index ?? 0,
+      index,
       text: match[0],
-      line: lineOf(originalStore, match.index ?? 0),
+      line: lineOf(originalStore, index),
     })
   }
   return items
@@ -94,9 +100,7 @@ expectFail('M1 delete getEntry owner filter', () => {
 expectFail('M2 set owner filters to TRUE', () => {
   writeFileSync(
     storePath,
-    originalStore
-      .replace(/t\.owner = \$\{store\.ownerId\}/g, 'TRUE')
-      .replace(/owner = \$\{store\.ownerId\}/g, 'TRUE'),
+    originalStore.replace(/(?:[\w.]+\.)?owner = \$\{store\.ownerId\}/g, 'TRUE'),
   )
 })
 
