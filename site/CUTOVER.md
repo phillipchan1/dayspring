@@ -24,15 +24,17 @@ Production deploy (after you are ready; **not** this PR):
 npm run deploy:cf      # build + wrangler deploy
 ```
 
-`src/worker.ts` handles `/api/*`. Everything else is `dist/` (`assets.directory`).
+`src/worker.ts` handles `/api/*` and unwraps `html_handling` 307s so pretty
+URLs and `*.html` files 200 like Vercel. Everything else is `dist/`
+(`assets.directory`).
 
 | Concern | Vercel today | Workers |
 | --- | --- | --- |
-| Pretty HTML (`/why` and `/why/`) | 200 both | `html_handling: auto-trailing-slash` |
+| Pretty HTML (`/why` and `/why/`) | 200 both | `html_handling: auto-trailing-slash` + Worker unwraps the 307 so both 200 |
 | Unknown path | 404, not `index.html` | `not_found_handling: 404-page` |
 | Headers | HSTS `max-age=63072000`, `Access-Control-Allow-Origin: *`, `Cache-Control: public, max-age=0, must-revalidate` (`vercel.json` has no `headers` block; these are platform defaults) | `public/_headers` (copied into `dist/`) |
 | Path redirects / rewrites | none (`vercel.json` has neither) | `public/_redirects` (none) |
-| Apex → www | 307 at the domain (`usedayspring.app` → `https://www.usedayspring.app/`) | attach both hostnames; 307 apex → www (below) |
+| Apex → www | 307 at the domain (`usedayspring.app` → `https://www.usedayspring.app/`) | Worker `apexRedirect` (307). Attach both hostnames. |
 | `POST /api/contact` | `api/contact.ts` (Vercel function) | `src/worker.ts` → same `POST()` |
 
 ## Worker secrets (`POST /api/contact`)
@@ -97,11 +99,20 @@ npm run build
 3. In the Cloudflare dashboard: Worker → **Domains & Routes** → **Add**
    `www.usedayspring.app`.
 4. Add `usedayspring.app` (apex) on the same Worker.
-5. Configure apex → `https://www.usedayspring.app/:path*` as a **307** (today’s
-   Vercel status). Bulk Redirects or a tiny `run_worker_first` host check both
-   work; `_redirects` cannot match on hostname.
+5. The Worker already 307s `usedayspring.app` → `https://www.usedayspring.app/:path*`
+   (`apexRedirect` in `src/worker.ts`). `_redirects` cannot match on hostname;
+   Bulk Redirects are an alternative if you later set `run_worker_first` back
+   to `/api/*` only.
 6. Only then change DNS (apex + www) from Vercel to Cloudflare. This PR
    does not do that.
+
+## Local URL parity
+
+`wrangler dev` (8787) vs `astro preview` of the same `dist/` (4321): **223 / 223**
+URLs matched status and body (every file in `dist/` plus pretty `/page` and
+`/page/` variants, plus five unknown paths). `_headers` and `_redirects` are
+config, not routes — wrangler consumes them and 404s those two paths; they
+are not in the 223.
 
 ## Rollback
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import worker from "./worker";
+import worker, { apexRedirect, serveAsset } from "./worker";
 import { bindContactEnv } from "../api/contact";
 
 const assets = {
@@ -49,6 +49,47 @@ describe("worker routing", () => {
       env,
     );
     expect(res.status).toBe(404);
+  });
+
+  it("307s the apex host to www, keeping the path", () => {
+    const res = apexRedirect(new Request("https://usedayspring.app/why"));
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(307);
+    expect(res!.headers.get("Location")).toBe("https://www.usedayspring.app/why");
+  });
+
+  it("does not redirect www", () => {
+    expect(apexRedirect(new Request("https://www.usedayspring.app/"))).toBeNull();
+  });
+});
+
+describe("serveAsset unwraps html_handling redirects", () => {
+  it("returns the destination body at the original URL", async () => {
+    const redirecting = {
+      fetch: async (request: Request) => {
+        const { pathname } = new URL(request.url);
+        if (pathname === "/why") {
+          return new Response(null, {
+            status: 307,
+            headers: { Location: "http://127.0.0.1/why/" },
+          });
+        }
+        return new Response("<html>why</html>", {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        });
+      },
+    };
+
+    const res = await serveAsset(new Request("http://127.0.0.1/why"), { ASSETS: redirecting });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<html>why</html>");
+  });
+
+  it("leaves a 200 asset response alone", async () => {
+    const res = await serveAsset(new Request("http://127.0.0.1/favicon.svg"), env);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("asset:/favicon.svg");
   });
 });
 

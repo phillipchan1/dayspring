@@ -18,9 +18,10 @@
     // Equivalent to Vercel (no rewrite to /index.html): unknown paths 404.
     // Serves nearest 404.html when present (Astro emits one).
     "not_found_handling": "404-page",
-    // Contact (and any future /api/*) hits the Worker first. Everything else
-    // is served as a static asset without running worker code.
-    "run_worker_first": ["/api/*"]
+    // /api/* is the dynamic surface. The Worker also runs first on every
+    // other path so it can unwrap html_handling 307s (`/why` and `*.html`)
+    // and 307 the apex host — matching Vercel / `astro preview`.
+    "run_worker_first": true
   }
   // Runtime secrets — same names as Vercel / .env.example. Set with
   // `wrangler secret put <NAME>` (or `.dev.vars` locally). Do not put
