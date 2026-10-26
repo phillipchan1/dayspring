@@ -185,8 +185,10 @@ Init is still needed for what *isn't* committed: Pods, `Externals/`, the workspa
 The App Store Connect app record already exists (builds were uploaded by hand
 through 1.0.224.207), so this is just secrets.
 
-| Secret | Status | Value |
+| Secret / variable | Status | Value |
 |---|---|---|
+| `VITE_API_BASE_URL` | **repo variable** | Empty → `https://dayspring-eosin.vercel.app`. Set to a `*.workers.dev` origin only for a Workers preview IPA. |
+| `VITE_BACKEND` | optional repo variable | `workers` only for that preview IPA. Leave unset in production. |
 | `VITE_SUPABASE_URL` | ✅ already set | same as the desktop build |
 | `VITE_SUPABASE_ANON_KEY` | ✅ already set | same as the desktop build |
 | `APPLE_TEAM_ID` | ✅ already set | `4629AQ24Z2` |
@@ -239,6 +241,22 @@ The `IOS_*` trio is a fallback for when automatic signing fails; leave them unse
 and the API key handles signing. **Never point them at `APPLE_CERTIFICATE`** —
 that's the Developer ID cert `release.yml` uses for the DMG, and TestFlight
 requires an Apple Distribution cert instead.
+
+**Target signing** (what new iOS CI should converge on; today's job still uses
+`tauri ios build --export-method app-store-connect`):
+
+```text
+xcodebuild archive / -exportArchive
+  -allowProvisioningUpdates
+  -authenticationKeyPath $APPLE_API_KEY_PATH
+  -authenticationKeyID $APPLE_API_KEY
+  -authenticationKeyIssuerID $APPLE_API_ISSUER
+  CODE_SIGN_STYLE=Automatic
+```
+
+Required secrets for that path: `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`,
+`APPSTORE_PRIVATE_KEY`, `APPLE_TEAM_ID`. No `.p12`, no hand-made provisioning
+profile. See `docs/cloudflare-migration/cutover.md`.
 
 After the first green run: App Store Connect → TestFlight → Internal Testing →
 add yourself; then enable **Automatic Updates** in the TestFlight app.

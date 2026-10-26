@@ -33,7 +33,22 @@ jobs:
         run: npm run typecheck
       - name: Unit tests (app)
         run: npm test
+      - name: Worker auth + isolation checks
+        run: npm run check:worker
       - name: Install site
         run: npm ci --prefix site
       - name: Unit tests (site)
         run: npm test --prefix site
+
+  isolation-mutation:
+    name: isolation-mutation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Isolation mutation proof
+        run: npm run check:isolation-mutation
