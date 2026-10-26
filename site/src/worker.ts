@@ -28,6 +28,25 @@ const WWW_HOST = "www.usedayspring.app";
 const isContactPath = (pathname: string): boolean =>
   pathname === "/api/contact" || pathname === "/api/contact/";
 
+const isNotFoundDoc = (pathname: string): boolean =>
+  pathname === "/404" || pathname === "/404/" || pathname === "/404.html";
+
+/**
+ * Cloudflare does not overwrite a client-supplied `x-real-ip` / `X-Forwarded-For`.
+ * `api/contact.ts` (shared with Vercel) reads those first, so a rotating spoof
+ * would bypass the 429 and lie to Turnstile. Replace them with CF's connecting
+ * IP before the handler runs. Missing `cf-connecting-ip` (local, tests) drops
+ * the client-supplied headers so they cannot be trusted.
+ */
+export function pinClientIp(request: Request): Request {
+  const headers = new Headers(request.headers);
+  const connecting = headers.get("cf-connecting-ip")?.trim();
+  headers.delete("x-forwarded-for");
+  if (connecting) headers.set("x-real-ip", connecting);
+  else headers.delete("x-real-ip");
+  return new Request(request, { headers });
+}
+
 /** Apex → www, same 307 Vercel sends today. */
 export function apexRedirect(request: Request): Response | null {
   const url = new URL(request.url);
@@ -42,7 +61,7 @@ export function apexRedirect(request: Request): Response | null {
  */
 export async function serveAsset(request: Request, env: Env): Promise<Response> {
   const res = await env.ASSETS.fetch(request);
-  if (res.status !== 307 && res.status !== 308) return res;
+  if (res.status !== 307 && res.status !== 308) return withNotFoundStatus(request, res);
 
   const loc = res.headers.get("Location");
   if (!loc) return res;
@@ -51,7 +70,17 @@ export async function serveAsset(request: Request, env: Env): Promise<Response> 
   const src = new URL(request.url);
   if (dest.origin !== src.origin) return res;
 
-  return env.ASSETS.fetch(new Request(dest, request));
+  const followed = await env.ASSETS.fetch(new Request(dest, request));
+  return withNotFoundStatus(request, followed);
+}
+
+/** `/404` is the 404 document, not a 200 page. Unknown paths stay 404. */
+function withNotFoundStatus(request: Request, res: Response): Response {
+  if (res.status === 404) return res;
+  if (isNotFoundDoc(new URL(request.url).pathname) && res.status === 200) {
+    return new Response(res.body, { status: 404, statusText: "Not Found", headers: res.headers });
+  }
+  return res;
 }
 
 export default {
@@ -63,7 +92,7 @@ export default {
 
     if (isContactPath(pathname)) {
       bindContactEnv(env as unknown as Record<string, unknown>);
-      if (request.method === "POST") return POST(request);
+      if (request.method === "POST") return POST(pinClientIp(request));
       return new Response(null, { status: 405, headers: { Allow: "POST" } });
     }
 

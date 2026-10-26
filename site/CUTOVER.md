@@ -14,9 +14,15 @@ From `site/`:
 
 ```bash
 npm install
-npm run build          # Astro static output → dist/
+TZ=UTC npm run build   # Astro static output → dist/; TZ=UTC matches Vercel dates
 npx wrangler deploy --dry-run
 ```
+
+Cloudflare **build** env must include `TZ=UTC` and the same `PUBLIC_*` vars
+as Vercel (`PUBLIC_POSTHOG_KEY`, `PUBLIC_POSTHOG_HOST`, `PUBLIC_GOOGLE_TAG_ID`,
+`PUBLIC_GADS_DOWNLOAD_SEND_TO`, `PUBLIC_GADS_START_TRIAL_SEND_TO`,
+`PUBLIC_META_PIXEL_ID`, `PUBLIC_TURNSTILE_SITE_KEY`). They are inlined at
+`astro build`, not Worker secrets. See also `wrangler.jsonc` and `readme.md`.
 
 Production deploy (after you are ready; **not** this PR):
 
@@ -31,8 +37,8 @@ URLs and `*.html` files 200 like Vercel. Everything else is `dist/`
 | Concern | Vercel today | Workers |
 | --- | --- | --- |
 | Pretty HTML (`/why` and `/why/`) | 200 both | `html_handling: auto-trailing-slash` + Worker unwraps the 307 so both 200 |
-| Unknown path | 404, not `index.html` | `not_found_handling: 404-page` |
-| Headers | HSTS `max-age=63072000`, `Access-Control-Allow-Origin: *`, `Cache-Control: public, max-age=0, must-revalidate` (`vercel.json` has no `headers` block; these are platform defaults) | `public/_headers` (copied into `dist/`) |
+| Unknown path | 404 via `404.html`, not `index.html` | `not_found_handling: 404-page` (Worker also 404s `/404` itself) |
+| Headers | HSTS `max-age=63072000`, `Access-Control-Allow-Origin: *`, `Cache-Control: public, max-age=0, must-revalidate` (`vercel.json` has no `headers` block; these are platform defaults) | `public/_headers` — same on `/*`, plus `/_astro/*` `max-age=31536000, immutable` |
 | Path redirects / rewrites | none (`vercel.json` has neither) | `public/_redirects` (none) |
 | Apex → www | 307 at the domain (`usedayspring.app` → `https://www.usedayspring.app/`) | Worker `apexRedirect` (307). Attach both hostnames. |
 | `POST /api/contact` | `api/contact.ts` (Vercel function) | `src/worker.ts` → same `POST()` |

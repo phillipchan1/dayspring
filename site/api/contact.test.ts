@@ -436,12 +436,16 @@ describe("bindContactEnv", () => {
     bindContactEnv(null);
     delete process.env.GITHUB_TOKEN;
     delete process.env.SUPPORT_REPO;
+    delete process.env.RESEND_API_KEY;
+    delete process.env.TURNSTILE_SECRET_KEY;
     vi.restoreAllMocks();
   });
 
   it("lets the Worker supply the same env var names without process.env", async () => {
     delete process.env.GITHUB_TOKEN;
     delete process.env.SUPPORT_REPO;
+    delete process.env.RESEND_API_KEY;
+    delete process.env.TURNSTILE_SECRET_KEY;
     bindContactEnv({ GITHUB_TOKEN: "gh_bound", SUPPORT_REPO: "owner/repo" });
     vi.stubGlobal("fetch", async () => new Response('{"number":1}', { status: 201 }));
 

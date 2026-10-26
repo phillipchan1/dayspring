@@ -29,4 +29,10 @@
   //   RESEND_API_KEY, GITHUB_TOKEN, SUPPORT_REPO, SUPPORT_LABEL,
   //   CONTACT_TO_EMAIL, CONTACT_FROM_EMAIL, CONTACT_AUTOREPLY,
   //   TURNSTILE_SECRET_KEY
+  //
+  // Cloudflare *build* environment (inlined at `astro build`, not secrets):
+  //   PUBLIC_POSTHOG_KEY, PUBLIC_POSTHOG_HOST, PUBLIC_GOOGLE_TAG_ID,
+  //   PUBLIC_GADS_DOWNLOAD_SEND_TO, PUBLIC_GADS_START_TRIAL_SEND_TO,
+  //   PUBLIC_META_PIXEL_ID, PUBLIC_TURNSTILE_SITE_KEY
+  //   TZ=UTC  — sitemap lastmod / dates must match the Vercel build
 }

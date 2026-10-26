@@ -1,5 +1,11 @@
 ---
 import Base from "../layouts/Base.astro";
+
+// Emitted as 404.html. Vercel and the Worker serve this file with status 404
+// for unknown paths (`not_found_handling: 404-page` / Vercel's 404.html).
+// The Worker also returns 404 for /404 itself — otherwise cleanUrls would
+// make GET /404 a 200. This is the 404 document, not a page.
+Astro.response.status = 404;
 ---
 
 <Base
