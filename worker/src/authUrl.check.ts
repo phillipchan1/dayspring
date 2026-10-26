@@ -170,7 +170,7 @@ ok(
 )
 ok(
   readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes(
-    '(EXTRACT(EPOCH FROM updated_at) * 1000)::bigint',
+    "date_trunc('milliseconds', updated_at)",
   ),
   'entry replace OCC compares updated_at at epoch ms in the UPDATE WHERE',
 )

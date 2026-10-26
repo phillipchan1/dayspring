@@ -60,8 +60,8 @@ BEGIN
   -- OCC compares epoch ms. Advance at least 1ms so a winner invalidates
   -- other writers that shared the same base timestamp.
   IF OLD.updated_at IS NOT NULL
-     AND (EXTRACT(EPOCH FROM NEW.updated_at) * 1000)::bigint
-       = (EXTRACT(EPOCH FROM OLD.updated_at) * 1000)::bigint THEN
+     AND date_trunc('milliseconds', NEW.updated_at)
+       = date_trunc('milliseconds', OLD.updated_at) THEN
     NEW.updated_at = OLD.updated_at + INTERVAL '1 millisecond';
   END IF;
   RETURN NEW;

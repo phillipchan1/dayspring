@@ -25,26 +25,12 @@ async function applySchema(sql: Sql): Promise<void> {
   await sql.unsafe(readFileSync(schemaPath, 'utf8'))
 }
 
-/** Extra max-1 client against an already-opened wire (parallel OCC). */
-export function connectWireSql(wire: WireSql): Sql {
-  if (wire.kind === 'postgres') {
-    const prepared = withPgSslMode(wire.url)
-    return postgres(prepared, {
-      max: 1,
-      prepare: false,
-      ssl: postgresSslOption(prepared),
-      onnotice() {},
-    })
-  }
-  return postgres(wire.url, { max: 1, prepare: false, ssl: false, onnotice() {} })
-}
-
 export async function openWireSql(): Promise<WireSql> {
   const configured = process.env.DAYSPRING_TEST_DATABASE_URL?.trim()
   if (configured) {
     const prepared = withPgSslMode(configured)
     const sql = postgres(prepared, {
-      max: 2,
+      max: 12,
       prepare: false,
       ssl: postgresSslOption(prepared),
       onnotice() {},
@@ -71,7 +57,7 @@ export async function openWireSql(): Promise<WireSql> {
   await server.start()
   const conn = server.getServerConn()
   const url = `postgresql://postgres:postgres@${conn}/postgres`
-  const sql = postgres(url, { max: 2, prepare: false, ssl: false, onnotice() {} })
+  const sql = postgres(url, { max: 12, prepare: false, ssl: false, onnotice() {} })
   return {
     sql,
     url,

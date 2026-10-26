@@ -165,6 +165,7 @@ export async function replaceEntry(
   },
 ): Promise<EntryRow | null> {
   const baseMs = timestampMs(input.base_updated_at)
+  const baseIso = baseMs == null ? null : new Date(baseMs).toISOString()
   const rows = await store.sql<EntryRow[]>`
     UPDATE entries SET
       created_at = ${input.created_at},
@@ -180,7 +181,8 @@ export async function replaceEntry(
       AND owner = ${store.ownerId}
       AND (
         ${baseMs}::bigint IS NULL
-        OR (EXTRACT(EPOCH FROM updated_at) * 1000)::bigint = ${baseMs}::bigint
+        OR date_trunc('milliseconds', updated_at)
+           = date_trunc('milliseconds', ${baseIso}::timestamptz)
       )
     RETURNING id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances
   `
