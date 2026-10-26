@@ -157,6 +157,14 @@ ok(
   'auth.ts does not cache Better Auth in a WeakMap',
 )
 ok(
+  readFileSync(join(root, 'worker/src/auth.ts'), 'utf8').includes('requireSignature: true'),
+  'bearer plugin requires a signed token',
+)
+ok(
+  !readFileSync(join(root, 'src/lib/authClient.ts'), 'utf8').includes('session?.token'),
+  'iOS/web client does not send the raw session.token as a bearer',
+)
+ok(
   !readFileSync(join(root, 'worker/src/db.ts'), 'utf8').includes("url.includes('localhost')"),
   'db.ts does not substring-match localhost for TLS',
 )

@@ -143,7 +143,7 @@ export function createAuth(
       },
     },
     plugins: [
-      bearer(),
+      bearer({ requireSignature: true }),
       emailOTP({
         otpLength: 6,
         expiresIn: 300,

@@ -185,15 +185,29 @@ const sentSignUp = await auth.api.sendVerificationOTP({
 ok(sentSignUp.success === true, 'OTP send for sign-up')
 const signUpCode = otps.filter((row) => row.email === signUpEmail).at(-1)?.otp
 ok(Boolean(signUpCode), 'OTP send delivered a code')
+const AUTH_SECRET = 'x'.repeat(32)
+
+async function signBearer(raw: string): Promise<string> {
+  const { createHMAC } = await import('@better-auth/utils/hmac')
+  const signature = await createHMAC('SHA-256', 'base64urlnopad').sign(AUTH_SECRET, raw)
+  return `${raw}.${signature}`
+}
+
 const signedUp = await auth.api.signInEmailOTP({
   body: { email: signUpEmail, otp: signUpCode ?? '' },
 })
 ok(signedUp.user.email === signUpEmail, 'OTP sign-up creates the user')
 ok(Boolean(signedUp.token), 'OTP sign-up returns a session token')
-const afterSignUp = await auth.api.getSession({
+ok(!signedUp.token.includes('.'), 'API body token is the unsigned DB value')
+const rawRejected = await auth.api.getSession({
   headers: new Headers({ authorization: `Bearer ${signedUp.token}` }),
 })
-ok(afterSignUp?.user?.id === signedUp.user.id, 'getSession after sign-up')
+ok(rawRejected == null, 'raw DB token is not accepted as a bearer')
+const signedUpBearer = await signBearer(signedUp.token)
+const afterSignUp = await auth.api.getSession({
+  headers: new Headers({ authorization: `Bearer ${signedUpBearer}` }),
+})
+ok(afterSignUp?.user?.id === signedUp.user.id, 'getSession after sign-up with signed bearer')
 ok(afterSignUp?.session?.token === signedUp.token || Boolean(afterSignUp?.session), 'getSession has a session')
 
 const sentSignIn = await auth.api.sendVerificationOTP({
@@ -207,7 +221,7 @@ const signedIn = await auth.api.signInEmailOTP({
 })
 ok(signedIn.user.id === signedUp.user.id, 'OTP sign-in is the same user')
 const afterSignIn = await auth.api.getSession({
-  headers: new Headers({ authorization: `Bearer ${signedIn.token}` }),
+  headers: new Headers({ authorization: `Bearer ${await signBearer(signedIn.token)}` }),
 })
 ok(afterSignIn?.user?.id === signedUp.user.id, 'getSession after sign-in')
 

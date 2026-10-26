@@ -39,9 +39,6 @@ const email = `ivy-${crypto.randomUUID()}@example.test`
 await mint.api.sendVerificationOTP({ body: { email, type: 'sign-in' } })
 const code = otps.filter((row) => row.email === email).at(-1)?.otp
 if (!code) throw new Error('failed to mint OTP for instance fixture')
-const signed = await mint.api.signInEmailOTP({ body: { email, otp: code } })
-const token = signed.token
-if (!token) throw new Error('failed to mint session token')
 await pool.end()
 
 const worker = await unstable_dev(join(root, 'worker/src/index.ts'), {
@@ -76,6 +73,25 @@ try {
   })
   ok(otp.status < 500, `OTP send is not 5xx (got ${otp.status})`)
   await otp.text()
+
+  const signIn = await timedFetch('/api/auth/sign-in/email-otp', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, otp: code }),
+  })
+  ok(signIn.status === 200, `OTP sign-in is 200 (got ${signIn.status})`)
+  const token = signIn.headers.get('set-auth-token')
+  ok(Boolean(token && token.includes('.')), 'sign-in returns a signed set-auth-token')
+  const rawRows = await wire.sql<{ token: string }[]>`
+    SELECT token FROM session WHERE user_id IN (SELECT id FROM "user" WHERE email = ${email})
+    ORDER BY created_at DESC LIMIT 1
+  `
+  const rawToken = rawRows[0]?.token ?? ''
+  ok(Boolean(rawToken) && !rawToken.includes('.'), 'DB session token is unsigned')
+  const rawDenied = await timedFetch('/api/data/entries', {
+    headers: { authorization: `Bearer ${rawToken}` },
+  })
+  ok(rawDenied.status === 401, `raw DB token is 401 (got ${rawDenied.status})`)
 
   const write = await timedFetch('/api/data/entries/upsert-checked', {
     method: 'POST',
