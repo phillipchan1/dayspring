@@ -34,6 +34,27 @@ export interface EntryRow {
   circumstances: unknown
 }
 
+/** postgres.js returns Date; JSON/PGlite return strings. Compare epoch ms. */
+export function timestampMs(value: unknown): number | null {
+  if (value == null) return null
+  if (value instanceof Date) {
+    const t = value.getTime()
+    return Number.isFinite(t) ? t : null
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const t = Date.parse(value)
+    return Number.isFinite(t) ? t : null
+  }
+  return null
+}
+
+export function sameTimestamp(left: unknown, right: unknown): boolean {
+  const a = timestampMs(left)
+  const b = timestampMs(right)
+  return a != null && b != null && a === b
+}
+
 export async function listEntries(store: ConnectedStore): Promise<EntryRow[]> {
   return store.sql<EntryRow[]>`
     SELECT id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances
@@ -215,7 +236,7 @@ export async function upsertEntryChecked(
       } }
     }
   }
-  if (current.updated_at !== input.base_updated_at) {
+  if (!sameTimestamp(current.updated_at, input.base_updated_at)) {
     return { conflicted: true, entry: current }
   }
   const entry = await replaceEntry(store, input)
@@ -315,6 +336,28 @@ export function canExtendTrial(profile: ProfileRow): boolean {
 }
 
 export async function extendTrialOnce(store: ConnectedStore): Promise<TrialExtendResult> {
+  const rows = await store.sql<ProfileRow[]>`
+    UPDATE profiles
+    SET plan = 'trialing',
+        trial_ends_at = GREATEST(NOW(), COALESCE(trial_ends_at, NOW()))
+          + (${TRIAL_EXTENSION_DAYS} * INTERVAL '1 day'),
+        feature_flags = array_append(COALESCE(feature_flags, ARRAY[]::text[]), ${TRIAL_EXTENDED_FLAG})
+    WHERE owner = ${store.ownerId}
+      AND NOT (${TRIAL_EXTENDED_FLAG} = ANY(COALESCE(feature_flags, ARRAY[]::text[])))
+      AND (
+        plan IS NULL
+        OR plan = 'none'
+        OR (plan = 'trialing' AND (plan_source IS NULL OR plan_source = ''))
+      )
+    RETURNING id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
+              feature_flags, stripe_customer_id, apple_original_txn
+  `
+  const updated = rows[0]
+  if (updated) {
+    const end = updated.trial_ends_at as string | Date | null
+    const trialEnds = end instanceof Date ? end.toISOString() : String(end ?? '')
+    return { ok: true, trial_ends_at: trialEnds, profile: updated }
+  }
   const profile = await getProfile(store)
   if (!profile) return { ok: false, status: 404, error: 'no profile' }
   const flags = Array.isArray(profile.feature_flags) ? profile.feature_flags : []
@@ -324,23 +367,7 @@ export async function extendTrialOnce(store: ConnectedStore): Promise<TrialExten
   if (!canExtendTrial(profile)) {
     return { ok: false, status: 409, error: 'This account has a subscription — there is no trial to extend.' }
   }
-  const now = Date.now()
-  const currentEnd = profile.trial_ends_at ? new Date(profile.trial_ends_at).getTime() : now
-  const base = Math.max(now, currentEnd)
-  const trialEnds = new Date(base + TRIAL_EXTENSION_DAYS * 86_400_000).toISOString()
-  const nextFlags = [...flags, TRIAL_EXTENDED_FLAG]
-  const rows = await store.sql<ProfileRow[]>`
-    UPDATE profiles
-    SET plan = 'trialing',
-        trial_ends_at = ${trialEnds},
-        feature_flags = ${textArray(store.sql, nextFlags)}
-    WHERE owner = ${store.ownerId}
-    RETURNING id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
-              feature_flags, stripe_customer_id, apple_original_txn
-  `
-  const updated = rows[0]
-  if (!updated) return { ok: false, status: 404, error: 'no profile' }
-  return { ok: true, trial_ends_at: trialEnds, profile: updated }
+  return { ok: false, status: 409, error: 'Trial already extended once.' }
 }
 
 export async function listInsights(store: ConnectedStore): Promise<Array<{ id: string; type: string }>> {
@@ -693,32 +720,42 @@ export async function listDueReminders(store: ConnectedStore, nowIso: string): P
   `
 }
 
-/** Account delete: wipe this owner's rows. Must not touch another owner. */
+/** Account delete: wipe this owner's rows and Better Auth identity in one transaction. */
 export async function deleteOwnedAccount(store: ConnectedStore): Promise<void> {
-  await store.sql`DELETE FROM welcome_drip_enrollments WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM marks WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM kept_subjects WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM attachments WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM concordance_events WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM concordance_occurrences WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM concordance_shadow WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM concordance WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM processing_jobs WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM echo_dismissals WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM echo_candidates WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM resurface_dismissals WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM altar_candidate_dismissals WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM altar_candidates WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM encounters WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM item_subjects WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM spiritual_items WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM scripture_refs WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM reminders WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM insights WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM thread_members WHERE thread_id IN (SELECT id FROM threads WHERE owner = ${store.ownerId})`
-  await store.sql`DELETE FROM threads WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM ropes WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM prayer_threads WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM entries WHERE owner = ${store.ownerId}`
-  await store.sql`DELETE FROM profiles WHERE owner = ${store.ownerId}`
+  await store.sql.begin(async (sql) => {
+    await sql`DELETE FROM welcome_drip_enrollments WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM marks WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM kept_subjects WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM attachments WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM concordance_events WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM concordance_occurrences WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM concordance_shadow WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM concordance WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM processing_jobs WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM echo_dismissals WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM echo_candidates WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM resurface_dismissals WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM altar_candidate_dismissals WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM altar_candidates WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM encounters WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM item_subjects WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM spiritual_items WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM scripture_refs WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM reminders WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM insights WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM thread_members WHERE thread_id IN (SELECT id FROM threads WHERE owner = ${store.ownerId})`
+    await sql`DELETE FROM threads WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM ropes WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM prayer_threads WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM entries WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM profiles WHERE owner = ${store.ownerId}`
+    await sql`DELETE FROM session WHERE user_id = ${store.ownerId}`
+    await sql`DELETE FROM account WHERE user_id = ${store.ownerId}`
+    await sql`
+      DELETE FROM verification
+      WHERE identifier IN (SELECT email FROM "user" WHERE id = ${store.ownerId})
+         OR identifier LIKE (SELECT email FROM "user" WHERE id = ${store.ownerId}) || '%'
+    `
+    await sql`DELETE FROM "user" WHERE id = ${store.ownerId}`
+  })
 }

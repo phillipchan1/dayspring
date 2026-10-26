@@ -2,16 +2,33 @@ import type { Env } from './env.ts'
 
 const LOCAL_FALLBACK = 'http://localhost:8787'
 
-/** 127.0.0.0/8, including short forms like 127.1. */
+/**
+ * http is a special URL scheme, so this expands short IPv4 and strips
+ * leading zeros (`0127.0.0.1` → `87.0.0.1`, `127` → `0.0.0.127`,
+ * `127.1` → `127.0.0.1`). `postgres://` does not.
+ */
+export function canonicalizeHostname(hostname: string): string {
+  const host = hostname.replace(/^\[|\]$/g, '')
+  if (!host) return ''
+  if (host.includes(':')) return host.toLowerCase()
+  try {
+    return new URL(`http://${host}`).hostname.toLowerCase()
+  } catch {
+    return host.toLowerCase()
+  }
+}
+
 function isIpv4Loopback(host: string): boolean {
-  if (!/^\d+(?:\.\d+){0,3}$/.test(host)) return false
-  const parts = host.split('.').map(Number)
+  const canonical = canonicalizeHostname(host)
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(canonical)) return false
+  const parts = canonical.split('.').map(Number)
   return parts[0] === 127 && parts.every((n) => n <= 255)
 }
 
 export function isLoopbackHostname(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/g, '').toLowerCase()
-  return host === 'localhost' || host === '::1' || isIpv4Loopback(host)
+  if (host === 'localhost' || host === '::1') return true
+  return isIpv4Loopback(host)
 }
 
 export function isLocalAuthHost(url: string): boolean {
@@ -32,16 +49,11 @@ export function connectionHostname(connectionString: string): string | null {
   }
 }
 
+/** Unset BETTER_AUTH_URL may fall back only when ENVIRONMENT=local. */
 export function isLocalAuthRuntime(
-  env: Pick<Env, 'DATABASE_URL' | 'HYPERDRIVE' | 'ENVIRONMENT'>,
+  env: Pick<Env, 'ENVIRONMENT'>,
 ): boolean {
-  if (env.ENVIRONMENT?.trim().toLowerCase() === 'local') return true
-  for (const raw of [env.DATABASE_URL, env.HYPERDRIVE?.connectionString]) {
-    if (!raw?.trim()) continue
-    const host = connectionHostname(raw.trim())
-    if (host && isLoopbackHostname(host)) return true
-  }
-  return false
+  return env.ENVIRONMENT?.trim().toLowerCase() === 'local'
 }
 
 /** Secure cookies unless the auth origin is loopback. */
@@ -51,9 +63,10 @@ export function authCookieSecure(baseURL: string): boolean {
 
 /**
  * Public Better Auth origin.
- * Unset is allowed only when ENVIRONMENT=local or the DB/Hyperdrive
- * hostname (parsed, not substring-matched) is loopback.
- * Production must set BETTER_AUTH_URL — no silent localhost fallback.
+ * Unset is allowed only when ENVIRONMENT=local.
+ * Production must set BETTER_AUTH_URL — no silent localhost fallback,
+ * including when the DB host looks like loopback (postgres:// does not
+ * normalize IPv4, so 0127.0.0.1 / 127 must not count).
  */
 export function resolveAuthBaseURL(
   env: Pick<Env, 'BETTER_AUTH_URL' | 'DATABASE_URL' | 'HYPERDRIVE' | 'ENVIRONMENT'>,

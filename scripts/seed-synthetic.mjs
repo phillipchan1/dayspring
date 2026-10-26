@@ -20,11 +20,42 @@ if (/supabase\.co/i.test(url)) {
   process.exit(1)
 }
 
+function connectionHostname(connectionString) {
+  try {
+    return new URL(connectionString).hostname || null
+  } catch {
+    return null
+  }
+}
+
+function isLoopbackHostname(hostname) {
+  const host = String(hostname ?? '').replace(/^\[|\]$/g, '').toLowerCase()
+  if (host === 'localhost' || host === '::1') return true
+  try {
+    const canonical = new URL(`http://${host.includes(':') ? `[${host}]` : host}`).hostname
+    return canonical === '127.0.0.1' || canonical.startsWith('127.')
+  } catch {
+    return false
+  }
+}
+
+function postgresSslOption(connectionString) {
+  try {
+    const mode = new URL(connectionString).searchParams.get('sslmode')?.toLowerCase()
+    if (mode === 'disable') return false
+    if (mode === 'require' || mode === 'verify-ca' || mode === 'verify-full') return 'require'
+  } catch {
+    // fall through
+  }
+  const host = connectionHostname(connectionString)
+  return host && isLoopbackHostname(host) ? false : 'require'
+}
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const schema = readFileSync(join(root, 'worker/schema/0001_init.sql'), 'utf8')
 const seed = readFileSync(join(root, 'worker/schema/isolation-seed.sql'), 'utf8')
 
-const sql = postgres(url, { max: 1, ssl: /localhost|127\.0\.0\.1|\[::1\]/.test(url) ? false : 'require' })
+const sql = postgres(url, { max: 1, ssl: postgresSslOption(url) })
 try {
   await sql.unsafe(schema)
   await sql.unsafe(seed)

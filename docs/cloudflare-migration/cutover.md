@@ -41,9 +41,13 @@ None of these belong in the Vite bundle. Do not put localhost in `wrangler.jsonc
 | `WELCOME_DRIP_SENDS_ENABLED` | var | Must stay `false` until an explicit enable | — |
 | `ESV_API_KEY` | secret | Scripture routes | Existing |
 
-`BETTER_AUTH_URL` fail-closed rules are the Zeroed #12/#13 ones: no substring
-`localhost` match on the DB URL; loopback includes `[::1]` and `127.0.0.0/8`;
-misconfig is JSON 500 and echoes ACAO+credentials only for loopback Origins.
+`BETTER_AUTH_URL` fail-closed rules: unset is allowed only when
+`ENVIRONMENT=local`. A loopback-looking `DATABASE_URL` / Hyperdrive host is
+not enough (`postgres://` does not normalize IPv4, so `0127.0.0.1` and `127`
+must not count). IPv4 hosts are canonicalized via `http://` before any
+loopback check used for cookies/CORS/TLS. Misconfig is JSON 500 and echoes
+ACAO+credentials only for loopback Origins. TLS uses parsed `sslmode` (or
+the canonical hostname), never a substring match on the connection string.
 
 ## Free-tier costs and CPU
 

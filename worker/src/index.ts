@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
-import { getAuth, sessionUser } from './auth.ts'
+import { sessionUser } from './auth.ts'
 import { CPU_HEAVY_ROUTES, cpuHeavyPayload } from './cpuLimits.ts'
-import { getSql } from './db.ts'
 import type { Env } from './env.ts'
 import { welcomeDripSendsEnabled } from './env.ts'
+import { authOf, finishRequest, sqlOf, type WorkerContext, type WorkerVars } from './request.ts'
+import { timingSafeEqualString } from './safeEqual.ts'
 import {
   deleteOwnedAccount,
   ensureProfile,
@@ -18,15 +19,19 @@ import {
   upsertEntryChecked,
 } from './store.ts'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<{ Bindings: Env; Variables: WorkerVars }>()
 
 app.use('*', async (c, next) => {
-  await next()
-  const path = new URL(c.req.url).pathname
-  if (path.startsWith('/api/')) {
-    for (const [key, value] of Object.entries(API_SECURITY)) {
-      c.res.headers.set(key, value)
+  try {
+    await next()
+    const path = new URL(c.req.url).pathname
+    if (path.startsWith('/api/')) {
+      for (const [key, value] of Object.entries(API_SECURITY)) {
+        c.res.headers.set(key, value)
+      }
     }
+  } finally {
+    await finishRequest(c)
   }
 })
 
@@ -45,11 +50,11 @@ function cronAuthorized(req: Request, env: Env): boolean {
   const secret = env.CRON_SECRET?.trim()
   if (!secret) return false
   const header = req.headers.get('authorization') ?? ''
-  return header === `Bearer ${secret}`
+  return timingSafeEqualString(header, `Bearer ${secret}`)
 }
 
-async function requireUser(c: { env: Env; req: { raw: Request } }) {
-  return sessionUser(c.env, c.req.raw)
+async function requireUser(c: WorkerContext) {
+  return sessionUser(authOf(c), c.req.raw)
 }
 
 app.get('/api/health', (c) =>
@@ -67,7 +72,7 @@ app.all('/api/auth/*', async (c) => {
   const cors = started.cors
   if (c.req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const auth = getAuth(c.env)
+    const auth = authOf(c)
     const res = await auth.handler(c.req.raw)
     const headers = new Headers(res.headers)
     for (const [k, v] of Object.entries(cors)) {
@@ -81,9 +86,8 @@ app.all('/api/auth/*', async (c) => {
       headers.set('Access-Control-Allow-Origin', cors['Access-Control-Allow-Origin'])
     }
     return new Response(res.body, { status: res.status, headers })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return new Response(JSON.stringify({ error: message }), {
+  } catch {
+    return new Response(JSON.stringify({ error: 'authentication failed' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...cors },
     })
@@ -95,7 +99,7 @@ app.options('/api/*', () => new Response('ok', { headers: API_CORS }))
 app.get('/api/data/entries', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  const store = makeStore(getSql(c.env), user.id)
+  const store = makeStore(sqlOf(c), user.id)
   const since = c.req.query('since')
   const entries = since ? await listEntriesSince(store, since) : await listEntries(store)
   return json({ entries })
@@ -104,7 +108,7 @@ app.get('/api/data/entries', async (c) => {
 app.get('/api/data/entries/:id', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  const entry = await getEntry(makeStore(getSql(c.env), user.id), c.req.param('id'))
+  const entry = await getEntry(makeStore(sqlOf(c), user.id), c.req.param('id'))
   if (!entry) return json({ error: 'not found' }, 404)
   return json({ entry })
 })
@@ -125,33 +129,33 @@ app.post('/api/data/entries/upsert-checked', async (c) => {
     base_updated_at: string | null
     circumstances: unknown
   }>()
-  const result = await upsertEntryChecked(makeStore(getSql(c.env), user.id), body)
+  const result = await upsertEntryChecked(makeStore(sqlOf(c), user.id), body)
   return json(result)
 })
 
 app.get('/api/data/profile', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ profile: await getProfile(makeStore(getSql(c.env), user.id)) })
+  return json({ profile: await getProfile(makeStore(sqlOf(c), user.id)) })
 })
 
 app.get('/api/data/jobs', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ jobs: await listProcessingJobs(makeStore(getSql(c.env), user.id)) })
+  return json({ jobs: await listProcessingJobs(makeStore(sqlOf(c), user.id)) })
 })
 
 app.post('/api/profile/ensure', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  const profile = await ensureProfile(makeStore(getSql(c.env), user.id))
+  const profile = await ensureProfile(makeStore(sqlOf(c), user.id))
   return json({ profile })
 })
 
 app.delete('/api/account/delete', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  await deleteOwnedAccount(makeStore(getSql(c.env), user.id))
+  await deleteOwnedAccount(makeStore(sqlOf(c), user.id))
   return json({ ok: true })
 })
 
@@ -164,7 +168,7 @@ app.post('/api/processing/enqueue', async (c) => {
 app.post('/api/trial/extend', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  const result = await extendTrialOnce(makeStore(getSql(c.env), user.id))
+  const result = await extendTrialOnce(makeStore(sqlOf(c), user.id))
   if (!result.ok) return json({ error: result.error }, result.status)
   return json({ trial_ends_at: result.trial_ends_at })
 })
@@ -210,7 +214,7 @@ app.post('/api/webhooks/revenuecat', () => json({ error: 'billing webhook stays 
 
 app.all('/api/cron/welcome-drip', async (c) => {
   if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  const sql = getSql(c.env)
+  const sql = sqlOf(c)
   const enrolled = await sql<{ owner: string; status: string }[]>`
     SELECT owner, status FROM welcome_drip_enrollments WHERE status = 'active'
   `
@@ -223,7 +227,7 @@ app.all('/api/cron/welcome-drip', async (c) => {
 
 app.all('/api/cron/remind', async (c) => {
   if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  const sql = getSql(c.env)
+  const sql = sqlOf(c)
   const due = await sql<{ n: number }[]>`
     SELECT COUNT(*)::int AS n FROM reminders WHERE fired = FALSE AND remind_at <= NOW()
   `

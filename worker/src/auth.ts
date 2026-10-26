@@ -1,12 +1,17 @@
 import { betterAuth } from 'better-auth'
 import { bearer, emailOTP } from 'better-auth/plugins'
 import { Pool } from 'pg'
-import { authCookieSecure, isLocalAuthHost, resolveAuthBaseURL } from './authUrl.ts'
+import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
+import { withPgSslMode } from './db.ts'
 import { databaseUrl, type Env } from './env.ts'
 
-type AuthInstance = ReturnType<typeof createAuth>
+export type AuthInstance = ReturnType<typeof createAuth>
 
-const cache = new WeakMap<object, AuthInstance>()
+const ownedPools = new WeakMap<object, Pool>()
+
+export function shouldLogOtp(env: Pick<Env, 'ENVIRONMENT'>): boolean {
+  return isLocalAuthRuntime(env)
+}
 
 async function sendOtpEmail(env: Env, email: string, otp: string, type: string): Promise<void> {
   const subject = type === 'forget-password'
@@ -14,7 +19,9 @@ async function sendOtpEmail(env: Env, email: string, otp: string, type: string):
     : 'Your Dayspring sign-in code'
   const text = `Your code is ${otp}. It expires in 5 minutes.\n\nIf you did not request this, ignore the email.`
   if (!env.RESEND_API_KEY) {
-    console.log(`[auth] OTP for ${email} (${type}): ${otp}`)
+    if (shouldLogOtp(env)) {
+      console.log(`[auth] OTP for ${email} (${type}): ${otp}`)
+    }
     return
   }
   const res = await fetch('https://api.resend.com/emails', {
@@ -106,11 +113,16 @@ export function createAuth(
   const secret = env.BETTER_AUTH_SECRET
   if (!secret) throw new Error('BETTER_AUTH_SECRET is not set')
   const baseURL = resolveAuthBaseURL(env)
-  return betterAuth({
+  let owned: Pool | undefined
+  const db = database ?? (owned = new Pool({
+    connectionString: withPgSslMode(url!),
+    max: 1,
+  }))
+  const auth = betterAuth({
     secret,
     baseURL,
     basePath: '/api/auth',
-    database: (database ?? new Pool({ connectionString: url!, max: 5 })) as Pool,
+    database: db as Pool,
     emailAndPassword: { enabled: false },
     user: authModels.user,
     session: authModels.session,
@@ -143,22 +155,25 @@ export function createAuth(
       }),
     ],
   })
-}
-
-export function getAuth(env: Env): AuthInstance {
-  const cached = cache.get(env)
-  if (cached) return cached
-  const auth = createAuth(env)
-  cache.set(env, auth)
+  if (owned) ownedPools.set(auth, owned)
   return auth
 }
 
+/** Per-request Better Auth. Not cached — Workers cannot reuse the Pool. */
+export function getAuth(env: Env): AuthInstance {
+  return createAuth(env)
+}
+
+export async function closeAuth(auth: AuthInstance): Promise<void> {
+  const pool = ownedPools.get(auth)
+  if (pool) await pool.end()
+}
+
 export async function sessionUser(
-  env: Env,
+  auth: AuthInstance,
   req: Request,
 ): Promise<{ id: string; email?: string | null } | null> {
   try {
-    const auth = getAuth(env)
     const session = await auth.api.getSession({ headers: req.headers })
     if (!session?.user?.id) return null
     return { id: session.user.id, email: session.user.email }

@@ -267,6 +267,10 @@ await db.query(
   "UPDATE profiles SET plan = 'trialing', plan_source = NULL, feature_flags = '{}' WHERE owner = $1",
   [OWNER_A],
 )
+await db.query(
+  "UPDATE profiles SET plan = 'trialing', plan_source = NULL, feature_flags = '{}' WHERE owner = $1",
+  [OWNER_B],
+)
 const extended = await extendTrialOnce(storeA)
 ok(extended.ok === true, 'extendTrialOnce: A can extend own trial')
 ok(
@@ -274,6 +278,18 @@ ok(
   'extendTrialOnce: A cannot mark B trial_extended',
 )
 
+await db.query(
+  `INSERT INTO session (id, expires_at, token, user_id)
+   VALUES ('sess-ada', NOW() + INTERVAL '1 day', 'tok-ada', $1),
+          ('sess-ben', NOW() + INTERVAL '1 day', 'tok-ben', $2)`,
+  [OWNER_A, OWNER_B],
+)
+await db.query(
+  `INSERT INTO account (id, account_id, provider_id, user_id)
+   VALUES ('acct-ada', 'ada', 'credential', $1),
+          ('acct-ben', 'ben', 'credential', $2)`,
+  [OWNER_A, OWNER_B],
+)
 const bEntriesBefore = await count('entries', 'owner = $1', [OWNER_B])
 const bProfilesBefore = await count('profiles', 'owner = $1', [OWNER_B])
 await deleteOwnedAccount(storeA)
@@ -306,6 +322,12 @@ ok((await count('concordance_shadow', 'owner = $1', [OWNER_B])) === 1, 'deleteOw
 ok((await count('entries', 'owner = $1', [OWNER_A])) === 0, 'deleteOwnedAccount: A entries gone')
 ok((await count('profiles', 'owner = $1', [OWNER_A])) === 0, 'deleteOwnedAccount: A profile gone')
 ok((await getWelcomeDrip(storeA)) === null, 'deleteOwnedAccount: A drip gone')
+ok((await count('"user"', 'id = $1', [OWNER_A])) === 0, 'deleteOwnedAccount: A auth user gone')
+ok((await count('session', 'user_id = $1', [OWNER_A])) === 0, 'deleteOwnedAccount: A sessions gone')
+ok((await count('account', 'user_id = $1', [OWNER_A])) === 0, 'deleteOwnedAccount: A accounts gone')
+ok((await count('"user"', 'id = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B auth user remains')
+ok((await count('session', 'user_id = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B session remains')
+ok((await count('account', 'user_id = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B account remains')
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {

@@ -63,6 +63,17 @@ export function makePgliteSql(db: PGlite): Sql {
     array(values: unknown[]) {
       return { [ARRAY_MARK]: true, value: values } satisfies ArrayParam
     },
+    async begin<T>(fn: (sql: Sql) => Promise<T>): Promise<T> {
+      await db.query('BEGIN')
+      try {
+        const result = await fn(query)
+        await db.query('COMMIT')
+        return result
+      } catch (err) {
+        await db.query('ROLLBACK').catch(() => {})
+        throw err
+      }
+    },
   })
   return query
 }

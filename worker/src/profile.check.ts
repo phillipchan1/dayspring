@@ -91,6 +91,23 @@ ok(
   'trial/extend does not write plan=trialing over a subscriber',
 )
 
+const PARALLEL = '55555555-5555-5555-5555-555555555555'
+await db.query(
+  `INSERT INTO "user" (id, name, email, email_verified) VALUES ($1, 'Par', 'par@example.test', TRUE)`,
+  [PARALLEL],
+)
+const racing = makeStore(sql, PARALLEL)
+await ensureProfile(racing)
+const parallel = await Promise.all(Array.from({ length: 8 }, () => extendTrialOnce(racing)))
+const wins = parallel.filter((row) => row.ok)
+const conflicts = parallel.filter((row) => !row.ok && row.status === 409)
+ok(wins.length === 1, 'parallel extendTrialOnce: exactly one 200')
+ok(conflicts.length === 7, 'parallel extendTrialOnce: the rest are 409')
+ok(
+  (await getProfile(racing))?.feature_flags.filter((flag) => flag === TRIAL_EXTENDED_FLAG).length === 1,
+  'parallel extendTrialOnce writes trial_extended once',
+)
+
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {
   for (const f of fails) console.error('  FAIL', f)
