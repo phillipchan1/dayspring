@@ -33,6 +33,7 @@ export async function openWireSql(): Promise<WireSql> {
       max: 2,
       prepare: false,
       ssl: postgresSslOption(prepared),
+      onnotice() {},
     })
     await applySchema(sql)
     return {
@@ -56,7 +57,7 @@ export async function openWireSql(): Promise<WireSql> {
   await server.start()
   const conn = server.getServerConn()
   const url = `postgresql://postgres:postgres@${conn}/postgres`
-  const sql = postgres(url, { max: 2, prepare: false, ssl: false })
+  const sql = postgres(url, { max: 2, prepare: false, ssl: false, onnotice() {} })
   return {
     sql,
     url,
