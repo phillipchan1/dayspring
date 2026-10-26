@@ -161,8 +161,10 @@ export async function replaceEntry(
     source: string
     external_id: string | null
     circumstances: unknown
+    base_updated_at?: string | null
   },
 ): Promise<EntryRow | null> {
+  const baseMs = timestampMs(input.base_updated_at)
   const rows = await store.sql<EntryRow[]>`
     UPDATE entries SET
       created_at = ${input.created_at},
@@ -176,6 +178,10 @@ export async function replaceEntry(
       circumstances = ${jsonParam(store.sql, input.circumstances ?? {})}
     WHERE id = ${input.id}
       AND owner = ${store.ownerId}
+      AND (
+        ${baseMs}::bigint IS NULL
+        OR (EXTRACT(EPOCH FROM updated_at) * 1000)::bigint = ${baseMs}::bigint
+      )
     RETURNING id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances
   `
   return rows[0] ?? null
@@ -236,11 +242,16 @@ export async function upsertEntryChecked(
       } }
     }
   }
-  if (!sameTimestamp(current.updated_at, input.base_updated_at)) {
+  // Atomic OCC: one UPDATE whose WHERE includes the base timestamp at ms
+  // precision. Concurrent editors with the same base cannot all land.
+  if (timestampMs(input.base_updated_at) == null) {
     return { conflicted: true, entry: current }
   }
   const entry = await replaceEntry(store, input)
-  if (!entry) throw new Error('upsertEntryChecked update returned no row')
+  if (!entry) {
+    const latest = await getEntry(store, input.id)
+    return { conflicted: true, entry: latest ?? current }
+  }
   return { conflicted: false, entry }
 }
 
@@ -753,8 +764,11 @@ export async function deleteOwnedAccount(store: ConnectedStore): Promise<void> {
     await sql`DELETE FROM account WHERE user_id = ${store.ownerId}`
     await sql`
       DELETE FROM verification
-      WHERE identifier IN (SELECT email FROM "user" WHERE id = ${store.ownerId})
-         OR identifier LIKE (SELECT email FROM "user" WHERE id = ${store.ownerId}) || '%'
+      WHERE identifier IN (
+        SELECT email FROM "user" WHERE id = ${store.ownerId}
+        UNION ALL
+        SELECT 'sign-in-otp-' || email FROM "user" WHERE id = ${store.ownerId}
+      )
     `
     await sql`DELETE FROM "user" WHERE id = ${store.ownerId}`
   })

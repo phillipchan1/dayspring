@@ -290,6 +290,15 @@ await db.query(
           ('acct-ben', 'ben', 'credential', $2)`,
   [OWNER_A, OWNER_B],
 )
+await db.query(
+  `INSERT INTO verification (id, identifier, value, expires_at) VALUES
+    ('ver-ada-email', 'ada@example.test', '111111', NOW() + INTERVAL '1 day'),
+    ('ver-ada-otp', 'sign-in-otp-ada@example.test', '222222', NOW() + INTERVAL '1 day'),
+    ('ver-ben-email', 'ben@example.test', '333333', NOW() + INTERVAL '1 day'),
+    ('ver-ben-otp', 'sign-in-otp-ben@example.test', '444444', NOW() + INTERVAL '1 day'),
+    ('ver-similar', 'ada@example.test.suffix', '555555', NOW() + INTERVAL '1 day'),
+    ('ver-similar-otp', 'sign-in-otp-ada@example.test.suffix', '666666', NOW() + INTERVAL '1 day')`,
+)
 const bEntriesBefore = await count('entries', 'owner = $1', [OWNER_B])
 const bProfilesBefore = await count('profiles', 'owner = $1', [OWNER_B])
 await deleteOwnedAccount(storeA)
@@ -328,6 +337,12 @@ ok((await count('account', 'user_id = $1', [OWNER_A])) === 0, 'deleteOwnedAccoun
 ok((await count('"user"', 'id = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B auth user remains')
 ok((await count('session', 'user_id = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B session remains')
 ok((await count('account', 'user_id = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B account remains')
+ok((await count('verification', "identifier = 'ada@example.test'", [])) === 0, 'deleteOwnedAccount: A email verification gone')
+ok((await count('verification', "identifier = 'sign-in-otp-ada@example.test'", [])) === 0, 'deleteOwnedAccount: A sign-in-otp gone')
+ok((await count('verification', "identifier = 'ben@example.test'", [])) === 1, 'deleteOwnedAccount: B email verification remains')
+ok((await count('verification', "identifier = 'sign-in-otp-ben@example.test'", [])) === 1, 'deleteOwnedAccount: B sign-in-otp remains')
+ok((await count('verification', "identifier = 'ada@example.test.suffix'", [])) === 1, 'deleteOwnedAccount: similar identifier survives')
+ok((await count('verification', "identifier = 'sign-in-otp-ada@example.test.suffix'", [])) === 1, 'deleteOwnedAccount: similar OTP identifier survives')
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {

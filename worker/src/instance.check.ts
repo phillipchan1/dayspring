@@ -114,8 +114,56 @@ try {
     }),
   })
   ok(write.status === 200, `authed write is 200 (got ${write.status})`)
-  const written = await write.json() as { conflicted?: boolean }
+  const written = await write.json() as { conflicted?: boolean; entry?: { id?: string } }
   ok(written.conflicted === false, 'authed write is not conflicted')
+  const writtenId = written.entry?.id ?? crypto.randomUUID()
+
+  const upsertBody = JSON.stringify({
+    id: crypto.randomUUID(),
+    created_at: '2026-03-01T12:00:00.000Z',
+    body_markdown: 'signed route',
+    title: 'Signed',
+    mood: null,
+    tags: ['mercy'],
+    word_count: 2,
+    source: 'native',
+    external_id: null,
+    base_updated_at: null,
+    circumstances: {},
+  })
+  const authedRoutes: Array<{ method: string; path: string; body?: string }> = [
+    { method: 'GET', path: '/api/data/entries' },
+    { method: 'GET', path: `/api/data/entries/${writtenId}` },
+    { method: 'POST', path: '/api/data/entries/upsert-checked', body: upsertBody },
+    { method: 'GET', path: '/api/data/profile' },
+    { method: 'GET', path: '/api/data/jobs' },
+    { method: 'POST', path: '/api/profile/ensure' },
+    { method: 'POST', path: '/api/processing/enqueue' },
+    { method: 'POST', path: '/api/trial/extend' },
+  ]
+  ok(authedRoutes.length === 8, 'covers 8 authed routes')
+  for (const route of authedRoutes) {
+    const raw = await timedFetch(route.path, {
+      method: route.method,
+      headers: {
+        authorization: `Bearer ${rawToken}`,
+        ...(route.body ? { 'content-type': 'application/json' } : {}),
+      },
+      body: route.body,
+    })
+    ok(raw.status === 401, `raw DB token is 401 on ${route.method} ${route.path} (got ${raw.status})`)
+    await raw.text()
+    const signed = await timedFetch(route.path, {
+      method: route.method,
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(route.body ? { 'content-type': 'application/json' } : {}),
+      },
+      body: route.body,
+    })
+    ok(signed.status === 200, `signed token is 200 on ${route.method} ${route.path} (got ${signed.status})`)
+    await signed.text()
+  }
 
   const denied = await timedFetch('/api/data/entries', {
     headers: { authorization: 'Bearer forged-token-should-401' },

@@ -161,6 +161,20 @@ ok(
   'bearer plugin requires a signed token',
 )
 ok(
+  !/identifier LIKE/.test(readFileSync(join(root, 'worker/src/store.ts'), 'utf8')),
+  'account delete does not use unescaped LIKE on verification.identifier',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes("'sign-in-otp-' || email"),
+  'account delete removes the sign-in-otp-<email> verification row',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes(
+    '(EXTRACT(EPOCH FROM updated_at) * 1000)::bigint',
+  ),
+  'entry replace OCC compares updated_at at epoch ms in the UPDATE WHERE',
+)
+ok(
   !readFileSync(join(root, 'src/lib/authClient.ts'), 'utf8').includes('session?.token'),
   'iOS/web client does not send the raw session.token as a bearer',
 )

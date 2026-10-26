@@ -1,7 +1,7 @@
 // Run: node --experimental-strip-types worker/src/entry.check.ts
 // B5: postgres.js returns Date for timestamptz; edits must not always conflict.
 import { sameTimestamp, timestampMs, upsertEntryChecked, makeStore } from './store.ts'
-import { openWireSql } from './testPg.ts'
+import { connectWireSql, openWireSql } from './testPg.ts'
 
 const fails: string[] = []
 let checks = 0
@@ -108,6 +108,66 @@ try {
   })
   ok(stale.conflicted === true, 'stale base is conflicted')
   ok(stale.entry.body_markdown === 'third draft', 'stale base does not overwrite')
+
+  const raceId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa22'
+  const seeded = await upsertEntryChecked(store, {
+    id: raceId,
+    created_at: '2026-03-01T12:00:00.000Z',
+    body_markdown: 'race seed',
+    title: 'Race',
+    mood: null,
+    tags: ['mercy'],
+    word_count: 2,
+    source: 'native',
+    external_id: null,
+    base_updated_at: null,
+    circumstances: {},
+  })
+  ok(seeded.conflicted === false, 'race seed insert is not conflicted')
+  const raceBase = seeded.entry.updated_at instanceof Date
+    ? seeded.entry.updated_at.toISOString()
+    : String(seeded.entry.updated_at)
+
+  const extras = Array.from({ length: 10 }, () => connectWireSql(wire))
+  try {
+    const raced = await Promise.all(extras.map((sql, i) => upsertEntryChecked(makeStore(sql, OWNER), {
+      id: raceId,
+      created_at: '2026-03-01T12:00:00.000Z',
+      body_markdown: `race ${i}`,
+      title: `Race ${i}`,
+      mood: null,
+      tags: ['mercy'],
+      word_count: 2,
+      source: 'native',
+      external_id: null,
+      base_updated_at: raceBase,
+      circumstances: {},
+    })))
+    const landed = raced.filter((row) => row.conflicted === false)
+    const blocked = raced.filter((row) => row.conflicted === true)
+    ok(landed.length === 1, `parallel edits: exactly 1 of 10 lands (got ${landed.length})`)
+    ok(blocked.length === 9, `parallel edits: 9 of 10 conflict (got ${blocked.length})`)
+    const latest = await upsertEntryChecked(store, {
+      id: raceId,
+      created_at: '2026-03-01T12:00:00.000Z',
+      body_markdown: 'should not land after race',
+      title: 'Nope',
+      mood: null,
+      tags: ['mercy'],
+      word_count: 4,
+      source: 'native',
+      external_id: null,
+      base_updated_at: raceBase,
+      circumstances: {},
+    })
+    ok(latest.conflicted === true, 'same base after the race is conflicted')
+    ok(
+      landed[0] != null && latest.entry.body_markdown === landed[0].entry.body_markdown,
+      'winning race body is what remains',
+    )
+  } finally {
+    await Promise.all(extras.map((sql) => sql.end({ timeout: 5 }).catch(() => {})))
+  }
 } finally {
   await wire.close()
 }

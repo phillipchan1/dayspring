@@ -56,7 +56,14 @@ CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification(identifie
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at = clock_timestamp();
+  -- OCC compares epoch ms. Advance at least 1ms so a winner invalidates
+  -- other writers that shared the same base timestamp.
+  IF OLD.updated_at IS NOT NULL
+     AND (EXTRACT(EPOCH FROM NEW.updated_at) * 1000)::bigint
+       = (EXTRACT(EPOCH FROM OLD.updated_at) * 1000)::bigint THEN
+    NEW.updated_at = OLD.updated_at + INTERVAL '1 millisecond';
+  END IF;
   RETURN NEW;
 END;
 $$;
