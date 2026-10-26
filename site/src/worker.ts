@@ -47,12 +47,51 @@ export function pinClientIp(request: Request): Request {
   return new Request(request, { headers });
 }
 
-/** Apex → www, same 307 Vercel sends today. */
+/** Exact HSTS value Vercel sends on usedayspring.app (every response). (Not exported: workerd rejects non-handler named exports.) */
+const HSTS = "max-age=63072000";
+
+/**
+ * Exact Content-Type strings Vercel's edge sends (cache HIT) for these types.
+ * Workers static assets omit the charset and serve JS as `text/javascript`.
+ */
+const CHARSET_TYPES: Record<string, string> = {
+  "text/html": "text/html; charset=utf-8",
+  "text/plain": "text/plain; charset=utf-8",
+  "text/css": "text/css; charset=utf-8",
+  "text/javascript": "application/javascript; charset=utf-8",
+  "application/javascript": "application/javascript; charset=utf-8",
+};
+
+/** Add Vercel's charset and HSTS to a response (headers copied, body streamed). */
+export function withVercelHeaders(res: Response): Response {
+  const ct = res.headers.get("Content-Type");
+  // Vercel's redirects send bare `text/plain`; only bodies get a charset.
+  const isRedirect = res.status >= 300 && res.status < 400;
+  const base = ct?.split(";")[0].trim().toLowerCase() ?? "";
+  // An existing charset is kept, except JS (local workerd adds one to text/javascript).
+  const isJs = base === "text/javascript" || base === "application/javascript";
+  const target = CHARSET_TYPES[base];
+  const fixedCt = target && !isRedirect && (isJs || !/charset=/i.test(ct!)) && ct !== target ? target : undefined;
+  if (!fixedCt && res.headers.get("Strict-Transport-Security") === HSTS) return res;
+  const headers = new Headers(res.headers);
+  if (fixedCt) headers.set("Content-Type", fixedCt);
+  headers.set("Strict-Transport-Security", HSTS);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+/** Apex → www, same 307 (and headers) Vercel sends today. */
 export function apexRedirect(request: Request): Response | null {
   const url = new URL(request.url);
   if (url.hostname !== APEX_HOST) return null;
   url.hostname = WWW_HOST;
-  return Response.redirect(url.toString(), 307);
+  return new Response(null, {
+    status: 307,
+    headers: {
+      Location: url.toString(),
+      "Content-Type": "text/plain",
+      "Strict-Transport-Security": HSTS,
+    },
+  });
 }
 
 /**
@@ -85,21 +124,25 @@ function withNotFoundStatus(request: Request, res: Response): Response {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const apex = apexRedirect(request);
-    if (apex) return apex;
-
-    const { pathname } = new URL(request.url);
-
-    if (isContactPath(pathname)) {
-      bindContactEnv(env as unknown as Record<string, unknown>);
-      if (request.method === "POST") return POST(pinClientIp(request));
-      return new Response(null, { status: 405, headers: { Allow: "POST" } });
-    }
-
-    if (pathname.startsWith("/api/")) {
-      return new Response("Not Found", { status: 404 });
-    }
-
-    return serveAsset(request, env);
+    return withVercelHeaders(await route(request, env));
   },
 };
+
+async function route(request: Request, env: Env): Promise<Response> {
+  const apex = apexRedirect(request);
+  if (apex) return apex;
+
+  const { pathname } = new URL(request.url);
+
+  if (isContactPath(pathname)) {
+    bindContactEnv(env as unknown as Record<string, unknown>);
+    if (request.method === "POST") return POST(pinClientIp(request));
+    return new Response(null, { status: 405, headers: { Allow: "POST" } });
+  }
+
+  if (pathname.startsWith("/api/")) {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  return serveAsset(request, env);
+}

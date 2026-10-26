@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import worker, { apexRedirect, pinClientIp, serveAsset } from "./worker";
+import worker, { apexRedirect, pinClientIp, serveAsset, withVercelHeaders } from "./worker";
 import { bindContactEnv, RATE_LIMIT_MAX } from "../api/contact";
 
 const CONTACT_ENV = [
@@ -253,5 +253,56 @@ describe("POST /api/contact via the Worker", () => {
       "x-forwarded-for": "198.51.100.99",
     });
     expect(blocked.status).toBe(429);
+  });
+});
+
+describe("Vercel header parity (charset + HSTS)", () => {
+  const typed = (ct: string) => ({
+    fetch: async () => new Response("x", { status: 200, headers: { "Content-Type": ct } }),
+  });
+  const get = (path: string, ct: string) =>
+    worker.fetch(new Request(`https://www.usedayspring.app${path}`), { ASSETS: typed(ct) });
+
+  it.each([
+    ["/", "text/html", "text/html; charset=utf-8"],
+    ["/privacy/", "text/html", "text/html; charset=utf-8"],
+    ["/robots.txt", "text/plain", "text/plain; charset=utf-8"],
+    ["/_astro/a.css", "text/css", "text/css; charset=utf-8"],
+    ["/_astro/a.js", "text/javascript", "application/javascript; charset=utf-8"],
+    ["/_astro/b.js", "text/javascript; charset=utf-8", "application/javascript; charset=utf-8"],
+    ["/favicon.svg", "image/svg+xml", "image/svg+xml"],
+    ["/sitemap-index.xml", "application/xml", "application/xml"],
+  ])("%s %s -> %s with HSTS", async (path, ct, want) => {
+    const res = await get(path, ct);
+    expect(res.headers.get("Content-Type")).toBe(want);
+    expect(res.headers.get("Strict-Transport-Security")).toBe("max-age=63072000");
+  });
+
+  it("keeps an existing charset", () => {
+    const res = withVercelHeaders(new Response("x", { headers: { "Content-Type": "text/html; charset=iso-8859-1" } }));
+    expect(res.headers.get("Content-Type")).toBe("text/html; charset=iso-8859-1");
+  });
+
+  it("apex 307 matches Vercel: Location, text/plain, HSTS", async () => {
+    const res = await worker.fetch(new Request("https://usedayspring.app/privacy/?a=1"), { ASSETS: typed("text/html") });
+    expect(res.status).toBe(307);
+    expect(res.headers.get("Location")).toBe("https://www.usedayspring.app/privacy/?a=1");
+    expect(res.headers.get("Content-Type")).toBe("text/plain");
+    expect(res.headers.get("Strict-Transport-Security")).toBe("max-age=63072000");
+  });
+
+  it("api 405 and 404 carry HSTS", async () => {
+    const a = await worker.fetch(new Request("https://www.usedayspring.app/api/contact"), { ASSETS: typed("text/html") });
+    const b = await worker.fetch(new Request("https://www.usedayspring.app/api/nope"), { ASSETS: typed("text/html") });
+    expect(a.status).toBe(405);
+    expect(b.status).toBe(404);
+    expect(a.headers.get("Strict-Transport-Security")).toBe("max-age=63072000");
+    expect(b.headers.get("Strict-Transport-Security")).toBe("max-age=63072000");
+  });
+
+  it("404 doc keeps status 404 and gets charset", async () => {
+    const res = await get("/404", "text/html");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
   });
 });
