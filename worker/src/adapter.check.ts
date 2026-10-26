@@ -185,30 +185,38 @@ const sentSignUp = await auth.api.sendVerificationOTP({
 ok(sentSignUp.success === true, 'OTP send for sign-up')
 const signUpCode = otps.filter((row) => row.email === signUpEmail).at(-1)?.otp
 ok(Boolean(signUpCode), 'OTP send delivered a code')
-const AUTH_SECRET = 'x'.repeat(32)
 
-async function signBearer(raw: string): Promise<string> {
-  const { createHMAC } = await import('@better-auth/utils/hmac')
-  const signature = await createHMAC('SHA-256', 'base64urlnopad').sign(AUTH_SECRET, raw)
-  return `${raw}.${signature}`
+type OtpSession = { user: { id: string; email: string }; token: string }
+
+async function signInOtp(email: string, otp: string): Promise<{ session: OtpSession; signed: string | null }> {
+  const result = await auth.api.signInEmailOTP({
+    body: { email, otp },
+    returnHeaders: true,
+  })
+  const wrapped = result as { headers?: Headers; response?: OtpSession }
+  const session = wrapped.response ?? (result as OtpSession)
+  const signed = wrapped.headers?.get('set-auth-token') ?? null
+  return { session, signed }
 }
 
-const signedUp = await auth.api.signInEmailOTP({
-  body: { email: signUpEmail, otp: signUpCode ?? '' },
-})
-ok(signedUp.user.email === signUpEmail, 'OTP sign-up creates the user')
-ok(Boolean(signedUp.token), 'OTP sign-up returns a session token')
-ok(!signedUp.token.includes('.'), 'API body token is the unsigned DB value')
-const rawRejected = await auth.api.getSession({
-  headers: new Headers({ authorization: `Bearer ${signedUp.token}` }),
-})
-ok(rawRejected == null, 'raw DB token is not accepted as a bearer')
-const signedUpBearer = await signBearer(signedUp.token)
-const afterSignUp = await auth.api.getSession({
-  headers: new Headers({ authorization: `Bearer ${signedUpBearer}` }),
-})
-ok(afterSignUp?.user?.id === signedUp.user.id, 'getSession after sign-up with signed bearer')
-ok(afterSignUp?.session?.token === signedUp.token || Boolean(afterSignUp?.session), 'getSession has a session')
+async function sessionForBearer(token: string): Promise<{ user?: { id: string } } | null> {
+  const res = await auth.handler(new Request('http://127.0.0.1/api/auth/get-session', {
+    headers: { authorization: `Bearer ${token}` },
+  }))
+  if (!res.ok) return null
+  const body = await res.json() as { user?: { id: string } } | null
+  return body?.user?.id ? body : null
+}
+
+const signedUp = await signInOtp(signUpEmail, signUpCode ?? '')
+ok(signedUp.session.user.email === signUpEmail, 'OTP sign-up creates the user')
+ok(Boolean(signedUp.session.token), 'OTP sign-up returns a session token')
+ok(!signedUp.session.token.includes('.'), 'API body token is the unsigned DB value')
+ok(Boolean(signedUp.signed && signedUp.signed.includes('.')), 'sign-in sets a signed set-auth-token')
+ok(await sessionForBearer(signedUp.session.token) == null, 'raw DB token is not accepted as a bearer')
+const afterSignUp = await sessionForBearer(signedUp.signed ?? '')
+ok(afterSignUp?.user?.id === signedUp.session.user.id, 'getSession after sign-up with signed bearer')
+ok(Boolean(afterSignUp?.user?.id), 'getSession has a session')
 
 const sentSignIn = await auth.api.sendVerificationOTP({
   body: { email: signUpEmail, type: 'sign-in' },
@@ -216,14 +224,10 @@ const sentSignIn = await auth.api.sendVerificationOTP({
 ok(sentSignIn.success === true, 'OTP send for returning sign-in')
 const signInCode = otps.filter((row) => row.email === signUpEmail).at(-1)?.otp
 ok(Boolean(signInCode) && signInCode !== signUpCode, 'returning sign-in gets a new OTP')
-const signedIn = await auth.api.signInEmailOTP({
-  body: { email: signUpEmail, otp: signInCode ?? '' },
-})
-ok(signedIn.user.id === signedUp.user.id, 'OTP sign-in is the same user')
-const afterSignIn = await auth.api.getSession({
-  headers: new Headers({ authorization: `Bearer ${await signBearer(signedIn.token)}` }),
-})
-ok(afterSignIn?.user?.id === signedUp.user.id, 'getSession after sign-in')
+const signedIn = await signInOtp(signUpEmail, signInCode ?? '')
+ok(signedIn.session.user.id === signedUp.session.user.id, 'OTP sign-in is the same user')
+const afterSignIn = await sessionForBearer(signedIn.signed ?? '')
+ok(afterSignIn?.user?.id === signedUp.session.user.id, 'getSession after sign-in')
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {
