@@ -99,9 +99,23 @@ ok(throwsUnset({ DATABASE_URL: prodWithLocalQuery }), 'unset URL + localhost in 
 ok(throwsUnset({ ENVIRONMENT: 'dev', DATABASE_URL: neon }), 'ENVIRONMENT=dev + Neon throws')
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
+const wrangler = readFileSync(join(root, 'wrangler.jsonc'), 'utf8')
 ok(
-  readFileSync(join(root, 'wrangler.jsonc'), 'utf8').includes('ENVIRONMENT=local'),
+  wrangler.includes('ENVIRONMENT=local'),
   'wrangler.jsonc documents ENVIRONMENT=local',
+)
+ok(
+  wrangler.includes('https://dayspring-preview.nq-morning-briefing.workers.dev'),
+  'preview BETTER_AUTH_URL is the workers.dev origin',
+)
+const previewBlock = wrangler.slice(wrangler.indexOf('"preview"'))
+ok(
+  !previewBlock.includes('00000000000000000000000000000000'),
+  'preview env does not bind a placeholder Hyperdrive id',
+)
+ok(
+  wrangler.includes('"id": "00000000000000000000000000000000"'),
+  'top-level production still has a Hyperdrive placeholder',
 )
 ok(
   /ENVIRONMENT=local/.test(readFileSync(join(root, '.dev.vars.example'), 'utf8')),

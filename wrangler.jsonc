@@ -45,14 +45,11 @@
         "OPENAI_MODEL": "gpt-5.4-nano",
         "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
         "WELCOME_DRIP_SENDS_ENABLED": "false",
+        "BETTER_AUTH_URL": "https://dayspring-preview.nq-morning-briefing.workers.dev",
       },
-      "hyperdrive": [
-        {
-          "binding": "HYPERDRIVE",
-          "id": "00000000000000000000000000000000",
-          "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
-        },
-      ],
+      // Empty on purpose: Hyperdrive is not inherited. Preview uses DATABASE_URL.
+      // A placeholder id here fails deploy with error 10157.
+      "hyperdrive": [],
     },
   },
 }

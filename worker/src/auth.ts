@@ -36,9 +36,69 @@ async function sendOtpEmail(env: Env, email: string, otp: string, type: string):
   }
 }
 
-export function createAuth(env: Env) {
+/**
+ * Neon / PGlite columns are snake_case. Better Auth's default identifiers are
+ * camelCase (`emailVerified`, `expiresAt`, `userId`, …). Without this map the
+ * adapter emits `column "emailVerified" does not exist` and OTP send 500s.
+ */
+export const authModels = {
+  user: {
+    modelName: 'user',
+    fields: {
+      emailVerified: 'email_verified',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  },
+  session: {
+    modelName: 'session',
+    fields: {
+      expiresAt: 'expires_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      ipAddress: 'ip_address',
+      userAgent: 'user_agent',
+      userId: 'user_id',
+    },
+  },
+  account: {
+    modelName: 'account',
+    fields: {
+      accountId: 'account_id',
+      providerId: 'provider_id',
+      userId: 'user_id',
+      accessToken: 'access_token',
+      refreshToken: 'refresh_token',
+      idToken: 'id_token',
+      accessTokenExpiresAt: 'access_token_expires_at',
+      refreshTokenExpiresAt: 'refresh_token_expires_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  },
+  verification: {
+    modelName: 'verification',
+    fields: {
+      expiresAt: 'expires_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  },
+} as const
+
+/** `pg.Pool` or a PGlite stand-in with the same connect/query/end surface. */
+export type AuthDatabase = Pool | {
+  connect(): Promise<{
+    query(sql: string, parameters: readonly unknown[]): Promise<{ command: string; rowCount: number; rows: unknown[] }>
+    release(): void
+  }>
+  end(): Promise<void>
+  options: object
+}
+
+export function createAuth(env: Env, database?: AuthDatabase) {
   const url = databaseUrl(env)
-  if (!url) throw new Error('database is not configured (HYPERDRIVE or DATABASE_URL)')
+  if (!database && !url) throw new Error('database is not configured (HYPERDRIVE or DATABASE_URL)')
   const secret = env.BETTER_AUTH_SECRET
   if (!secret) throw new Error('BETTER_AUTH_SECRET is not set')
   const baseURL = resolveAuthBaseURL(env)
@@ -46,8 +106,12 @@ export function createAuth(env: Env) {
     secret,
     baseURL,
     basePath: '/api/auth',
-    database: new Pool({ connectionString: url, max: 5 }),
+    database: (database ?? new Pool({ connectionString: url!, max: 5 })) as Pool,
     emailAndPassword: { enabled: false },
+    user: authModels.user,
+    session: authModels.session,
+    account: authModels.account,
+    verification: authModels.verification,
     trustedOrigins: isLocalAuthHost(baseURL)
       ? [baseURL, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
       : [baseURL],

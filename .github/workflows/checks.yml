@@ -35,6 +35,11 @@ jobs:
         run: npm test
       - name: Worker auth + isolation checks
         run: npm run check:worker
+      - name: Preview wrangler dry-run
+        run: |
+          mkdir -p dist
+          test -f dist/index.html || printf '<!doctype html><title>dayspring</title>\n' > dist/index.html
+          npx wrangler deploy --env preview --dry-run
       - name: Install site
         run: npm ci --prefix site
       - name: Unit tests (site)

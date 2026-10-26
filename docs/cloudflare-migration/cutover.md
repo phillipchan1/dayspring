@@ -32,7 +32,7 @@ None of these belong in the Vite bundle. Do not put localhost in `wrangler.jsonc
 | `HYPERDRIVE` | Worker binding | Prod-shaped deploys | **Workers Paid** ($5/mo) — Hyperdrive is not on Free. Preview can skip it and use `DATABASE_URL`. |
 | `DATABASE_URL` | secret | Yes for `wrangler dev` / preview without Hyperdrive | Neon Free (0.5 GB, autosuspend). First query after suspend is ~300–500 ms. |
 | `BETTER_AUTH_SECRET` | secret | Yes (32+ random bytes) | Free |
-| `BETTER_AUTH_URL` | Worker var/secret | Public Worker origin. Unset throws outside local. | Free |
+| `BETTER_AUTH_URL` | Worker var | Preview is committed as `https://dayspring-preview.nq-morning-briefing.workers.dev`. Unset throws outside local. | Free |
 | `ENVIRONMENT` | `.dev.vars` only | `local` allows a localhost auth fallback | Never set in preview/prod |
 | `CRON_SECRET` | secret | Cron routes | Free |
 | `OPENAI_API_KEY` | secret | AI routes; omit → those routes 501 | Existing key; **do not change gateway config** |
@@ -78,17 +78,21 @@ npm run cf:dev
 # GET http://localhost:8787/api/health
 
 # 5. Preview deploy to workers.dev only — not production, no custom domain:
+npx wrangler deploy --env preview --dry-run   # must be clean (no Hyperdrive)
 npx wrangler deploy --env preview
 # then:
 #   npx wrangler secret put DATABASE_URL --env preview
 #   npx wrangler secret put BETTER_AUTH_SECRET --env preview
 #   npx wrangler secret put CRON_SECRET --env preview
-#   npx wrangler secret put BETTER_AUTH_URL --env preview
-# BETTER_AUTH_URL must be https://dayspring-preview.<account>.workers.dev
+# BETTER_AUTH_URL is a committed preview var:
+#   https://dayspring-preview.nq-morning-briefing.workers.dev
 ```
 
 `wrangler.jsonc` `env.preview` sets `workers_dev: true` and does **not** declare
-routes or a custom domain.
+routes, a custom domain, or Hyperdrive (Hyperdrive is not inherited; preview
+uses `DATABASE_URL`). `wrangler deploy --env preview` may warn that top-level
+`HYPERDRIVE` is missing on preview — that is expected; do not add a placeholder
+id (error 10157).
 
 ## iOS
 
