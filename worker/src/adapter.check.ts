@@ -3,6 +3,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { applyNeonSchema } from './isolationDb.ts'
 import { authModels, createAuth, type AuthDatabase } from './auth.ts'
+import { stripGetSessionToken } from './sessionBody.ts'
 
 const fails: string[] = []
 let checks = 0
@@ -38,6 +39,19 @@ function makePglitePool(db: PGlite): AuthDatabase {
     },
     async end() {},
   }
+}
+
+{
+  const stripped = await stripGetSessionToken(
+    new Response(JSON.stringify({ session: { id: 'sess', token: 'raw-db-token' }, user: { id: 'user' } }), {
+      headers: { 'content-type': 'application/json' },
+    }),
+    '/api/auth/get-session',
+  )
+  const body = await stripped.json() as { session?: { id?: string; token?: string }; user?: { id?: string } }
+  ok(body.session?.id === 'sess', 'stripGetSessionToken keeps session.id')
+  ok(body.session?.token == null, 'stripGetSessionToken removes session.token')
+  ok(body.user?.id === 'user', 'stripGetSessionToken keeps user')
 }
 
 ok(authModels.user.fields.emailVerified === 'email_verified', 'user.emailVerified maps to email_verified')
@@ -199,12 +213,13 @@ async function signInOtp(email: string, otp: string): Promise<{ session: OtpSess
   return { session, signed }
 }
 
-async function sessionForBearer(token: string): Promise<{ user?: { id: string } } | null> {
-  const res = await auth.handler(new Request('http://127.0.0.1/api/auth/get-session', {
+async function sessionForBearer(token: string): Promise<{ user?: { id: string }; session?: { token?: string } } | null> {
+  const raw = await auth.handler(new Request('http://127.0.0.1/api/auth/get-session', {
     headers: { authorization: `Bearer ${token}` },
   }))
+  const res = await stripGetSessionToken(raw, '/api/auth/get-session')
   if (!res.ok) return null
-  const body = await res.json() as { user?: { id: string } } | null
+  const body = await res.json() as { user?: { id: string }; session?: { token?: string } } | null
   return body?.user?.id ? body : null
 }
 
@@ -217,6 +232,7 @@ ok(await sessionForBearer(signedUp.session.token) == null, 'raw DB token is not 
 const afterSignUp = await sessionForBearer(signedUp.signed ?? '')
 ok(afterSignUp?.user?.id === signedUp.session.user.id, 'getSession after sign-up with signed bearer')
 ok(Boolean(afterSignUp?.user?.id), 'getSession has a session')
+ok(afterSignUp?.session?.token == null, 'get-session body does not include session.token')
 
 const sentSignIn = await auth.api.sendVerificationOTP({
   body: { email: signUpEmail, type: 'sign-in' },

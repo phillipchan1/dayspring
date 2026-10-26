@@ -294,10 +294,16 @@ await db.query(
   `INSERT INTO verification (id, identifier, value, expires_at) VALUES
     ('ver-ada-email', 'ada@example.test', '111111', NOW() + INTERVAL '1 day'),
     ('ver-ada-otp', 'sign-in-otp-ada@example.test', '222222', NOW() + INTERVAL '1 day'),
+    ('ver-ada-verify', 'email-verification-otp-ada@example.test', '121212', NOW() + INTERVAL '1 day'),
+    ('ver-ada-email-case', 'ADA@example.test', '131313', NOW() + INTERVAL '1 day'),
+    ('ver-ada-otp-case', 'sign-in-otp-Ada@Example.TEST', '141414', NOW() + INTERVAL '1 day'),
+    ('ver-ada-verify-case', 'email-verification-otp-ADA@EXAMPLE.TEST', '151515', NOW() + INTERVAL '1 day'),
     ('ver-ben-email', 'ben@example.test', '333333', NOW() + INTERVAL '1 day'),
     ('ver-ben-otp', 'sign-in-otp-ben@example.test', '444444', NOW() + INTERVAL '1 day'),
+    ('ver-ben-verify', 'email-verification-otp-ben@example.test', '171717', NOW() + INTERVAL '1 day'),
     ('ver-similar', 'ada@example.test.suffix', '555555', NOW() + INTERVAL '1 day'),
-    ('ver-similar-otp', 'sign-in-otp-ada@example.test.suffix', '666666', NOW() + INTERVAL '1 day')`,
+    ('ver-similar-otp', 'sign-in-otp-ada@example.test.suffix', '666666', NOW() + INTERVAL '1 day'),
+    ('ver-similar-verify', 'email-verification-otp-ada@example.test.suffix', '181818', NOW() + INTERVAL '1 day')`,
 )
 const bEntriesBefore = await count('entries', 'owner = $1', [OWNER_B])
 const bProfilesBefore = await count('profiles', 'owner = $1', [OWNER_B])
@@ -339,10 +345,16 @@ ok((await count('session', 'user_id = $1', [OWNER_B])) === 1, 'deleteOwnedAccoun
 ok((await count('account', 'user_id = $1', [OWNER_B])) === 1, 'deleteOwnedAccount: B account remains')
 ok((await count('verification', "identifier = 'ada@example.test'", [])) === 0, 'deleteOwnedAccount: A email verification gone')
 ok((await count('verification', "identifier = 'sign-in-otp-ada@example.test'", [])) === 0, 'deleteOwnedAccount: A sign-in-otp gone')
+ok((await count('verification', "identifier = 'email-verification-otp-ada@example.test'", [])) === 0, 'deleteOwnedAccount: A email-verification-otp gone')
+ok((await count('verification', "identifier = 'ADA@example.test'", [])) === 0, 'deleteOwnedAccount: A case-variant email gone')
+ok((await count('verification', "identifier = 'sign-in-otp-Ada@Example.TEST'", [])) === 0, 'deleteOwnedAccount: A case-variant sign-in-otp gone')
+ok((await count('verification', "identifier = 'email-verification-otp-ADA@EXAMPLE.TEST'", [])) === 0, 'deleteOwnedAccount: A case-variant email-verification-otp gone')
 ok((await count('verification', "identifier = 'ben@example.test'", [])) === 1, 'deleteOwnedAccount: B email verification remains')
 ok((await count('verification', "identifier = 'sign-in-otp-ben@example.test'", [])) === 1, 'deleteOwnedAccount: B sign-in-otp remains')
+ok((await count('verification', "identifier = 'email-verification-otp-ben@example.test'", [])) === 1, 'deleteOwnedAccount: B email-verification-otp remains')
 ok((await count('verification', "identifier = 'ada@example.test.suffix'", [])) === 1, 'deleteOwnedAccount: similar identifier survives')
 ok((await count('verification', "identifier = 'sign-in-otp-ada@example.test.suffix'", [])) === 1, 'deleteOwnedAccount: similar OTP identifier survives')
+ok((await count('verification', "identifier = 'email-verification-otp-ada@example.test.suffix'", [])) === 1, 'deleteOwnedAccount: similar email-verification-otp survives')
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {

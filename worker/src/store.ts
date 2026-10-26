@@ -766,10 +766,12 @@ export async function deleteOwnedAccount(store: ConnectedStore): Promise<void> {
     await sql`DELETE FROM account WHERE user_id = ${store.ownerId}`
     await sql`
       DELETE FROM verification
-      WHERE identifier IN (
-        SELECT email FROM "user" WHERE id = ${store.ownerId}
+      WHERE lower(identifier) IN (
+        SELECT lower(email) FROM "user" WHERE id = ${store.ownerId}
         UNION ALL
-        SELECT 'sign-in-otp-' || email FROM "user" WHERE id = ${store.ownerId}
+        SELECT 'sign-in-otp-' || lower(email) FROM "user" WHERE id = ${store.ownerId}
+        UNION ALL
+        SELECT 'email-verification-otp-' || lower(email) FROM "user" WHERE id = ${store.ownerId}
       )
     `
     await sql`DELETE FROM "user" WHERE id = ${store.ownerId}`

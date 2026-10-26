@@ -5,7 +5,7 @@
  *
  *   DATABASE_URL=postgresql://… node scripts/seed-synthetic.mjs
  */
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import postgres from 'postgres'
@@ -52,12 +52,16 @@ function postgresSslOption(connectionString) {
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const schema = readFileSync(join(root, 'worker/schema/0001_init.sql'), 'utf8')
-const seed = readFileSync(join(root, 'worker/schema/isolation-seed.sql'), 'utf8')
+const schemaDir = join(root, 'worker/schema')
+const migrations = readdirSync(schemaDir)
+  .filter((name) => /^\d{4}_.+\.sql$/.test(name))
+  .sort()
+  .map((name) => join(schemaDir, name))
+const seed = readFileSync(join(schemaDir, 'isolation-seed.sql'), 'utf8')
 
 const sql = postgres(url, { max: 1, ssl: postgresSslOption(url) })
 try {
-  await sql.unsafe(schema)
+  for (const path of migrations) await sql.unsafe(readFileSync(path, 'utf8'))
   await sql.unsafe(seed)
   const users = await sql`SELECT email FROM "user" ORDER BY email`
   console.log(`seeded ${users.length} synthetic users: ${users.map((u) => u.email).join(', ')}`)

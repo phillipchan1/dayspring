@@ -4,15 +4,11 @@
  * PGlite over a TCP socket so postgres.js still returns Date.
  */
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
 import postgres from 'postgres'
-import { applyNeonSchema } from './isolationDb.ts'
+import { applyNeonSchema, listSchemaFiles } from './isolationDb.ts'
 import { postgresSslOption, withPgSslMode, type Sql } from './db.ts'
-
-const schemaPath = join(dirname(fileURLToPath(import.meta.url)), '../schema/0001_init.sql')
 
 export interface WireSql {
   sql: Sql
@@ -22,7 +18,9 @@ export interface WireSql {
 }
 
 async function applySchema(sql: Sql): Promise<void> {
-  await sql.unsafe(readFileSync(schemaPath, 'utf8'))
+  for (const path of listSchemaFiles()) {
+    await sql.unsafe(readFileSync(path, 'utf8'))
+  }
 }
 
 export async function openWireSql(): Promise<WireSql> {

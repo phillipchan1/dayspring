@@ -88,6 +88,13 @@ try {
   `
   const rawToken = rawRows[0]?.token ?? ''
   ok(Boolean(rawToken) && !rawToken.includes('.'), 'DB session token is unsigned')
+  const sessionRes = await timedFetch('/api/auth/get-session', {
+    headers: { authorization: `Bearer ${token}` },
+  })
+  ok(sessionRes.status === 200, `get-session is 200 (got ${sessionRes.status})`)
+  const sessionBody = await sessionRes.json() as { user?: { id?: string }; session?: { token?: unknown } } | null
+  ok(Boolean(sessionBody?.user?.id), 'get-session returns a user')
+  ok(sessionBody?.session?.token == null, 'get-session body does not include session.token')
   const rawDenied = await timedFetch('/api/data/entries', {
     headers: { authorization: `Bearer ${rawToken}` },
   })

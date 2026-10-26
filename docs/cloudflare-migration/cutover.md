@@ -69,6 +69,7 @@ Do not enable the Worker crons against production data.
 ```bash
 # 1. Neon Free project, empty. Apply schema (no prod dump):
 psql "$DATABASE_URL" -f worker/schema/0001_init.sql
+psql "$DATABASE_URL" -f worker/schema/0002_occ_updated_at.sql
 
 # 2. Synthetic users only:
 DATABASE_URL="$DATABASE_URL" node scripts/seed-synthetic.mjs

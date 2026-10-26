@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
 import { sessionUser } from './auth.ts'
+import { stripGetSessionToken } from './sessionBody.ts'
 import { CPU_HEAVY_ROUTES, cpuHeavyPayload } from './cpuLimits.ts'
 import type { Env } from './env.ts'
 import { welcomeDripSendsEnabled } from './env.ts'
@@ -73,7 +74,7 @@ app.all('/api/auth/*', async (c) => {
   if (c.req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const auth = authOf(c)
-    const res = await auth.handler(c.req.raw)
+    const res = await stripGetSessionToken(await auth.handler(c.req.raw), new URL(c.req.url).pathname)
     const headers = new Headers(res.headers)
     for (const [k, v] of Object.entries(cors)) {
       if (k === 'Access-Control-Allow-Origin' || !headers.has(k)) headers.set(k, v)

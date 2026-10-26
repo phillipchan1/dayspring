@@ -165,8 +165,28 @@ ok(
   'account delete does not use unescaped LIKE on verification.identifier',
 )
 ok(
-  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes("'sign-in-otp-' || email"),
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes("'sign-in-otp-' || lower(email)"),
   'account delete removes the sign-in-otp-<email> verification row',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes("'email-verification-otp-' || lower(email)"),
+  'account delete removes the email-verification-otp-<email> verification row',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes('lower(identifier)'),
+  'account delete matches verification identifiers case-insensitively',
+)
+ok(
+  readFileSync(join(root, 'worker/src/index.ts'), 'utf8').includes('stripGetSessionToken'),
+  'get-session strips session.token from the response body',
+)
+ok(
+  readFileSync(join(root, 'worker/schema/0001_init.sql'), 'utf8').includes('NEW.updated_at = NOW();'),
+  '0001_init keeps the original set_updated_at trigger',
+)
+ok(
+  readFileSync(join(root, 'worker/schema/0002_occ_updated_at.sql'), 'utf8').includes('clock_timestamp()'),
+  '0002 migration upgrades set_updated_at for already-provisioned DBs',
 )
 ok(
   readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes(
