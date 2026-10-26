@@ -20,9 +20,11 @@ export interface Env {
 }
 
 export function databaseUrl(env: Env): string | null {
-  const fromHyperdrive = env.HYPERDRIVE?.connectionString?.trim() ?? ''
-  if (fromHyperdrive && !fromHyperdrive.includes('00000000000000000000000000000000')) {
-    return fromHyperdrive
+  const bound = env.HYPERDRIVE?.connectionString
+  const fromHyperdrive = bound?.trim() ?? ''
+  // Return the exact binding string so TLS can identity-match it.
+  if (bound && fromHyperdrive && !fromHyperdrive.includes('00000000000000000000000000000000')) {
+    return bound
   }
   const fallback = env.DATABASE_URL?.trim() ?? ''
   return fallback || fromHyperdrive || null

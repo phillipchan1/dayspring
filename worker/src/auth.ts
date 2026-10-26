@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth'
 import { bearer, emailOTP } from 'better-auth/plugins'
 import { Pool } from 'pg'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
-import { withPgSslMode } from './db.ts'
+import { pgClientOptions } from './db.ts'
 import { databaseUrl, type Env } from './env.ts'
 
 export type AuthInstance = ReturnType<typeof createAuth>
@@ -114,9 +114,11 @@ export function createAuth(
   if (!secret) throw new Error('BETTER_AUTH_SECRET is not set')
   const baseURL = resolveAuthBaseURL(env)
   let owned: Pool | undefined
+  const opts = pgClientOptions(env, url!)
   const db = database ?? (owned = new Pool({
-    connectionString: withPgSslMode(url!),
+    connectionString: opts.connectionString,
     max: 1,
+    ...(opts.ssl === false ? { ssl: false } : {}),
   }))
   const auth = betterAuth({
     secret,

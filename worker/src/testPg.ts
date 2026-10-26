@@ -3,11 +3,10 @@
  * Prefers DAYSPRING_TEST_DATABASE_URL (CI Postgres 17). Otherwise boots
  * PGlite over a TCP socket so postgres.js still returns Date.
  */
-import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
 import postgres from 'postgres'
-import { applyNeonSchema, listSchemaFiles } from './isolationDb.ts'
+import { applyNeonSchema, applyNumberedMigrations } from './isolationDb.ts'
 import { postgresSslOption, withPgSslMode, type Sql } from './db.ts'
 
 export interface WireSql {
@@ -18,9 +17,17 @@ export interface WireSql {
 }
 
 async function applySchema(sql: Sql): Promise<void> {
-  for (const path of listSchemaFiles()) {
-    await sql.unsafe(readFileSync(path, 'utf8'))
-  }
+  await applyNumberedMigrations({
+    exec: (text) => sql.unsafe(text),
+    async versions() {
+      const rows = await sql<{ version: string }[]>`SELECT version FROM schema_migrations`
+      return rows.map((row) => row.version)
+    },
+    async hasEntries() {
+      const rows = await sql<{ ok: boolean }[]>`SELECT to_regclass('public.entries') IS NOT NULL AS ok`
+      return Boolean(rows[0]?.ok)
+    },
+  })
 }
 
 export async function openWireSql(): Promise<WireSql> {

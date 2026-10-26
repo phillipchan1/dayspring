@@ -1,6 +1,7 @@
 -- OCC compares updated_at at millisecond precision. Advance at least 1ms so
 -- a winner invalidates other writers that shared the same base timestamp.
--- CREATE OR REPLACE so already-provisioned DBs that ran 0001 pick this up.
+-- Apply in numeric order after 0001. Never re-run 0001 after this file:
+-- 0001's CREATE OR REPLACE would reset set_updated_at to NOW().
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

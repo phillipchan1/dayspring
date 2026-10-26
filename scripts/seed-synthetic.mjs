@@ -53,15 +53,37 @@ function postgresSslOption(connectionString) {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const schemaDir = join(root, 'worker/schema')
+function schemaVersion(name) {
+  return name.slice(0, 4)
+}
 const migrations = readdirSync(schemaDir)
   .filter((name) => /^\d{4}_.+\.sql$/.test(name))
-  .sort()
-  .map((name) => join(schemaDir, name))
+  .sort((a, b) => Number(schemaVersion(a)) - Number(schemaVersion(b)) || a.localeCompare(b))
+  .map((name) => ({ version: schemaVersion(name), path: join(schemaDir, name) }))
 const seed = readFileSync(join(schemaDir, 'isolation-seed.sql'), 'utf8')
 
 const sql = postgres(url, { max: 1, ssl: postgresSslOption(url) })
 try {
-  for (const path of migrations) await sql.unsafe(readFileSync(path, 'utf8'))
+  await sql.unsafe(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  const stamped = new Set((await sql`SELECT version FROM schema_migrations`).map((row) => row.version))
+  const entries = await sql`SELECT to_regclass('public.entries') IS NOT NULL AS ok`
+  if (!stamped.has('0001') && entries[0]?.ok) {
+    await sql.unsafe(`INSERT INTO schema_migrations (version) VALUES ('0001') ON CONFLICT DO NOTHING`)
+    stamped.add('0001')
+  }
+  const maxApplied = Math.max(0, ...[...stamped].map((v) => Number(v)).filter((n) => Number.isFinite(n)))
+  for (const file of migrations) {
+    if (stamped.has(file.version)) continue
+    if (Number(file.version) === 1 && maxApplied >= 2) continue
+    await sql.unsafe(readFileSync(file.path, 'utf8'))
+    await sql.unsafe(`INSERT INTO schema_migrations (version) VALUES ('${file.version}')`)
+    stamped.add(file.version)
+  }
   await sql.unsafe(seed)
   const users = await sql`SELECT email FROM "user" ORDER BY email`
   console.log(`seeded ${users.length} synthetic users: ${users.map((u) => u.email).join(', ')}`)

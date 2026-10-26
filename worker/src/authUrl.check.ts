@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { shouldLogOtp } from './auth.ts'
-import { postgresSslOption, withPgSslMode } from './db.ts'
+import { databaseUrl } from './env.ts'
+import { isBoundHyperdrive, pgClientOptions, postgresSslOption, withPgSslMode } from './db.ts'
+import { nextMigrationVersions, schemaFileVersion } from './isolationDb.ts'
 import { app } from './index.ts'
 import { authConfigErrorResponse, beginAuthCors } from './cors.ts'
 import { timingSafeEqualString } from './safeEqual.ts'
@@ -110,6 +112,75 @@ ok(postgresSslOption(prodWithLocalPass) === 'require', 'localhost in password st
 ok(postgresSslOption(prodWithLocalDb) === 'require', 'localhost db name still uses TLS')
 ok(postgresSslOption(prodWithLocalQuery) === 'require', 'explicit sslmode=require is TLS')
 ok(postgresSslOption(`${neon}?sslmode=disable`) === false, 'explicit sslmode=disable is honored')
+
+const hyperdriveLocal = 'postgresql://neondb:secret@deadbeef01234567.hyperdrive.local:5432/neondb'
+const hyperdriveEnv = { HYPERDRIVE: { connectionString: hyperdriveLocal } }
+ok(databaseUrl(hyperdriveEnv) === hyperdriveLocal, 'databaseUrl returns the exact Hyperdrive binding')
+ok(
+  isBoundHyperdrive(hyperdriveEnv, hyperdriveLocal),
+  'bound Hyperdrive matches the exact connection string',
+)
+ok(
+  !isBoundHyperdrive({ HYPERDRIVE: { connectionString: `${hyperdriveLocal}?x=1` } }, hyperdriveLocal),
+  'Hyperdrive bind is identity, not hostname',
+)
+ok(
+  !isBoundHyperdrive({ DATABASE_URL: hyperdriveLocal }, hyperdriveLocal),
+  'unbound hyperdrive.local is not treated as Hyperdrive',
+)
+ok(
+  !withPgSslMode(hyperdriveLocal, hyperdriveEnv).includes('sslmode'),
+  'bound Hyperdrive does not add sslmode',
+)
+ok(postgresSslOption(hyperdriveLocal, hyperdriveEnv) === false, 'bound Hyperdrive ssl is false')
+ok(pgClientOptions(hyperdriveEnv, hyperdriveLocal).ssl === false, 'bound Hyperdrive client ssl is false')
+ok(
+  pgClientOptions(hyperdriveEnv, hyperdriveLocal).connectionString === hyperdriveLocal,
+  'bound Hyperdrive keeps the binding URL',
+)
+ok(
+  withPgSslMode(hyperdriveLocal).includes('sslmode=verify-full'),
+  'unbound hyperdrive.local gets sslmode=verify-full',
+)
+ok(postgresSslOption(hyperdriveLocal) === 'require', 'unbound hyperdrive.local stays require')
+ok(
+  pgClientOptions({}, hyperdriveLocal).ssl === 'require',
+  'unbound hyperdrive.local client ssl stays require',
+)
+ok(withPgSslMode(neon, hyperdriveEnv).includes('sslmode=verify-full'), 'Neon stays verify-full next to a Hyperdrive binding')
+ok(postgresSslOption(neon, hyperdriveEnv) === 'require', 'Neon stays require next to a Hyperdrive binding')
+ok(postgresSslOption(loopbackV4, hyperdriveEnv) === false, 'loopback stays false next to a Hyperdrive binding')
+ok(
+  !/hyperdrive\.local/.test(readFileSync(join(dirname(fileURLToPath(import.meta.url)), './db.ts'), 'utf8')),
+  'db.ts does not hostname-match Hyperdrive',
+)
+ok(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), './auth.ts'), 'utf8').includes('pgClientOptions'),
+  'auth client uses pgClientOptions for TLS',
+)
+ok(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), './db.ts'), 'utf8').includes('pgClientOptions(env, url)'),
+  'data client uses pgClientOptions for TLS',
+)
+try {
+  withPgSslMode(hyperdriveLocal, hyperdriveEnv)
+  postgresSslOption(hyperdriveLocal, hyperdriveEnv)
+  ok(true, 'Hyperdrive TLS helpers do not throw the host')
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err)
+  ok(!/hyperdrive\.local/i.test(message), 'Hyperdrive TLS errors do not leak the host')
+}
+
+ok(nextMigrationVersions([]).join(',') === '0001,0002', 'fresh DB applies 0001 then 0002')
+ok(nextMigrationVersions(['0001']).join(',') === '0002', '0001 applied continues at 0002')
+ok(nextMigrationVersions(['0002']).join(',') === '', 'never re-run 0001 after 0002')
+ok(nextMigrationVersions(['0001', '0002']).join(',') === '', 'fully applied migrations are no-ops')
+ok(
+  schemaFileVersion('0002_occ_updated_at.sql') === 2
+    && schemaFileVersion('0001_init.sql') === 1
+    && schemaFileVersion('0002_occ_updated_at.sql') > schemaFileVersion('0001_init.sql'),
+  'schema files are ordered numerically',
+)
 ok(
   !readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../scripts/seed-synthetic.mjs'), 'utf8')
     .includes('/localhost|127'),

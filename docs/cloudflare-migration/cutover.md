@@ -67,7 +67,11 @@ Do not enable the Worker crons against production data.
 ## Preview on workers.dev (do not run from CI)
 
 ```bash
-# 1. Neon Free project, empty. Apply schema (no prod dump):
+# 1. Neon Free project, empty. Apply numbered schema files in numeric
+#    order (0001, then 0002, …). Never re-run 0001 after 0002: 0001
+#    CREATE OR REPLACEs set_updated_at back to NOW() and undoes OCC.
+#    The test/seed runner records versions in schema_migrations and
+#    stamps 0001 when `entries` already exists.
 psql "$DATABASE_URL" -f worker/schema/0001_init.sql
 psql "$DATABASE_URL" -f worker/schema/0002_occ_updated_at.sql
 
@@ -137,6 +141,7 @@ npm run check:worker
 npm run check:isolation-mutation
 ```
 
-Isolation applies `worker/schema/0001_init.sql` onto PGlite, seeds two users,
+Isolation applies numbered `worker/schema/NNNN_*.sql` files in numeric order
+(never re-running 0001 after 0002), seeds two users,
 and asserts user A cannot read or write user B on every store path. The mutation
 script then deletes each `owner = ${store.ownerId}` filter and expects a failure.
