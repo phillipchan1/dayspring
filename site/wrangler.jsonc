@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Dayspring marketing site — Cloudflare Workers static assets + contact API.
+  // Vercel remains the production origin until DNS cutover (see CUTOVER.md).
+  "name": "dayspring-site",
+  "compatibility_date": "2026-10-26",
+  "main": "src/worker.ts",
+  // Preview URL on workers.dev; custom domain is attached later, not here.
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    // Astro `npm run build` output.
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Match current Vercel static serving: both `/why` and `/why/` 200.
+    // This is a multi-page Astro site, not an SPA — do not fallback to index.html.
+    "html_handling": "auto-trailing-slash",
+    // Equivalent to Vercel (no rewrite to /index.html): unknown paths 404.
+    // Serves nearest 404.html when present (Astro emits one).
+    "not_found_handling": "404-page",
+    // /api/* is the dynamic surface. The Worker also runs first on every
+    // other path so it can unwrap html_handling 307s (`/why` and `*.html`)
+    // and 307 the apex host — matching Vercel / `astro preview`.
+    "run_worker_first": true
+  }
+  // Runtime secrets — same names as Vercel / .env.example. Set with
+  // `wrangler secret put <NAME>` (or `.dev.vars` locally). Do not put
+  // values here:
+  //   RESEND_API_KEY, GITHUB_TOKEN, SUPPORT_REPO, SUPPORT_LABEL,
+  //   CONTACT_TO_EMAIL, CONTACT_FROM_EMAIL, CONTACT_AUTOREPLY,
+  //   TURNSTILE_SECRET_KEY
+  //
+  // Cloudflare *build* environment (inlined at `astro build`, not secrets):
+  //   PUBLIC_POSTHOG_KEY, PUBLIC_POSTHOG_HOST, PUBLIC_GOOGLE_TAG_ID,
+  //   PUBLIC_GADS_DOWNLOAD_SEND_TO, PUBLIC_GADS_START_TRIAL_SEND_TO,
+  //   PUBLIC_META_PIXEL_ID, PUBLIC_TURNSTILE_SITE_KEY
+  //   TZ=UTC  — sitemap lastmod / dates must match the Vercel build
+}
