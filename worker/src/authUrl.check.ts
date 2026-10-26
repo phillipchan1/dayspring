@@ -118,6 +118,10 @@ ok(
   'top-level production still has a Hyperdrive placeholder',
 )
 ok(
+  !readFileSync(join(root, 'worker/src/db.ts'), 'utf8').includes('fetch_types: false'),
+  'postgres.js fetch_types stays on so array inserts bind',
+)
+ok(
   /ENVIRONMENT=local/.test(readFileSync(join(root, '.dev.vars.example'), 'utf8')),
   '.dev.vars.example sets ENVIRONMENT=local',
 )

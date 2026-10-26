@@ -96,7 +96,11 @@ export type AuthDatabase = Pool | {
   options: object
 }
 
-export function createAuth(env: Env, database?: AuthDatabase) {
+export function createAuth(
+  env: Env,
+  database?: AuthDatabase,
+  hooks?: { onOtp?: (payload: { email: string; otp: string; type: string }) => void },
+) {
   const url = databaseUrl(env)
   if (!database && !url) throw new Error('database is not configured (HYPERDRIVE or DATABASE_URL)')
   const secret = env.BETTER_AUTH_SECRET
@@ -132,8 +136,10 @@ export function createAuth(env: Env, database?: AuthDatabase) {
         otpLength: 6,
         expiresIn: 300,
         sendVerificationOTP: async ({ email, otp, type }) => {
+          hooks?.onOtp?.({ email, otp, type })
           await sendOtpEmail(env, email, otp, type)
         },
+        disableSignUp: false,
       }),
     ],
   })

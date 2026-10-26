@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b --noEmit && tsc --noEmit -p worker/tsconfig.json",
-    "check:worker": "node --experimental-strip-types worker/src/authUrl.check.ts && node --experimental-strip-types worker/src/adapter.check.ts && node --experimental-strip-types worker/src/access.check.ts",
+    "check:worker": "node --experimental-strip-types worker/src/authUrl.check.ts && node --experimental-strip-types worker/src/adapter.check.ts && node --experimental-strip-types worker/src/profile.check.ts && node --experimental-strip-types worker/src/access.check.ts",
     "check:isolation-mutation": "node scripts/prove-isolation-mutation.mjs",
     "cf:dev": "npm run build:skip-types && wrangler dev",
     "cf:preview": "npm run build:skip-types && wrangler deploy --env preview",

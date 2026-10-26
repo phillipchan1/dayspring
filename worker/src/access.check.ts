@@ -18,6 +18,8 @@ import {
   deleteSpiritualItem,
   deleteThread,
   enqueueJob,
+  ensureProfile,
+  extendTrialOnce,
   fireReminder,
   getAttachment,
   getEntry,
@@ -59,6 +61,7 @@ import {
   upsertKeptSubject,
   upsertMark,
   upsertProfile,
+  TRIAL_EXTENDED_FLAG,
 } from './store.ts'
 
 const OWNER_A = '11111111-1111-1111-1111-111111111111'
@@ -155,8 +158,20 @@ ok(
   'replaceEntry: B body unchanged',
 )
 
-const planted = await insertEntry(storeA, { body_markdown: 'Ada two', word_count: 2 })
+const planted = await insertEntry(storeA, {
+  body_markdown: 'Ada two',
+  word_count: 2,
+  tags: ['mercy', 'hope'],
+})
 ok(planted.id !== ENTRY_B, 'insertEntry: A insert is a new id')
+ok(
+  Array.isArray(planted.tags) && planted.tags.includes('mercy') && planted.tags.includes('hope'),
+  'insertEntry: tags array round-trips (not a conflict)',
+)
+ok(
+  (await getEntry(storeA, planted.id))?.tags.includes('mercy') === true,
+  'getEntry: tags persist as text[]',
+)
 ok((await count('entries', 'owner = $1', [OWNER_A])) === 2, 'insertEntry: A now has 2')
 ok((await count('entries', 'owner = $1', [OWNER_B])) === 1, 'insertEntry: B still has 1')
 
@@ -241,6 +256,23 @@ await insertPrayerThread(storeA, 'Ada extra cairn')
 ok((await getWelcomeDrip(storeA))?.owner === OWNER_A, 'getWelcomeDrip: A sees A')
 ok((await getWelcomeDrip(storeB))?.owner === OWNER_B, 'getWelcomeDrip: B sees B')
 ok((await getWelcomeDrip(storeA))?.owner !== OWNER_B, 'getWelcomeDrip: A is not B')
+
+await db.query("UPDATE profiles SET plan = 'active', plan_source = 'stripe' WHERE owner = $1", [OWNER_B])
+await ensureProfile(storeA)
+ok(
+  (await scalar<string>('SELECT plan FROM profiles WHERE owner = $1', [OWNER_B])) === 'active',
+  'ensureProfile: A cannot overwrite B paid plan',
+)
+await db.query(
+  "UPDATE profiles SET plan = 'trialing', plan_source = NULL, feature_flags = '{}' WHERE owner = $1",
+  [OWNER_A],
+)
+const extended = await extendTrialOnce(storeA)
+ok(extended.ok === true, 'extendTrialOnce: A can extend own trial')
+ok(
+  !(await getProfile(storeB))?.feature_flags?.includes(TRIAL_EXTENDED_FLAG),
+  'extendTrialOnce: A cannot mark B trial_extended',
+)
 
 const bEntriesBefore = await count('entries', 'owner = $1', [OWNER_B])
 const bProfilesBefore = await count('profiles', 'owner = $1', [OWNER_B])

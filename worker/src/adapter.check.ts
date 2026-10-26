@@ -45,9 +45,23 @@ ok(authModels.session.fields.userId === 'user_id', 'session.userId maps to user_
 ok(authModels.account.fields.accountId === 'account_id', 'account.accountId maps to account_id')
 ok(authModels.verification.fields.expiresAt === 'expires_at', 'verification.expiresAt maps to expires_at')
 
+try {
+  createAuth({
+    DATABASE_URL: 'postgresql://neondb@ep-prod.us-east-1.aws.neon.tech/dayspring',
+    BETTER_AUTH_SECRET: 'x'.repeat(32),
+  })
+  ok(false, 'createAuth unset BETTER_AUTH_URL + Neon must throw')
+} catch (err) {
+  ok(
+    err instanceof Error && err.message.includes('BETTER_AUTH_URL must be set'),
+    'createAuth fails closed when BETTER_AUTH_URL is unset',
+  )
+}
+
 const db = new PGlite()
 await applyNeonSchema(db)
 
+const otps: Array<{ email: string; otp: string; type: string }> = []
 const auth = createAuth(
   {
     ENVIRONMENT: 'local',
@@ -55,6 +69,7 @@ const auth = createAuth(
     DATABASE_URL: 'postgresql://postgres@127.0.0.1:5432/dayspring',
   },
   makePglitePool(db),
+  { onOtp: (payload) => otps.push(payload) },
 )
 const ctx = await auth.$context
 
@@ -162,6 +177,39 @@ const otpRows = await db.query<{ identifier: string; expires_at: Date | string }
 )
 ok(otpRows.rows.length >= 1, 'OTP send inserted a verification row')
 ok(otpRows.rows[0]?.expires_at != null, 'OTP verification uses expires_at')
+
+const signUpEmail = 'cara@example.test'
+const sentSignUp = await auth.api.sendVerificationOTP({
+  body: { email: signUpEmail, type: 'sign-in' },
+})
+ok(sentSignUp.success === true, 'OTP send for sign-up')
+const signUpCode = otps.filter((row) => row.email === signUpEmail).at(-1)?.otp
+ok(Boolean(signUpCode), 'OTP send delivered a code')
+const signedUp = await auth.api.signInEmailOTP({
+  body: { email: signUpEmail, otp: signUpCode ?? '' },
+})
+ok(signedUp.user.email === signUpEmail, 'OTP sign-up creates the user')
+ok(Boolean(signedUp.token), 'OTP sign-up returns a session token')
+const afterSignUp = await auth.api.getSession({
+  headers: new Headers({ authorization: `Bearer ${signedUp.token}` }),
+})
+ok(afterSignUp?.user?.id === signedUp.user.id, 'getSession after sign-up')
+ok(afterSignUp?.session?.token === signedUp.token || Boolean(afterSignUp?.session), 'getSession has a session')
+
+const sentSignIn = await auth.api.sendVerificationOTP({
+  body: { email: signUpEmail, type: 'sign-in' },
+})
+ok(sentSignIn.success === true, 'OTP send for returning sign-in')
+const signInCode = otps.filter((row) => row.email === signUpEmail).at(-1)?.otp
+ok(Boolean(signInCode) && signInCode !== signUpCode, 'returning sign-in gets a new OTP')
+const signedIn = await auth.api.signInEmailOTP({
+  body: { email: signUpEmail, otp: signInCode ?? '' },
+})
+ok(signedIn.user.id === signedUp.user.id, 'OTP sign-in is the same user')
+const afterSignIn = await auth.api.getSession({
+  headers: new Headers({ authorization: `Bearer ${signedIn.token}` }),
+})
+ok(afterSignIn?.user?.id === signedUp.user.id, 'getSession after sign-in')
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {

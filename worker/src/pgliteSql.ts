@@ -6,14 +6,24 @@ import { PGlite } from '@electric-sql/pglite'
 import type { Sql } from './db.ts'
 
 const JSON_MARK = Symbol('pg-json')
+const ARRAY_MARK = Symbol('pg-array')
 
 interface JsonParam {
   [JSON_MARK]: true
   value: unknown
 }
 
+interface ArrayParam {
+  [ARRAY_MARK]: true
+  value: unknown[]
+}
+
 function isJsonParam(value: unknown): value is JsonParam {
   return typeof value === 'object' && value !== null && JSON_MARK in value
+}
+
+function isArrayParam(value: unknown): value is ArrayParam {
+  return typeof value === 'object' && value !== null && ARRAY_MARK in value
 }
 
 export function makePgliteSql(db: PGlite): Sql {
@@ -27,6 +37,11 @@ export function makePgliteSql(db: PGlite): Sql {
       if (isJsonParam(value)) {
         params.push(JSON.stringify(value.value))
         text += `$${params.length}::jsonb`
+        continue
+      }
+      if (isArrayParam(value)) {
+        params.push(value.value)
+        text += `$${params.length}::text[]`
         continue
       }
       params.push(value)
@@ -44,6 +59,9 @@ export function makePgliteSql(db: PGlite): Sql {
   Object.assign(query, {
     json(value: unknown) {
       return { [JSON_MARK]: true, value } satisfies JsonParam
+    },
+    array(values: unknown[]) {
+      return { [ARRAY_MARK]: true, value: values } satisfies ArrayParam
     },
   })
   return query

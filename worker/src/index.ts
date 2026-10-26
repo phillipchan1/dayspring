@@ -7,7 +7,8 @@ import type { Env } from './env.ts'
 import { welcomeDripSendsEnabled } from './env.ts'
 import {
   deleteOwnedAccount,
-  enrollWelcomeDrip,
+  ensureProfile,
+  extendTrialOnce,
   getEntry,
   getProfile,
   listEntries,
@@ -15,7 +16,6 @@ import {
   listProcessingJobs,
   makeStore,
   upsertEntryChecked,
-  upsertProfile,
 } from './store.ts'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -144,14 +144,7 @@ app.get('/api/data/jobs', async (c) => {
 app.post('/api/profile/ensure', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  const store = makeStore(getSql(c.env), user.id)
-  const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-  const profile = await upsertProfile(store, {
-    plan: 'trialing',
-    plan_source: 'app',
-    trial_ends_at: trialEnds,
-  })
-  await enrollWelcomeDrip(store, 'signup')
+  const profile = await ensureProfile(makeStore(getSql(c.env), user.id))
   return json({ profile })
 })
 
@@ -171,13 +164,9 @@ app.post('/api/processing/enqueue', async (c) => {
 app.post('/api/trial/extend', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  const store = makeStore(getSql(c.env), user.id)
-  const current = await getProfile(store)
-  const base = current?.trial_ends_at ? new Date(current.trial_ends_at).getTime() : Date.now()
-  const profile = await upsertProfile(store, {
-    trial_ends_at: new Date(base + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  })
-  return json({ profile })
+  const result = await extendTrialOnce(makeStore(getSql(c.env), user.id))
+  if (!result.ok) return json({ error: result.error }, result.status)
+  return json({ trial_ends_at: result.trial_ends_at })
 })
 
 function llmOr501(c: { env: Env }, route: string): Response {

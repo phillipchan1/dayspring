@@ -5,7 +5,11 @@
  * Isolation tests mutate those filters and must fail if one is removed.
  */
 import type { Sql } from './db.ts'
-import { jsonParam } from './db.ts'
+import { jsonParam, textArray } from './db.ts'
+
+export const TRIAL_DAYS = 14
+export const TRIAL_EXTENSION_DAYS = 7
+export const TRIAL_EXTENDED_FLAG = 'trial_extended'
 
 export interface ConnectedStore {
   sql: Sql
@@ -81,7 +85,7 @@ export async function insertEntry(
       ${store.ownerId},
       ${input.body_markdown},
       ${input.title ?? null},
-      ${input.tags ?? []},
+      ${textArray(store.sql, input.tags ?? [])},
       ${input.word_count},
       ${input.source ?? 'native'},
       ${input.external_id ?? null},
@@ -144,7 +148,7 @@ export async function replaceEntry(
       body_markdown = ${input.body_markdown},
       title = ${input.title},
       mood = ${input.mood},
-      tags = ${input.tags},
+      tags = ${textArray(store.sql, input.tags)},
       word_count = ${input.word_count},
       source = ${input.source},
       external_id = ${input.external_id},
@@ -187,7 +191,14 @@ export async function upsertEntryChecked(
         created_at: input.created_at,
       })
       return { conflicted: false, entry }
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      const code = typeof err === 'object' && err && 'code' in err ? String((err as { code?: unknown }).code) : ''
+      // Only a real unique/PK collision is a sync conflict. Array bind failures
+      // and other errors must not look like "conflicted".
+      if (code !== '23505' && !/duplicate key|unique constraint/i.test(message)) {
+        throw err
+      }
       // PK exists on another owner's row — do not leak that row.
       return { conflicted: true, entry: {
         id: input.id,
@@ -229,11 +240,15 @@ export interface ProfileRow {
   plan_expires_at: string | null
   settings: unknown
   onboarded_at: string | null
+  feature_flags: string[]
+  stripe_customer_id: string | null
+  apple_original_txn: string | null
 }
 
 export async function getProfile(store: ConnectedStore): Promise<ProfileRow | null> {
   const rows = await store.sql<ProfileRow[]>`
-    SELECT id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at
+    SELECT id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
+           feature_flags, stripe_customer_id, apple_original_txn
     FROM profiles
     WHERE owner = ${store.ownerId}
   `
@@ -260,11 +275,72 @@ export async function upsertProfile(
       plan_source = COALESCE(${patch.plan_source ?? null}, profiles.plan_source),
       trial_ends_at = COALESCE(${patch.trial_ends_at ?? null}, profiles.trial_ends_at),
       onboarded_at = COALESCE(${patch.onboarded_at ?? null}, profiles.onboarded_at)
-    RETURNING id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at
+    RETURNING id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
+              feature_flags, stripe_customer_id, apple_original_txn
   `
   const row = rows[0]
   if (!row) throw new Error('upsertProfile returned no row')
   return row
+}
+
+/** Reverse trial only for a brand-new, never-paid account. Never overwrite a plan. */
+export function canGrantReverseTrial(profile: ProfileRow | null): boolean {
+  if (!profile) return true
+  if (profile.plan && profile.plan !== 'none') return false
+  if (profile.trial_ends_at) return false
+  if (profile.stripe_customer_id) return false
+  if (profile.apple_original_txn) return false
+  return true
+}
+
+export async function ensureProfile(store: ConnectedStore): Promise<ProfileRow> {
+  const existing = await getProfile(store)
+  if (existing && !canGrantReverseTrial(existing)) return existing
+  const trialEnds = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString()
+  const profile = await upsertProfile(store, {
+    plan: 'trialing',
+    trial_ends_at: trialEnds,
+  })
+  if (!existing) await enrollWelcomeDrip(store, 'signup')
+  return profile
+}
+
+export type TrialExtendResult =
+  | { ok: true; trial_ends_at: string; profile: ProfileRow }
+  | { ok: false; status: 404 | 409; error: string }
+
+export function canExtendTrial(profile: ProfileRow): boolean {
+  const plan = profile.plan ?? 'none'
+  return plan === 'none' || (plan === 'trialing' && !profile.plan_source)
+}
+
+export async function extendTrialOnce(store: ConnectedStore): Promise<TrialExtendResult> {
+  const profile = await getProfile(store)
+  if (!profile) return { ok: false, status: 404, error: 'no profile' }
+  const flags = Array.isArray(profile.feature_flags) ? profile.feature_flags : []
+  if (flags.includes(TRIAL_EXTENDED_FLAG)) {
+    return { ok: false, status: 409, error: 'Trial already extended once.' }
+  }
+  if (!canExtendTrial(profile)) {
+    return { ok: false, status: 409, error: 'This account has a subscription — there is no trial to extend.' }
+  }
+  const now = Date.now()
+  const currentEnd = profile.trial_ends_at ? new Date(profile.trial_ends_at).getTime() : now
+  const base = Math.max(now, currentEnd)
+  const trialEnds = new Date(base + TRIAL_EXTENSION_DAYS * 86_400_000).toISOString()
+  const nextFlags = [...flags, TRIAL_EXTENDED_FLAG]
+  const rows = await store.sql<ProfileRow[]>`
+    UPDATE profiles
+    SET plan = 'trialing',
+        trial_ends_at = ${trialEnds},
+        feature_flags = ${textArray(store.sql, nextFlags)}
+    WHERE owner = ${store.ownerId}
+    RETURNING id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
+              feature_flags, stripe_customer_id, apple_original_txn
+  `
+  const updated = rows[0]
+  if (!updated) return { ok: false, status: 404, error: 'no profile' }
+  return { ok: true, trial_ends_at: trialEnds, profile: updated }
 }
 
 export async function listInsights(store: ConnectedStore): Promise<Array<{ id: string; type: string }>> {
@@ -423,7 +499,7 @@ export async function upsertKeptSubject(
 ): Promise<string> {
   const rows = await store.sql<{ id: string }[]>`
     INSERT INTO kept_subjects (owner, subject_key, label, terms, kind)
-    VALUES (${store.ownerId}, ${input.subject_key}, ${input.label}, ${input.terms ?? []}, ${input.kind ?? null})
+    VALUES (${store.ownerId}, ${input.subject_key}, ${input.label}, ${textArray(store.sql, input.terms ?? [])}, ${input.kind ?? null})
     ON CONFLICT (owner, subject_key) DO UPDATE SET label = EXCLUDED.label
     RETURNING id
   `

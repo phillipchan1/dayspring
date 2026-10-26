@@ -13,7 +13,8 @@ export function getSql(env: Env): Sql {
   if (!url) throw new Error('database is not configured (HYPERDRIVE or DATABASE_URL)')
   const sql = postgres(url, {
     max: 5,
-    fetch_types: false,
+    // fetch_types must stay on: with it false, JS arrays bind as text and
+    // entries.tags / feature_flags inserts fail (then look like conflicts).
     prepare: false,
     ssl: url.includes('localhost') || url.includes('127.0.0.1') || url.includes('[::1]') ? false : 'require',
   })
@@ -36,4 +37,9 @@ export function asJson<T>(value: unknown, fallback: T): T {
 /** postgres.js JSONValue is invariant; clone through JSON so we can bind objects. */
 export function jsonParam(sql: Sql, value: unknown): ReturnType<Sql['json']> {
   return sql.json(JSON.parse(JSON.stringify(value)) as Parameters<Sql['json']>[0])
+}
+
+/** Bind a TEXT[] so tags / feature_flags / terms never serialize as a scalar. */
+export function textArray(sql: Sql, values: string[]): ReturnType<Sql['array']> {
+  return sql.array(values)
 }
