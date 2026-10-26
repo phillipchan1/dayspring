@@ -1,0 +1,16 @@
+# Local wrangler only. Copy to .dev.vars (gitignored). Never set these in
+# wrangler.jsonc vars — those would ship if someone deployed.
+
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/dayspring
+BETTER_AUTH_SECRET=replace-with-32-plus-random-bytes
+# Dev-only. Marks this wrangler session as local so an unset BETTER_AUTH_URL
+# may fall back to http://localhost:8787. Never set ENVIRONMENT=local in prod.
+ENVIRONMENT=local
+# Dev-only. Preview/prod must set this as a Worker var/secret to the public origin.
+BETTER_AUTH_URL=http://localhost:8787
+CRON_SECRET=replace-me
+# OPENAI_API_KEY=
+# OPENAI_MODEL=gpt-5.4-nano
+# RESEND_API_KEY=
+# ESV_API_KEY=
+WELCOME_DRIP_SENDS_ENABLED=false

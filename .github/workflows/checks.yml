@@ -18,6 +18,19 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dayspring
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -33,7 +46,29 @@ jobs:
         run: npm run typecheck
       - name: Unit tests (app)
         run: npm test
+      - name: Worker auth + isolation checks
+        env:
+          DAYSPRING_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dayspring
+        run: npm run check:worker
+      - name: Preview wrangler dry-run
+        run: |
+          mkdir -p dist
+          test -f dist/index.html || printf '<!doctype html><title>dayspring</title>\n' > dist/index.html
+          npx wrangler deploy --env preview --dry-run
       - name: Install site
         run: npm ci --prefix site
       - name: Unit tests (site)
         run: npm test --prefix site
+
+  isolation-mutation:
+    name: isolation-mutation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Isolation mutation proof
+        run: npm run check:isolation-mutation
