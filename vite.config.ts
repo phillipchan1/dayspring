@@ -100,7 +100,7 @@ export default defineConfig({
     // scripts/ too: the support manifest is published to the help site, so an
     // extractor that silently stops finding a category would put wrong facts on
     // a public page.
-    include: ['src/**/*.test.ts', 'api/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'api/**/*.test.ts', 'scripts/**/*.test.ts', 'tests/**/*.test.ts'],
     // buildManifest() spins up a Vite SSR server to load real app modules.
     testTimeout: 30_000,
   },

@@ -25,8 +25,8 @@ jobs:
     outputs:
       should_build: ${{ steps.diff.outputs.should_build }}
     steps:
-      - name: Compare HEAD to last stable-built SHA
-        id: diff
+      - id: diff
+        name: Compare HEAD to last stable-built SHA
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -51,31 +51,37 @@ jobs:
     env:
       RELEASES_REPO: phillipchan1/dayspring-releases
     steps:
-      - uses: actions/checkout@v5
+      - id: checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: stable
           fetch-depth: 0
 
-      - name: Set up Node
-        uses: actions/setup-node@v5
+      - id: setup-node
+        name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 20
           cache: npm
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - id: setup-rust
+        name: Set up Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Cache Rust build
-        uses: swatinem/rust-cache@v2
+      - id: cache-rust
+        name: Cache Rust build
+        uses: swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
         with:
           workspaces: "src-tauri -> target"
 
-      - name: Install dependencies
+      - id: install
+        name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Compute version
+      - id: version
+        name: Compute version
         run: |
           MAJOR_MINOR=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
           VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
@@ -83,7 +89,8 @@ jobs:
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Building stable version $VERSION"
 
-      - name: Enable Apple signing when configured
+      - id: signing
+        name: Enable Apple signing when configured
         env:
           IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           CERT: ${{ secrets.APPLE_CERTIFICATE }}
@@ -96,7 +103,8 @@ jobs:
             echo "Missing cert/password — building unsigned (ad-hoc)"
           fi
 
-      - name: Generate release notes
+      - id: release-notes
+        name: Generate release notes
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -114,7 +122,8 @@ jobs:
           printf '%s\n' "$COMMITS" | node scripts/release-notes.mjs > RELEASE_NOTES.md
           echo "Generated release notes:"; cat RELEASE_NOTES.md
 
-      - name: Assemble bundled changelog
+      - id: changelog
+        name: Assemble bundled changelog
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -122,7 +131,8 @@ jobs:
           node scripts/assemble-changelog.mjs
           echo "Bundled changelog:"; cat public/changelog.json
 
-      - name: Build and sign the app
+      - id: build
+        name: Build and sign the app
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -158,7 +168,8 @@ jobs:
           done
           echo "All build attempts failed"; exit 1
 
-      - name: Publish to releases repo (pre-release, not --latest)
+      - id: publish
+        name: Publish to releases repo (pre-release, not --latest)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -199,7 +210,8 @@ jobs:
             --latest \
             "$DMG" "$STABLE_DMG" "$STABLE_DMG_AARCH64" "$APPTAR" latest.json
 
-      - name: Record stable built SHA
+      - id: record-sha
+        name: Record stable built SHA
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
