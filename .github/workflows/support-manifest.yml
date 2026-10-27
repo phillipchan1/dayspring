@@ -57,27 +57,33 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the app
-        uses: actions/checkout@v4
+      - id: checkout
+        name: Check out the app
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - id: setup-node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - id: npm-ci
+        run: npm ci
 
       # Guards the extractors themselves: a refactor that silently stopped
       # finding a category would otherwise publish an empty reference table.
-      - name: Test the generator
+      - id: test-generator
+        name: Test the generator
         run: npx vitest run scripts/export-support-manifest.test.ts
 
-      - name: Generate the manifest
+      - id: generate
+        name: Generate the manifest
         run: npm run support:manifest -- --channel ${{ github.ref_name }} --out support-manifest.json
 
-      - name: Commit it into site/ on master
+      - id: commit
+        name: Commit it into site/ on master
         run: |
           set -euo pipefail
           git config user.name "dayspring-bot"
