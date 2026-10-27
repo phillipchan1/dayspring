@@ -75,7 +75,7 @@ jobs:
 
       - id: cache-rust
         name: Cache Rust build
-        uses: swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
+        uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: "src-tauri -> target"
 
@@ -92,7 +92,13 @@ jobs:
           # Phil's reinstalled alpha app polls this raw URL.
           # Beta users' apps poll releases/latest/download/latest.json (stable channel).
           ALPHA_ENDPOINT="https://raw.githubusercontent.com/phillipchan1/dayspring-releases/main/alpha-latest.json"
-          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.plugins.updater.endpoints=['$ALPHA_ENDPOINT'];fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
+          node -e "
+            const fs = require('fs');
+            const p = 'src-tauri/tauri.conf.json';
+            const c = JSON.parse(fs.readFileSync(p));
+            c.plugins.updater.endpoints = ['$ALPHA_ENDPOINT'];
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
+          "
 
       - id: version
         name: Compute version (major.minor from package.json + run number as patch)
@@ -303,7 +309,22 @@ jobs:
         # which is enough for `npm ci` to refuse to run ("not in sync").
         run: |
           set -euo pipefail
-          node -e "const fs=require('fs');const version=process.env.APP_VERSION;const pkg=JSON.parse(fs.readFileSync('package.json'));pkg.version=version;fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');if(fs.existsSync('package-lock.json')){const lock=JSON.parse(fs.readFileSync('package-lock.json'));lock.version=version;if(lock.packages?.[''])lock.packages[''].version=version;fs.writeFileSync('package-lock.json',JSON.stringify(lock,null,2)+'\n');}"
+          node -e "
+            const fs = require('fs');
+            const version = process.env.APP_VERSION;
+
+            const pkg = JSON.parse(fs.readFileSync('package.json'));
+            pkg.version = version;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+
+            // Absent on a fresh clone that has never installed — not fatal.
+            if (fs.existsSync('package-lock.json')) {
+              const lock = JSON.parse(fs.readFileSync('package-lock.json'));
+              lock.version = version;
+              if (lock.packages?.['']) lock.packages[''].version = version;
+              fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
+            }
+          "
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
