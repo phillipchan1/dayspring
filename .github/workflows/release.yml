@@ -27,8 +27,8 @@ jobs:
     outputs:
       should_build: ${{ steps.diff.outputs.should_build }}
     steps:
-      - name: Compare HEAD to last-built SHA
-        id: diff
+      - id: diff
+        name: Compare HEAD to last-built SHA
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -53,48 +53,49 @@ jobs:
     env:
       RELEASES_REPO: phillipchan1/dayspring-releases
     steps:
-      - uses: actions/checkout@v5
+      - id: checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           # Full history so the release-notes step can diff this build against
           # the previous tip of master (github.event.before..HEAD).
           fetch-depth: 0
 
-      - name: Set up Node
-        uses: actions/setup-node@v5
+      - id: setup-node
+        name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 20
           cache: npm
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - id: setup-rust
+        name: Set up Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           targets: aarch64-apple-darwin
 
-      - name: Cache Rust build
-        uses: swatinem/rust-cache@v2
+      - id: cache-rust
+        name: Cache Rust build
+        uses: swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
         with:
           workspaces: "src-tauri -> target"
 
-      - name: Install dependencies
+      - id: install
+        name: Install dependencies
         # Not `npm ci`: vite 8 / rolldown pulls platform-specific optional deps
         # (@emnapi/*) that differ across npm versions, so a strict lockfile check
         # is brittle here. `npm install` resolves them per-runner.
         run: npm install --no-audit --no-fund
 
-      - name: Patch updater endpoint to alpha channel
+      - id: patch-updater
+        name: Patch updater endpoint to alpha channel
         run: |
           # Phil's reinstalled alpha app polls this raw URL.
           # Beta users' apps poll releases/latest/download/latest.json (stable channel).
           ALPHA_ENDPOINT="https://raw.githubusercontent.com/phillipchan1/dayspring-releases/main/alpha-latest.json"
-          node -e "
-            const fs = require('fs');
-            const p = 'src-tauri/tauri.conf.json';
-            const c = JSON.parse(fs.readFileSync(p));
-            c.plugins.updater.endpoints = ['$ALPHA_ENDPOINT'];
-            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
-          "
+          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.plugins.updater.endpoints=['$ALPHA_ENDPOINT'];fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
 
-      - name: Compute version (major.minor from package.json + run number as patch)
+      - id: version
+        name: Compute version (major.minor from package.json + run number as patch)
         run: |
           # major.minor comes from package.json; patch = CI run number so every
           # push produces a strictly-increasing version without any manual bump.
@@ -110,7 +111,8 @@ jobs:
       # signing + notarization. Without the secret, the ad-hoc value stays and
       # the build is unsigned (current behavior) — so this is safe pre-enrollment.
       # (secrets can't be used in `if:`, so we gate inside the script via env.)
-      - name: Enable Apple signing when configured
+      - id: signing
+        name: Enable Apple signing when configured
         env:
           IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           CERT: ${{ secrets.APPLE_CERTIFICATE }}
@@ -131,7 +133,8 @@ jobs:
       # into the changelog below; also feeds latest.json + the release body later.
       # Best-effort: scripts/release-notes.mjs falls back to a cleaned commit list
       # if OPENAI_API_KEY is unset or the API errors, so it never blocks a release.
-      - name: Generate release notes
+      - id: release-notes
+        name: Generate release notes
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -153,7 +156,8 @@ jobs:
       # Assemble the cumulative changelog (prior GitHub releases + this build) into
       # public/changelog.json so Vite bundles it into the app. Runs BEFORE the
       # build. Best-effort: writes the current entry alone if the API is down.
-      - name: Assemble bundled changelog
+      - id: changelog
+        name: Assemble bundled changelog
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -165,7 +169,8 @@ jobs:
       # The .dmg step (hdiutil/bundle_dmg.sh) is flaky on headless runners, so
       # we retry and clear any stale mount between attempts. --verbose surfaces
       # the real hdiutil error if it ever fails for good.
-      - name: Build and sign the app
+      - id: build
+        name: Build and sign the app
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -214,7 +219,8 @@ jobs:
           done
           echo "All build attempts failed"; exit 1
 
-      - name: Publish to public releases repo (alpha, pre-release)
+      - id: publish
+        name: Publish to public releases repo (alpha, pre-release)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -250,7 +256,8 @@ jobs:
             --prerelease \
             "$DMG" "$ALPHA_DMG" "$APPTAR" alpha-latest.json
 
-      - name: Commit alpha-latest.json to releases repo root
+      - id: commit-latest
+        name: Commit alpha-latest.json to releases repo root
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -267,7 +274,8 @@ jobs:
             "${EXTRA_ARGS[@]}"
           echo "Updated alpha-latest.json in releases repo"
 
-      - name: Record built SHA (skips next scheduled build if no new commits)
+      - id: record-sha
+        name: Record built SHA (skips next scheduled build if no new commits)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
@@ -285,7 +293,8 @@ jobs:
             "${EXTRA_ARGS[@]}"
           echo "Recorded built SHA: ${{ github.sha }}"
 
-      - name: Write version back to package.json
+      - id: write-version
+        name: Write version back to package.json
         # Keeps package.json in sync with the version that actually shipped.
         # The [skip ci] tag prevents this commit from triggering another build.
         #
@@ -294,22 +303,7 @@ jobs:
         # which is enough for `npm ci` to refuse to run ("not in sync").
         run: |
           set -euo pipefail
-          node -e "
-            const fs = require('fs');
-            const version = process.env.APP_VERSION;
-
-            const pkg = JSON.parse(fs.readFileSync('package.json'));
-            pkg.version = version;
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-
-            // Absent on a fresh clone that has never installed — not fatal.
-            if (fs.existsSync('package-lock.json')) {
-              const lock = JSON.parse(fs.readFileSync('package-lock.json'));
-              lock.version = version;
-              if (lock.packages?.['']) lock.packages[''].version = version;
-              fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
-            }
-          "
+          node -e "const fs=require('fs');const version=process.env.APP_VERSION;const pkg=JSON.parse(fs.readFileSync('package.json'));pkg.version=version;fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');if(fs.existsSync('package-lock.json')){const lock=JSON.parse(fs.readFileSync('package-lock.json'));lock.version=version;if(lock.packages?.[''])lock.packages[''].version=version;fs.writeFileSync('package-lock.json',JSON.stringify(lock,null,2)+'\n');}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
