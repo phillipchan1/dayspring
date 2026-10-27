@@ -11,7 +11,6 @@ name: checks
 
 on:
   push:
-    branches-ignore: []
   pull_request:
 
 concurrency:
