@@ -113,6 +113,17 @@ export function SettingsPanel({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
+      // A menu opened from Settings (the writing-font picker, portalled outside
+      // the panel) has the keyboard: its Esc closes it and leaves Settings open
+      // (useMenuKeyboard).
+      const t = e.target
+      if (
+        t instanceof Element &&
+        !dialogRef.current?.contains(t) &&
+        t.closest('[role="listbox"], [role="menu"]')
+      ) {
+        return
+      }
       // Capture + preventDefault: with fullscreen keyboard lock, Esc closes modal first.
       e.preventDefault()
       e.stopPropagation()
