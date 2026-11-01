@@ -30,7 +30,6 @@ import './AppLock.css'
  */
 export const SHAKE_MS = 360
 
-
 export function LockScreen({
   config,
   ownerId,

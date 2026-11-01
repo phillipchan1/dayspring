@@ -73,7 +73,6 @@ function takenLine(iso: string | undefined): string | null {
   })
 }
 
-
 /** What the pointers on the stage are doing. */
 type Gesture =
   | { kind: 'pending'; id: number; x0: number; y0: number; t0: number }

@@ -164,7 +164,6 @@ export function settleDurationMs(distance: number, speed: number): number {
   return Math.round(Math.max(SETTLE_MIN_MS, Math.min(SETTLE_MS, (SPRING_LAUNCH * distance) / speed)))
 }
 
-
 /** What a gesture has turned out to be. */
 type Axis = 'h' | 'down' | 'v' | null
 
@@ -359,6 +358,8 @@ export function usePagedSwipe({
       }
       const exit = pd.exitMs ?? 0
       if (exit <= 0 || prefersReducedMotion()) {
+        // Home again for the next time the surface is shown.
+        setOffsetY(0)
         pd.onDismiss()
         return
       }
