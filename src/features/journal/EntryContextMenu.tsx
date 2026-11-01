@@ -61,10 +61,12 @@ function sheetDate(iso: string): string {
  * cancels. Space still presses whichever button has focus, as on the Mac.
  */
 export function confirmKeyAction(
-  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey'>,
+  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey'> & { repeat?: boolean },
 ): 'cancel' | 'confirm' | null {
   if (e.key === 'Escape' || e.key === 'Enter') return 'cancel'
-  if ((e.key === 'Backspace' || e.key === 'Delete') && (e.metaKey || e.ctrlKey)) return 'confirm'
+  // Never on a held key: on the wall ⌫ / ⌘⌫ is what OPENS this confirm, and
+  // its auto-repeat must not be what answers it.
+  if ((e.key === 'Backspace' || e.key === 'Delete') && (e.metaKey || e.ctrlKey) && !e.repeat) return 'confirm'
   return null
 }
 

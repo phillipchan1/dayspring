@@ -18,6 +18,9 @@ describe('delete confirm keys', () => {
   it('⌘⌫ confirms', () => {
     expect(confirmKeyAction(k('Backspace', { metaKey: true }))).toBe('confirm')
   })
+  it('a held ⌘⌫ — the press that opened the confirm, repeating — does not confirm', () => {
+    expect(confirmKeyAction({ ...k('Backspace', { metaKey: true }), repeat: true })).toBeNull()
+  })
   it('a bare ⌫ does nothing', () => {
     expect(confirmKeyAction(k('Backspace'))).toBeNull()
   })
