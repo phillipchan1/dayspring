@@ -4526,8 +4526,9 @@ button.pg__sense-q:hover {
 
 /*
  * A pushed view arriving on a phone: in from the right. At the top level, not
- * inside the narrow block, because the volume layer and the practice thread
- * push with it too, from their own stylesheets.
+ * inside the narrow block, because the volume layer (Volumes.css) pushes with
+ * it too. (The practice thread keeps its own copy, `rt-push-in`: Rituals can
+ * open before Pages' stylesheet has ever loaded.)
  */
 @keyframes pg-open-narrow {
   from {
@@ -4550,8 +4551,8 @@ button.pg__sense-q:hover {
  *
  * Snaps back on release short of the threshold, and on a committed swipe
  * carries on off the right edge under `[data-leaving]` — the reader stays
- * mounted for exactly that long (`EXIT_MS` in useSwipeToDismiss, which is this
- * duration by construction). Before, `onDismiss` and the reset to zero landed
+ * mounted for exactly that long (`PUSH_MS` in edgeSwipe.ts, which is
+ * `--dur-push` by construction). Before, `onDismiss` and the reset to zero landed
  * in the same tick, so the page snapped back to centre for one frame before
  * vanishing: the dismissal played backwards at speed, which was most of what
  * made the gesture feel broken.

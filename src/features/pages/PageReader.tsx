@@ -622,9 +622,10 @@ export function PageReader({
       {/*
         The page follows the finger while the back-swipe is being made, and
         snaps back or carries on off the screen on release. On the inner element
-        rather than the container, because `.pg-read1` carries the entrance
-        animation and an animated transform beats an inline one for as long as
-        the animation's `both` fill holds.
+        rather than the container, because the container holds the veil, which
+        must stay still while the page crosses it. On a phone the page's own
+        push-in runs here too, with `backwards` fill only, so once it has played
+        it never outranks the inline transform a drag writes.
       */}
       <div
         ref={slideRef}
