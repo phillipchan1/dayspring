@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { isSupabaseConfigured } from './lib/env'
+import { isSupabaseConfigured, isWorkersBackend } from './lib/env'
 import { useSession } from './hooks/useSession'
 import { useSettings } from './hooks/useSettings'
 import { useSettingsSync } from './hooks/useSettingsSync'
@@ -105,10 +105,11 @@ export function App() {
     settings.maxWidth,
     settings.editorFont,
     settings.editorFontAuto,
+    settings.editorFontExtra,
     settings.voice,
   ])
 
-  if (!isSupabaseConfigured) return <SetupNotice />
+  if (!isSupabaseConfigured && !isWorkersBackend) return <SetupNotice />
 
   if (loading) {
     return <div className="app-shell"><SurfaceLoader /></div>

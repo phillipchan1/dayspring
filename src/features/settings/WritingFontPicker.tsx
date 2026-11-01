@@ -1,11 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import type { EditorFont } from '@/lib/settings'
-import { EDITOR_FONT_VARS } from '@/lib/settings'
+import type { WritingFace } from '@/lib/settings'
+import { WRITING_FACE_VARS } from '@/lib/settings'
 
 /** Sample rendering only. 'auto' shows the face the live theme is already using. */
 const FONT_VARS: Record<FontChoice, string> = {
-  ...EDITOR_FONT_VARS,
+  ...WRITING_FACE_VARS,
   auto: 'var(--font-editor)',
 }
 
@@ -15,17 +15,28 @@ const FONT_VARS: Record<FontChoice, string> = {
  * release channel, where `EDITOR_FONT_VARS['auto']` would be undefined and
  * `--font-editor` would resolve to nothing. The choice is carried by the
  * separate `editorFontAuto` flag instead; this type exists only for the menu.
+ * The same goes for the faces added since (`ExtraEditorFont`), via
+ * `writingFacePatch`.
  */
-export type FontChoice = EditorFont | 'auto'
+export type FontChoice = WritingFace | 'auto'
 
+const SAMPLE = 'A quiet morning entry'
+
+// The first six are described by what they are; the rest are named for the
+// typeface, because someone who wants Lato wants to find the word "Lato".
+// Grouped by kind: serifs, then the typewriter and mono, then the sans faces.
 const FONTS: { value: FontChoice; label: string; sample: string }[] = [
-  { value: 'auto', label: 'Follow the theme', sample: 'A quiet morning entry' },
-  { value: 'serif', label: 'Serif', sample: 'A quiet morning entry' },
-  { value: 'literary', label: 'Literary', sample: 'A quiet morning entry' },
-  { value: 'typewriter', label: 'Typewriter', sample: 'A quiet morning entry' },
-  { value: 'mono', label: 'Mono', sample: 'A quiet morning entry' },
-  { value: 'sans', label: 'Sans', sample: 'A quiet morning entry' },
-  { value: 'readable', label: 'Readable', sample: 'A quiet morning entry' },
+  { value: 'auto', label: 'Follow the theme', sample: SAMPLE },
+  { value: 'serif', label: 'Serif', sample: SAMPLE },
+  { value: 'literary', label: 'Literary', sample: SAMPLE },
+  { value: 'lora', label: 'Lora', sample: SAMPLE },
+  { value: 'merriweather', label: 'Merriweather', sample: SAMPLE },
+  { value: 'literata', label: 'Literata', sample: SAMPLE },
+  { value: 'typewriter', label: 'Typewriter', sample: SAMPLE },
+  { value: 'mono', label: 'Mono', sample: SAMPLE },
+  { value: 'sans', label: 'Sans', sample: SAMPLE },
+  { value: 'lato', label: 'Lato', sample: SAMPLE },
+  { value: 'readable', label: 'Readable', sample: SAMPLE },
 ]
 
 // Matches the menu's old `max-height: min(18rem, 50vh)` — its natural size
@@ -67,7 +78,15 @@ export function WritingFontPicker({ value, onChange }: Props) {
   // page) scrolls or resizes underneath it.
   useEffect(() => {
     if (!open) return
-    const onScroll = () => setOpen(false)
+    const onScroll = (e: Event) => {
+      // Scroll events don't bubble, but capture listeners on window still see
+      // scrolls on descendants — including this menu's overflow-y:auto list.
+      // Closing on those made the list feel stuck, especially on touch where
+      // every drag is a scroll gesture.
+      const target = e.target
+      if (target instanceof Node && menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
     window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', onScroll)
     return () => {

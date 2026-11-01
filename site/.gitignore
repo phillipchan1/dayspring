@@ -11,6 +11,8 @@ node_modules/
 # generated types
 .vercel/
 .netlify/
+.wrangler/
+.dev.vars
 
 # environment
 .env

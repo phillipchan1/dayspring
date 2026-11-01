@@ -1,0 +1,10 @@
+# Ported from current Vercel routing (site/vercel.json).
+#
+# vercel.json has no redirects or rewrites. Live Vercel behavior:
+#   - No SPA rewrite (missing paths 404; they do not serve /index.html)
+#   - /why and /why/ both 200 (handled by wrangler assets.html_handling)
+#   - Apex usedayspring.app → https://www.usedayspring.app/ :307
+#     Host-level redirects are not expressible here (this file is path-only).
+#     Recreate the apex → www 307 when attaching the custom domain — see CUTOVER.md.
+#
+# No path-level redirects to port.

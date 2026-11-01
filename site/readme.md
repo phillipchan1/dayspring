@@ -22,6 +22,25 @@ npm run preview  # preview the build
 
 From the app repo root: `npm run dev:site`.
 
+## Deploy (Cloudflare Workers)
+
+Additive; Vercel stays production until DNS cutover. See [`CUTOVER.md`](CUTOVER.md).
+
+```bash
+npm run deploy:cf      # build + wrangler deploy
+```
+
+The Cloudflare **build** environment must set the same Astro `PUBLIC_*` vars
+as Vercel — they are inlined at `astro build`, not Worker runtime secrets:
+
+`PUBLIC_POSTHOG_KEY`, `PUBLIC_POSTHOG_HOST`, `PUBLIC_GOOGLE_TAG_ID`,
+`PUBLIC_GADS_DOWNLOAD_SEND_TO`, `PUBLIC_GADS_START_TRIAL_SEND_TO`,
+`PUBLIC_META_PIXEL_ID`, `PUBLIC_TURNSTILE_SITE_KEY`
+
+Also set **`TZ=UTC`** on that build so sitemap `lastmod` and any dates match
+the Vercel build. Worker secrets (`RESEND_API_KEY`, …) are listed in
+`CUTOVER.md` and are set with `wrangler secret put`, not at build time.
+
 ## Deploy (Vercel)
 
 Second Vercel project, same GitHub repo as the app:

@@ -24,6 +24,11 @@
      every platform (the system stack is SF on Apple, Segoe on Windows and
      DejaVu on Linux, and EDITOR_FACE_METRICS can only be tuned to one). */
   --face-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* The picker's later additions (ExtraEditorFont in settings.ts). */
+  --face-lora: 'Lora Variable', Georgia, 'Times New Roman', serif;
+  --face-merriweather: 'Merriweather Variable', Georgia, 'Times New Roman', serif;
+  --face-literata: 'Literata Variable', Georgia, 'Times New Roman', serif;
+  --face-lato: 'Lato', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-iawriter: 'iA Writer Duo', 'JetBrains Mono', ui-monospace, monospace;
   --font-atkinson: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
   --font-entry-list: 'Inter', -apple-system, sans-serif;

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.509",
+  "appVersion": "1.0.517",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -726,6 +726,12 @@
         "id": "setting.typewriter",
         "key": "typewriter",
         "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.typewriter-always",
+        "key": "typewriterAlways",
+        "default": false,
         "type": "boolean"
       },
       {

@@ -169,7 +169,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_API_BASE_URL: https://dayspring-eosin.vercel.app
+          # Repo variable (Settings → Secrets and variables → Actions → Variables).
+          # Empty → today's Vercel origin. Set to a workers.dev origin only for a
+          # Workers preview IPA. See docs/cloudflare-migration/cutover.md.
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://dayspring-eosin.vercel.app' }}
+          VITE_BACKEND: ${{ vars.VITE_BACKEND }}
           # The TestFlight IPA is the App Store binary if it is promoted in ASC.
           # Never stamp it as alpha or compile beta-testing UI into it.
           VITE_RELEASE_CHANNEL: appstore
@@ -186,6 +190,7 @@ jobs:
           if [ -z "${IOS_CERTIFICATE:-}" ] || [ -z "${IOS_CERTIFICATE_PASSWORD:-}" ] || [ -z "${IOS_MOBILE_PROVISION:-}" ]; then
             unset IOS_CERTIFICATE IOS_CERTIFICATE_PASSWORD IOS_MOBILE_PROVISION
             echo "Using automatic signing (App Store Connect API key)."
+            echo "Target: xcodebuild -allowProvisioningUpdates + ASC API key (APPSTORE_KEY_ID / ISSUER_ID / PRIVATE_KEY, APPLE_TEAM_ID)."
           else
             echo "Using manual signing (IOS_CERTIFICATE + provisioning profile)."
           fi

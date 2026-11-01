@@ -1,4 +1,4 @@
-import { env } from './env'
+import { env, isWorkersBackend } from './env'
 import { requireSupabase } from './supabase'
 
 /** Resolve a serverless API path for web (same-origin) or desktop (Vercel prod). */
@@ -9,23 +9,34 @@ export function apiUrl(path: string): string {
   return `${base.replace(/\/$/, '')}${normalized}`
 }
 
+async function bearerToken(): Promise<string> {
+  if (isWorkersBackend) {
+    const { getWorkersToken } = await import('./authClient')
+    const token = await getWorkersToken()
+    if (!token) throw new Error('not signed in')
+    return token
+  }
+  const sb = requireSupabase()
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
+  if (!session) throw new Error('not signed in')
+  return session.access_token
+}
+
 /**
  * POST JSON to a user-authed `/api/*` endpoint, attaching the current Supabase
  * access token as a Bearer (the server validates it via getAuthedUser). Throws
  * on a non-2xx response.
  */
 export async function apiPost<T = unknown>(path: string, body: unknown): Promise<T> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not signed in')
+  const token = await bearerToken()
 
   const res = await fetch(apiUrl(path), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      authorization: `Bearer ${session.access_token}`,
+      authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
   })
@@ -42,15 +53,11 @@ export async function apiPost<T = unknown>(path: string, body: unknown): Promise
  * multipart boundary. Throws on a non-2xx response.
  */
 export async function apiPostForm<T = unknown>(path: string, form: FormData): Promise<T> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not signed in')
+  const token = await bearerToken()
 
   const res = await fetch(apiUrl(path), {
     method: 'POST',
-    headers: { authorization: `Bearer ${session.access_token}` },
+    headers: { authorization: `Bearer ${token}` },
     body: form,
   })
   if (!res.ok) {
@@ -79,15 +86,11 @@ export async function apiPostFormStream(
   form: FormData,
   handlers: SSEHandlers,
 ): Promise<void> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not signed in')
+  const token = await bearerToken()
 
   const res = await fetch(apiUrl(path), {
     method: 'POST',
-    headers: { authorization: `Bearer ${session.access_token}` },
+    headers: { authorization: `Bearer ${token}` },
     body: form,
   })
   if (!res.ok || !res.body) {

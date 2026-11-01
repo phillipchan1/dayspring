@@ -5,7 +5,7 @@ section: settings
 order: 1
 requires: [capability.editor]
 keywords: [theme, dark mode, light mode, font, appearance, palette, colour, color, oled, typeface]
-updated: 2026-10-10
+updated: 2026-11-01
 ---
 
 **Settings → Appearance.**
@@ -43,9 +43,12 @@ Your theme brings a typeface that was chosen alongside its colours, which is
 why there's no separate font setting in front of you any more.
 
 If you want a different one, open **Advanced typography** underneath the theme
-list. Six faces are there — a serif, a literary face, a typewriter face, a
+list. Ten faces are there — a serif, a literary face, a typewriter face, a
 monospace, a plain sans, and one designed for maximum legibility if small type
-is a struggle — plus **Follow the theme**, which is where it starts.
+is a struggle. Four more are named for the typeface, for anyone who already
+knows what they like to write in: Lora, Merriweather and Literata (three serifs
+built for reading on a screen) and Lato (a warm sans). **Follow the theme** is
+there too, and is where it starts.
 
 Choosing one overrides the face only. Everything else about your theme stays.
 

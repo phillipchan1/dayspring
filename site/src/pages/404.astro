@@ -1,0 +1,51 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Emitted as 404.html. Vercel and the Worker serve this file with status 404
+// for unknown paths (`not_found_handling: 404-page` / Vercel's 404.html).
+// The Worker also returns 404 for /404 itself — otherwise cleanUrls would
+// make GET /404 a 200. This is the 404 document, not a page.
+Astro.response.status = 404;
+---
+
+<Base
+  title="Page not found"
+  description="That page is not on this site."
+  path="/404"
+  footer="minimal"
+  noindex
+>
+  <article class="not-found">
+    <p class="eyebrow mono">404</p>
+    <h1>This page is not here.</h1>
+    <p class="lead">The address may have changed, or it was never a page.</p>
+    <p><a href="/" class="btn btn-ghost">Back to Dayspring</a></p>
+  </article>
+</Base>
+
+<style>
+  .not-found {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 80px 28px 120px;
+    text-align: center;
+  }
+  .eyebrow {
+    color: var(--dawn-1);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: 12px;
+    margin: 0 0 16px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(32px, 5vw, 48px);
+    letter-spacing: -0.03em;
+    margin: 0 0 16px;
+  }
+  .lead {
+    color: var(--paper-dim);
+    margin: 0 0 32px;
+  }
+</style>

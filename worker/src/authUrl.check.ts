@@ -1,0 +1,372 @@
+// Run: node --experimental-strip-types worker/src/authUrl.check.ts
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { shouldLogOtp } from './auth.ts'
+import { databaseUrl } from './env.ts'
+import { isBoundHyperdrive, pgClientOptions, postgresSslOption, withPgSslMode } from './db.ts'
+import { nextMigrationVersions, schemaFileVersion } from './isolationDb.ts'
+import { app } from './index.ts'
+import { authConfigErrorResponse, beginAuthCors } from './cors.ts'
+import { timingSafeEqualString } from './safeEqual.ts'
+import {
+  authCookieSecure,
+  canonicalizeHostname,
+  connectionHostname,
+  isLocalAuthHost,
+  isLocalAuthRuntime,
+  isLoopbackHostname,
+  resolveAuthBaseURL,
+} from './authUrl.ts'
+
+const fails: string[] = []
+let checks = 0
+function ok(cond: boolean, msg: string) {
+  checks++
+  if (!cond) fails.push(msg)
+}
+
+const neon = 'postgresql://neondb@ep-prod.us-east-1.aws.neon.tech/dayspring'
+const prodWithLocalUser = 'postgresql://localhost_admin@ep-prod.neon.tech/dayspring'
+const prodWithLocalDb = 'postgresql://app@ep-prod.neon.tech/localhost'
+const prodWithLocalQuery = 'postgresql://app@ep-prod.neon.tech/dayspring?application_name=localhost&sslmode=require'
+const prodWithLocalPass = 'postgresql://app:localhost@ep-prod.neon.tech/dayspring'
+const loopbackPg = 'postgresql://postgres@localhost:5432/dayspring'
+const loopbackV4 = 'postgresql://postgres@127.0.0.1:5432/dayspring'
+const loopbackV6 = 'postgresql://postgres:postgres@[::1]:5432/dayspring'
+const leadingZeroHost = 'postgresql://u@0127.0.0.1:5432/dayspring'
+const bare127 = 'postgresql://u@127:5432/dayspring'
+
+ok(isLoopbackHostname('::1'), '::1 hostname is loopback')
+ok(isLoopbackHostname('[::1]'), '[::1] hostname is loopback')
+ok(isLocalAuthHost('http://[::1]:8787'), '[::1] auth origin is local')
+ok(isLocalAuthHost('http://[::1]'), '[::1] without port is local')
+ok(!authCookieSecure('http://[::1]:8787'), '[::1] cookies are not Secure')
+ok(!isLocalAuthRuntime({}), '[::1] DB hostname is not a local runtime without ENVIRONMENT')
+ok(connectionHostname(loopbackV6) === '[::1]' || connectionHostname(loopbackV6) === '::1', '[::1] postgres hostname parses')
+
+ok(isLocalAuthHost('http://localhost:8787'), 'localhost is local')
+ok(isLocalAuthHost('http://127.0.0.1:5173'), '127.0.0.1 is local')
+ok(isLoopbackHostname('127.1'), '127.1 hostname is loopback')
+ok(isLocalAuthHost('http://127.1:8787'), '127.1 auth origin is local')
+ok(canonicalizeHostname('127.1') === '127.0.0.1', '127.1 canonicalizes to 127.0.0.1')
+ok(canonicalizeHostname('0127.0.0.1') === '87.0.0.1', '0127.0.0.1 canonicalizes off loopback')
+ok(canonicalizeHostname('127') === '0.0.0.127', 'bare 127 canonicalizes to 0.0.0.127')
+ok(!isLoopbackHostname('0127.0.0.1'), 'leading-zero IPv4 is not loopback')
+ok(!isLoopbackHostname('127'), 'bare 127 is not loopback')
+ok(connectionHostname(leadingZeroHost) === '0127.0.0.1', 'postgres:// keeps unnormalized 0127 host')
+ok(
+  !isLoopbackHostname(connectionHostname(leadingZeroHost) ?? ''),
+  'unnormalized 0127 postgres host is not loopback',
+)
+ok(!isLocalAuthHost('https://dayspring.example.workers.dev'), 'workers.dev is not local')
+ok(!authCookieSecure('http://localhost:8787'), 'localhost cookies are not Secure')
+ok(authCookieSecure('https://dayspring.example.workers.dev'), 'prod cookies are Secure')
+
+ok(!isLocalAuthRuntime({}), 'empty env is not local')
+ok(!isLocalAuthRuntime({ ENVIRONMENT: 'dev' }), 'ENVIRONMENT=dev is not local')
+ok(!isLocalAuthRuntime({ ENVIRONMENT: 'development' }), 'ENVIRONMENT=development is not local')
+ok(isLocalAuthRuntime({ ENVIRONMENT: 'local' }), 'ENVIRONMENT=local is local')
+ok(isLocalAuthRuntime({ ENVIRONMENT: 'LOCAL' }), 'ENVIRONMENT=LOCAL is local')
+ok(isLocalAuthRuntime({ ENVIRONMENT: 'local' }), 'ENVIRONMENT=local is the only local runtime')
+ok(connectionHostname(prodWithLocalUser) === 'ep-prod.neon.tech', 'parses host not user')
+ok(connectionHostname(prodWithLocalDb) === 'ep-prod.neon.tech', 'parses host not db name')
+ok(connectionHostname(prodWithLocalQuery) === 'ep-prod.neon.tech', 'parses host not query')
+
+ok(
+  resolveAuthBaseURL({ BETTER_AUTH_URL: 'https://dayspring.example.workers.dev/' }) === 'https://dayspring.example.workers.dev',
+  'configured URL wins and strips trailing slash',
+)
+ok(
+  resolveAuthBaseURL({ ENVIRONMENT: 'local' }) === 'http://localhost:8787',
+  'unset URL falls back when ENVIRONMENT=local',
+)
+
+function throwsUnset(env: Parameters<typeof resolveAuthBaseURL>[0]): boolean {
+  try {
+    resolveAuthBaseURL(env)
+    return false
+  } catch (err) {
+    return err instanceof Error && err.message.includes('BETTER_AUTH_URL must be set')
+  }
+}
+
+ok(throwsUnset({ DATABASE_URL: neon }), 'unset URL + Neon throws')
+ok(throwsUnset({}), 'unset URL with no local signal throws')
+ok(throwsUnset({ BETTER_AUTH_URL: '   ', DATABASE_URL: neon }), 'whitespace URL throws outside local')
+ok(throwsUnset({ DATABASE_URL: prodWithLocalUser }), 'unset URL + localhost in user throws')
+ok(throwsUnset({ DATABASE_URL: prodWithLocalDb }), 'unset URL + localhost in db name throws')
+ok(throwsUnset({ DATABASE_URL: prodWithLocalQuery }), 'unset URL + localhost in query throws')
+ok(throwsUnset({ ENVIRONMENT: 'dev', DATABASE_URL: neon }), 'ENVIRONMENT=dev + Neon throws')
+ok(throwsUnset({ DATABASE_URL: loopbackPg }), 'unset URL + real loopback DB still throws')
+ok(throwsUnset({ DATABASE_URL: loopbackV4 }), 'unset URL + 127.0.0.1 DB still throws')
+ok(throwsUnset({ DATABASE_URL: leadingZeroHost }), 'unset URL + 0127.0.0.1 throws')
+ok(throwsUnset({ DATABASE_URL: bare127 }), 'unset URL + bare 127 throws')
+ok(throwsUnset({ HYPERDRIVE: { connectionString: leadingZeroHost } }), 'unset URL + Hyperdrive 0127 throws')
+
+ok(withPgSslMode(neon).includes('sslmode=verify-full'), 'Neon URL gets sslmode=verify-full')
+ok(postgresSslOption(neon) === 'require', 'Neon uses TLS')
+ok(postgresSslOption(loopbackV4) === false, '127.0.0.1 disables TLS')
+ok(postgresSslOption(loopbackPg) === false, 'localhost disables TLS')
+ok(postgresSslOption(prodWithLocalPass) === 'require', 'localhost in password still uses TLS')
+ok(postgresSslOption(prodWithLocalDb) === 'require', 'localhost db name still uses TLS')
+ok(postgresSslOption(prodWithLocalQuery) === 'require', 'explicit sslmode=require is TLS')
+ok(postgresSslOption(`${neon}?sslmode=disable`) === false, 'explicit sslmode=disable is honored')
+
+const hyperdriveLocal = 'postgresql://neondb:secret@deadbeef01234567.hyperdrive.local:5432/neondb'
+const hyperdriveEnv = { HYPERDRIVE: { connectionString: hyperdriveLocal } }
+ok(databaseUrl(hyperdriveEnv) === hyperdriveLocal, 'databaseUrl returns the exact Hyperdrive binding')
+ok(
+  isBoundHyperdrive(hyperdriveEnv, hyperdriveLocal),
+  'bound Hyperdrive matches the exact connection string',
+)
+ok(
+  !isBoundHyperdrive({ HYPERDRIVE: { connectionString: `${hyperdriveLocal}?x=1` } }, hyperdriveLocal),
+  'Hyperdrive bind is identity, not hostname',
+)
+ok(
+  !isBoundHyperdrive({ DATABASE_URL: hyperdriveLocal }, hyperdriveLocal),
+  'unbound hyperdrive.local is not treated as Hyperdrive',
+)
+ok(
+  !withPgSslMode(hyperdriveLocal, hyperdriveEnv).includes('sslmode'),
+  'bound Hyperdrive does not add sslmode',
+)
+ok(postgresSslOption(hyperdriveLocal, hyperdriveEnv) === false, 'bound Hyperdrive ssl is false')
+ok(pgClientOptions(hyperdriveEnv, hyperdriveLocal).ssl === false, 'bound Hyperdrive client ssl is false')
+ok(
+  pgClientOptions(hyperdriveEnv, hyperdriveLocal).connectionString === hyperdriveLocal,
+  'bound Hyperdrive keeps the binding URL',
+)
+ok(
+  withPgSslMode(hyperdriveLocal).includes('sslmode=verify-full'),
+  'unbound hyperdrive.local gets sslmode=verify-full',
+)
+ok(postgresSslOption(hyperdriveLocal) === 'require', 'unbound hyperdrive.local stays require')
+ok(
+  pgClientOptions({}, hyperdriveLocal).ssl === 'require',
+  'unbound hyperdrive.local client ssl stays require',
+)
+ok(withPgSslMode(neon, hyperdriveEnv).includes('sslmode=verify-full'), 'Neon stays verify-full next to a Hyperdrive binding')
+ok(postgresSslOption(neon, hyperdriveEnv) === 'require', 'Neon stays require next to a Hyperdrive binding')
+ok(postgresSslOption(loopbackV4, hyperdriveEnv) === false, 'loopback stays false next to a Hyperdrive binding')
+ok(
+  !/hyperdrive\.local/.test(readFileSync(join(dirname(fileURLToPath(import.meta.url)), './db.ts'), 'utf8')),
+  'db.ts does not hostname-match Hyperdrive',
+)
+ok(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), './auth.ts'), 'utf8').includes('pgClientOptions'),
+  'auth client uses pgClientOptions for TLS',
+)
+ok(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), './db.ts'), 'utf8').includes('pgClientOptions(env, url)'),
+  'data client uses pgClientOptions for TLS',
+)
+try {
+  withPgSslMode(hyperdriveLocal, hyperdriveEnv)
+  postgresSslOption(hyperdriveLocal, hyperdriveEnv)
+  ok(true, 'Hyperdrive TLS helpers do not throw the host')
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err)
+  ok(!/hyperdrive\.local/i.test(message), 'Hyperdrive TLS errors do not leak the host')
+}
+
+ok(nextMigrationVersions([]).join(',') === '0001,0002', 'fresh DB applies 0001 then 0002')
+ok(nextMigrationVersions(['0001']).join(',') === '0002', '0001 applied continues at 0002')
+ok(nextMigrationVersions(['0002']).join(',') === '', 'never re-run 0001 after 0002')
+ok(nextMigrationVersions(['0001', '0002']).join(',') === '', 'fully applied migrations are no-ops')
+ok(
+  schemaFileVersion('0002_occ_updated_at.sql') === 2
+    && schemaFileVersion('0001_init.sql') === 1
+    && schemaFileVersion('0002_occ_updated_at.sql') > schemaFileVersion('0001_init.sql'),
+  'schema files are ordered numerically',
+)
+ok(
+  !readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../scripts/seed-synthetic.mjs'), 'utf8')
+    .includes('/localhost|127'),
+  'seed-synthetic does not substring-match TLS',
+)
+
+ok(shouldLogOtp({ ENVIRONMENT: 'local' }), 'OTP may log when ENVIRONMENT=local')
+ok(!shouldLogOtp({}), 'OTP must not log when ENVIRONMENT is unset')
+ok(!shouldLogOtp({ ENVIRONMENT: 'preview' }), 'OTP must not log on preview')
+
+ok(timingSafeEqualString('Bearer secret', 'Bearer secret'), 'cron compare equal')
+ok(!timingSafeEqualString('Bearer secret', 'Bearer secreT'), 'cron compare rejects mismatch')
+ok(!timingSafeEqualString('Bearer secret', 'Bearer secrets'), 'cron compare rejects length mismatch')
+ok(!timingSafeEqualString('', 'Bearer secret'), 'cron compare rejects empty header')
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
+const wrangler = readFileSync(join(root, 'wrangler.jsonc'), 'utf8')
+ok(
+  wrangler.includes('ENVIRONMENT=local'),
+  'wrangler.jsonc documents ENVIRONMENT=local',
+)
+ok(
+  wrangler.includes('https://dayspring-preview.nq-morning-briefing.workers.dev'),
+  'preview BETTER_AUTH_URL is the workers.dev origin',
+)
+const previewBlock = wrangler.slice(wrangler.indexOf('"preview"'))
+ok(
+  !previewBlock.includes('00000000000000000000000000000000'),
+  'preview env does not bind a placeholder Hyperdrive id',
+)
+ok(
+  wrangler.includes('"id": "00000000000000000000000000000000"'),
+  'top-level production still has a Hyperdrive placeholder',
+)
+ok(
+  !readFileSync(join(root, 'worker/src/db.ts'), 'utf8').includes('fetch_types: false'),
+  'postgres.js fetch_types stays on so array inserts bind',
+)
+ok(
+  !readFileSync(join(root, 'worker/src/db.ts'), 'utf8').includes('WeakMap'),
+  'db.ts does not cache clients in a WeakMap',
+)
+ok(
+  !readFileSync(join(root, 'worker/src/auth.ts'), 'utf8').includes('const cache = new WeakMap'),
+  'auth.ts does not cache Better Auth in a WeakMap',
+)
+ok(
+  readFileSync(join(root, 'worker/src/auth.ts'), 'utf8').includes('requireSignature: true'),
+  'bearer plugin requires a signed token',
+)
+ok(
+  !/identifier LIKE/.test(readFileSync(join(root, 'worker/src/store.ts'), 'utf8')),
+  'account delete does not use unescaped LIKE on verification.identifier',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes("'sign-in-otp-' || lower(email)"),
+  'account delete removes the sign-in-otp-<email> verification row',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes("'email-verification-otp-' || lower(email)"),
+  'account delete removes the email-verification-otp-<email> verification row',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes('lower(identifier)'),
+  'account delete matches verification identifiers case-insensitively',
+)
+ok(
+  readFileSync(join(root, 'worker/src/index.ts'), 'utf8').includes('stripGetSessionToken'),
+  'get-session strips session.token from the response body',
+)
+ok(
+  readFileSync(join(root, 'worker/schema/0001_init.sql'), 'utf8').includes('NEW.updated_at = NOW();'),
+  '0001_init keeps the original set_updated_at trigger',
+)
+ok(
+  readFileSync(join(root, 'worker/schema/0002_occ_updated_at.sql'), 'utf8').includes('clock_timestamp()'),
+  '0002 migration upgrades set_updated_at for already-provisioned DBs',
+)
+ok(
+  readFileSync(join(root, 'worker/src/store.ts'), 'utf8').includes(
+    "date_trunc('milliseconds', updated_at)",
+  ),
+  'entry replace OCC compares updated_at at epoch ms in the UPDATE WHERE',
+)
+ok(
+  !readFileSync(join(root, 'src/lib/authClient.ts'), 'utf8').includes('session?.token'),
+  'iOS/web client does not send the raw session.token as a bearer',
+)
+ok(
+  !readFileSync(join(root, 'worker/src/db.ts'), 'utf8').includes("url.includes('localhost')"),
+  'db.ts does not substring-match localhost for TLS',
+)
+ok(
+  readFileSync(join(root, 'worker/src/index.ts'), 'utf8').includes("'authentication failed'"),
+  'auth 500 returns a generic error',
+)
+ok(
+  !/error: message/.test(readFileSync(join(root, 'worker/src/index.ts'), 'utf8'))
+    && !readFileSync(join(root, 'worker/src/index.ts'), 'utf8').includes('err.message'),
+  'auth handler does not echo err.message',
+)
+ok(
+  readFileSync(join(root, 'worker/src/index.ts'), 'utf8').includes('timingSafeEqualString'),
+  'cron secret is compared in constant time',
+)
+ok(
+  /ENVIRONMENT=local/.test(readFileSync(join(root, '.dev.vars.example'), 'utf8')),
+  '.dev.vars.example sets ENVIRONMENT=local',
+)
+ok(
+  readFileSync(join(root, 'docs/cloudflare-migration/cutover.md'), 'utf8').includes('ENVIRONMENT'),
+  'cutover docs mention ENVIRONMENT',
+)
+
+const prodEnv = {
+  DATABASE_URL: prodWithLocalUser,
+  BETTER_AUTH_SECRET: 'x'.repeat(32),
+}
+const started = beginAuthCors('https://dayspring.example', prodEnv)
+ok(!started.ok, 'beginAuthCors fails closed when URL unset outside local')
+if (!started.ok) {
+  ok(started.response.status === 500, 'misconfig status is 500')
+  ok(
+    (started.response.headers.get('content-type') ?? '').includes('application/json'),
+    'misconfig is JSON',
+  )
+  ok(
+    started.response.headers.get('access-control-allow-origin') == null,
+    'non-loopback misconfig omits ACAO',
+  )
+  ok(
+    started.response.headers.get('access-control-allow-credentials') == null,
+    'non-loopback misconfig omits credentials',
+  )
+  const body = await started.response.json() as { error?: string }
+  ok(
+    typeof body.error === 'string' && body.error.includes('BETTER_AUTH_URL must be set'),
+    'misconfig body names BETTER_AUTH_URL',
+  )
+}
+
+const loopbackErr = authConfigErrorResponse('http://localhost:5180', new Error('BETTER_AUTH_URL must be set'))
+ok(loopbackErr.headers.get('access-control-allow-origin') === 'http://localhost:5180', 'loopback misconfig echoes Origin')
+ok(loopbackErr.headers.get('access-control-allow-credentials') === 'true', 'loopback misconfig keeps credentials')
+
+const noOrigin = authConfigErrorResponse(null, new Error('BETTER_AUTH_URL must be set'))
+ok(noOrigin.status === 500, 'misconfig without Origin is 500')
+ok(noOrigin.headers.get('access-control-allow-origin') == null, 'no-Origin misconfig omits ACAO')
+ok(noOrigin.headers.get('access-control-allow-credentials') == null, 'no-Origin misconfig omits credentials')
+
+for (const origin of ['https://evil.test', 'http://0127.0.0.1:5173', 'http://127:5173'] as const) {
+  const res = await app.request('http://localhost/api/auth/ok', {
+    method: 'POST',
+    headers: { Origin: origin },
+  }, prodEnv)
+  ok(res.status === 500, `${origin}: JSON 500`)
+  ok(res.headers.get('access-control-allow-origin') == null, `${origin}: no ACAO`)
+}
+
+for (const method of ['OPTIONS', 'GET', 'POST'] as const) {
+  const res = await app.request(`http://localhost/api/auth/ok`, {
+    method,
+    headers: { Origin: 'https://evil.example' },
+  }, prodEnv)
+  ok(res.status === 500, `${method} evil.example: JSON 500`)
+  ok(res.headers.get('access-control-allow-origin') == null, `${method} evil.example: no ACAO`)
+  ok(res.headers.get('access-control-allow-credentials') == null, `${method} evil.example: no credentials`)
+}
+
+const localOk = beginAuthCors('http://localhost:5180', { ENVIRONMENT: 'local' })
+ok(localOk.ok, 'beginAuthCors succeeds when ENVIRONMENT=local')
+if (localOk.ok) {
+  ok(
+    localOk.cors['Access-Control-Allow-Origin'] === 'http://localhost:5180',
+    'local CORS echoes vite origin',
+  )
+}
+
+ok(
+  (await app.request('http://localhost/api/health')).status === 200,
+  'GET /api/health is 200 without auth',
+)
+
+console.log(`${checks} checks, ${fails.length} failed`)
+if (fails.length) {
+  for (const f of fails) console.error('  FAIL', f)
+  process.exit(1)
+}
+console.log('authUrl: ok')

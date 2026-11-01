@@ -219,7 +219,21 @@ export function renderContactIssue(m: ContactMessage): { title: string; body: st
 // Delivery
 // ---------------------------------------------------------------------------
 
+/**
+ * Optional env overlay for the Cloudflare Worker. Bindings live on `env`,
+ * not `process.env`. Vercel keeps using process.env (this is unset there).
+ * Isolate bindings are the same for every request, so a module-level bind
+ * is safe — we never swap secrets mid-request.
+ */
+let boundEnv: Record<string, unknown> | null = null;
+
+export function bindContactEnv(next: Record<string, unknown> | null): void {
+  boundEnv = next;
+}
+
 const env = (k: string): string | null => {
+  const fromBound = boundEnv?.[k];
+  if (typeof fromBound === "string" && fromBound.trim()) return fromBound.trim();
   const v = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
     ?.env?.[k];
   return v && v.trim() ? v.trim() : null;
