@@ -14,10 +14,28 @@
   display: grid;
   place-items: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  animation: firstlight-in 0.28s ease both;
+}
+
+/* The ground, as its own layer so a pull can fade it without fading the deck
+   (--firstlight-pull is 0–1, set inline from the drag). */
+.firstlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: color-mix(in srgb, var(--bg) 72%, transparent);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  animation: firstlight-in 0.28s ease both;
+  opacity: calc(1 - var(--firstlight-pull, 0) * 0.8);
+  transition: opacity var(--dur-base) var(--ease-out);
+  pointer-events: none;
+}
+.firstlight[data-pulling='true']::before {
+  transition: none;
+}
+.firstlight[data-leaving='true']::before {
+  opacity: 0;
+  transition: opacity 240ms var(--ease-exit);
 }
 
 .firstlight__panel {
@@ -31,8 +49,34 @@
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.42);
+  /* Pulled down, it follows the finger (`translate`, set inline); let go short
+     of the threshold, it springs back. */
+  transition: translate var(--dur-sheet) var(--ease-spring);
 }
 .firstlight__panel:focus { outline: none; }
+.firstlight[data-pulling='true'] .firstlight__panel {
+  transition: none;
+}
+/* Committed: carry on down from wherever the finger let go. PULL_EXIT_MS in
+   FirstLight.tsx is this duration. */
+.firstlight[data-leaving='true'] .firstlight__panel {
+  translate: 0 100vh;
+  transition: translate 240ms var(--ease-exit);
+}
+
+/* Leaving by Not now / Esc / Done: the ground and the card fade (the phone's
+   sheet goes back down, below). The shared exits are in global.css. */
+.firstlight[data-state='closing']::before {
+  animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
+}
+.firstlight__panel[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
+}
+
+/* Only the phone sheet shows a grabber; see the media query below. */
+.firstlight__grabber {
+  display: none;
+}
 
 /* First light, falling across the top of the card. */
 .firstlight__panel::before {
@@ -80,11 +124,33 @@
 .firstlight__body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  padding: 26px 28px 22px;
+  display: flex;
+  overflow: hidden;
 }
 
-.firstlight__card { animation: firstlight-rise 0.42s cubic-bezier(0.22, 0.68, 0.35, 1) both; }
+/* The cards side by side, translated under the finger (usePagedSwipe). The
+   duration is set inline from how fast the finger let go. */
+.firstlight__track {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  transition-property: transform;
+  transition-timing-function: var(--ease-spring);
+}
+.firstlight__track[data-dragging='true'] {
+  transition: none;
+}
+
+/* Each card scrolls on its own. Vertical pans are the browser's; a sideways
+   one is the track's, and a pull down from the top is the deck's. */
+.firstlight__card {
+  flex: 0 0 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 26px 28px 22px;
+}
 
 .firstlight__kicker {
   font-family: var(--font-sans);
@@ -139,6 +205,8 @@
 /* ── Captures of the real surface ── */
 .firstlight__shot {
   display: block;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
   width: 100%;
   height: auto;
   margin: 0 0 20px;
@@ -200,19 +268,38 @@
   padding: 0 20px 22px;
 }
 
-.firstlight__dots { display: flex; gap: 7px; }
+.firstlight__dots {
+  display: flex;
+  /* Each target is 44pt with its dot in the middle; pull the row back so the
+     first dot still lines up with the panel's text edge. */
+  margin-inline-start: -19px;
+}
 
+/* A 6px dot is the glyph, not the target: each button is a finger's 44pt
+   square, transparent, with the dot drawn in its middle. A deck has at most
+   three cards, so the row stays well clear of Next. */
 .firstlight__dot {
-  width: 6px;
-  height: 6px;
+  position: relative;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 0;
+  background: none;
+  cursor: default;
+}
+.firstlight__dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
   border-radius: 50%;
   background: var(--text-faint);
-  cursor: default;
-  transition: background 0.2s, transform 0.2s;
+  transition: background var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
-.firstlight__dot[aria-current='true'] {
+.firstlight__dot[aria-current='true']::before {
   background: var(--accent);
   transform: scale(1.32);
 }
@@ -232,23 +319,72 @@
 .firstlight__next:hover { opacity: 0.87; }
 
 .firstlight__skip:focus-visible,
-.firstlight__dot:focus-visible,
 .firstlight__next:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+.firstlight__dot:focus-visible {
+  outline: none;
+}
+.firstlight__dot:focus-visible::before {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── iPhone: a full-height sheet ──
+   Rises from the bottom edge, stops a little below the status bar, and keeps
+   Next / Done above the home indicator where a thumb is. Mac and iPad keep
+   the card. */
+@media (max-width: 767px) {
+  .firstlight {
+    place-items: stretch;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 0 0;
+  }
+  .firstlight__panel {
+    width: 100%;
+    max-height: none;
+    border-radius: 20px 20px 0 0;
+    border-bottom: 0;
+    animation: firstlight-sheet-in var(--dur-sheet) var(--ease-ios) both;
+  }
+  .firstlight__panel[data-state='closing'] {
+    animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
+  }
+  .firstlight__grabber {
+    display: block;
+    position: relative;
+    z-index: 1;
+    flex: none;
+    width: 36px;
+    height: 5px;
+    margin: 6px auto 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-faint) 70%, transparent);
+  }
+  .firstlight__top {
+    padding-top: 10px;
+  }
+  .firstlight__foot {
+    padding: 12px 20px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  }
+  .firstlight__next {
+    min-height: 48px;
+    min-width: 7.5rem;
+    font-size: 15px;
+  }
 }
 
 @keyframes firstlight-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-@keyframes firstlight-rise {
-  from { opacity: 0; transform: translateY(9px); }
-  to { opacity: 1; transform: none; }
+@keyframes firstlight-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .firstlight,
-  .firstlight__card { animation: none; }
-  .firstlight__dot { transition: none; }
+  .firstlight__panel { animation: none; }
+  .firstlight__dot::before { transition: none; }
 }

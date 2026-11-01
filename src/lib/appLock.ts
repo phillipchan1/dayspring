@@ -65,6 +65,17 @@ export type AppLockConfig = {
   /** iOS only: the user opted into Face ID as a shortcut past typing the PIN. */
   biometric: boolean
   updatedAt: string
+  /**
+   * How many digits the PIN has — so the lock screen can draw that many dots
+   * and open on the last one, the way a phone's passcode does, with no Open
+   * button to find behind the keyboard.
+   *
+   * Not secret in any way that matters here: it narrows a 4–8 digit search to
+   * one length, and anyone able to read this row already holds the session
+   * that reads the journal (see the note at the top of this file). Absent on
+   * locks made before it existed and on passphrases; see `autoSubmitLength`.
+   */
+  pinLength?: number
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -127,7 +138,24 @@ export async function createLock(
     graceSeconds: options.graceSeconds ?? DEFAULT_GRACE_SECONDS,
     biometric: options.biometric ?? false,
     updatedAt: new Date().toISOString(),
+    ...(options.kind === 'pin' ? { pinLength: secret.length } : {}),
   }
+}
+
+/**
+ * The length at which the lock screen can try the PIN by itself, or null when
+ * it has to wait for Return / Open.
+ *
+ * Null for a passphrase (any length), and for a PIN made before the length was
+ * stored — those keep the Open button rather than guessing. A stored length
+ * outside the PIN rules is treated as missing, never trusted: auto-submitting
+ * at the wrong length would mean a correct PIN could never be entered.
+ */
+export function autoSubmitLength(config: Pick<AppLockConfig, 'kind' | 'pinLength'>): number | null {
+  if (config.kind !== 'pin') return null
+  const n = config.pinLength
+  if (typeof n !== 'number' || !Number.isInteger(n)) return null
+  return n >= PIN_MIN_LENGTH && n <= PIN_MAX_LENGTH ? n : null
 }
 
 /**

@@ -8,14 +8,27 @@
 // Nothing here hints at what's behind it. No entry count, no last-written date,
 // no greeting by name — a lock screen that leaks is worse than no lock screen,
 // because the user believes it.
+//
+// It behaves like a phone's passcode screen: gold dots that fill as digits are
+// typed, a try on the last digit (when the PIN's length is known), and a damped
+// shake for a wrong one. A lock made before the length was stored keeps the Open
+// button until its first successful open teaches it the length.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Mark } from '@/components/Mark'
-import { verifyLock, type AppLockConfig } from '@/lib/appLock'
-import { markResetRequested } from '@/lib/appLockStore'
+import { prefersReducedMotion } from '@/hooks/usePresence'
+import { autoSubmitLength, verifyLock, type AppLockConfig } from '@/lib/appLock'
+import { markResetRequested, rememberPinLength } from '@/lib/appLockStore'
 import { signOut } from '@/lib/auth'
 import { checkBiometry, promptBiometric, type BiometryLabel } from './biometric'
 import { PinField } from './PinField'
+import './AppLock.css'
+
+/**
+ * How long a wrong PIN's dots stay filled while they shake, before clearing for
+ * the next try. The shake itself is `pin-field-shake` in AppLock.css.
+ */
+export const SHAKE_MS = 360
 
 export function LockScreen({
   config,
@@ -29,12 +42,22 @@ export function LockScreen({
   const [secret, setSecret] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
+  const [shake, setShake] = useState(0)
   const [biometry, setBiometry] = useState<BiometryLabel | null>(null)
   const [forgetting, setForgetting] = useState(false)
   // One automatic Face ID attempt per appearance. Without this guard the prompt
   // re-raises itself every time the effect re-runs, and a cancelled prompt
   // becomes an unclosable loop.
   const promptedRef = useRef(false)
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoLength = autoSubmitLength(config)
+
+  useEffect(
+    () => () => {
+      if (clearTimer.current) clearTimeout(clearTimer.current)
+    },
+    [],
+  )
 
   const attemptBiometric = useCallback(async () => {
     const ok = await promptBiometric('Open your journal')
@@ -58,18 +81,27 @@ export function LockScreen({
     }
   }, [config.biometric, attemptBiometric])
 
-  async function submit() {
-    if (checking || secret.length === 0) return
+  async function submit(candidate: string = secret) {
+    if (checking || candidate.length === 0) return
     setChecking(true)
     setError(null)
-    const ok = await verifyLock(config, secret)
+    const ok = await verifyLock(config, candidate)
     if (ok) {
       onOpen()
+      // An older lock learns its length from the PIN that just opened it, so
+      // the next open can go on the last digit. Quietly, after the fact.
+      if (config.kind === 'pin') void rememberPinLength(config, candidate.length)
       return
     }
-    setChecking(false)
-    setSecret('')
     setError(config.kind === 'pin' ? 'That PIN doesn’t match.' : 'That doesn’t match.')
+    setShake((n) => n + 1)
+    // Let the filled dots shake before they empty for the next try.
+    const wait = config.kind === 'pin' && !prefersReducedMotion() ? SHAKE_MS : 0
+    clearTimer.current = setTimeout(() => {
+      clearTimer.current = null
+      setSecret('')
+      setChecking(false)
+    }, wait)
   }
 
   // "Forgot your PIN?" — there is no secret on a server to email back, because
@@ -84,18 +116,18 @@ export function LockScreen({
   if (forgetting) {
     return (
       <Frame>
-        <p style={bodyText}>
+        <p className="applock-screen__body">
           There’s no way to look up your PIN — Dayspring never stores it. What you can
           do is sign in again with {' '}
           {/* Named generically: the account may hold either provider, or both. */}
           Google or Apple. Proving the account is yours removes the lock, and your
           journal is untouched.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', alignItems: 'center' }}>
-          <button style={primaryButton} onClick={() => void startOver()}>
+        <div className="applock-screen__actions">
+          <button type="button" className="btn btn--accent applock-screen__primary" onClick={() => void startOver()}>
             Sign in again to remove the lock
           </button>
-          <button style={quietButton} onClick={() => setForgetting(false)}>
+          <button type="button" className="btn btn--ghost applock-screen__quiet" onClick={() => setForgetting(false)}>
             Back
           </button>
         </div>
@@ -105,16 +137,20 @@ export function LockScreen({
 
   return (
     <Frame>
-      <p style={bodyText}>
+      <p className="applock-screen__body">
         {config.kind === 'pin' ? 'Enter your PIN.' : 'Enter your passphrase.'}
       </p>
 
       <PinField
         kind={config.kind}
         value={secret}
+        length={autoLength}
+        shake={shake}
         onChange={(next) => {
           setSecret(next)
           setError(null)
+          // The last digit is the Open button.
+          if (autoLength && next.length === autoLength) void submit(next)
         }}
         onSubmit={() => void submit()}
         disabled={checking}
@@ -123,26 +159,35 @@ export function LockScreen({
       />
 
       {/* Reserve the line so the layout doesn't jump on a wrong attempt. */}
-      <p style={{ ...errorText, visibility: error ? 'visible' : 'hidden' }}>
-        {error ?? ' '}
+      <p className="applock-screen__error" data-visible={error != null} role={error ? 'alert' : undefined}>
+        {error ?? ' '}
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', alignItems: 'center' }}>
-        <button
-          style={{ ...primaryButton, opacity: secret.length === 0 || checking ? 0.5 : 1 }}
-          onClick={() => void submit()}
-          disabled={secret.length === 0 || checking}
-        >
-          {checking ? 'Opening…' : 'Open'}
-        </button>
+      <div className="applock-screen__actions">
+        {/* Only where the screen cannot try the PIN by itself: a passphrase, or
+            a lock that does not know its length yet. */}
+        {!autoLength && (
+          <button
+            type="button"
+            className="btn btn--accent applock-screen__primary"
+            onClick={() => void submit()}
+            disabled={secret.length === 0 || checking}
+          >
+            {checking ? 'Opening…' : 'Open'}
+          </button>
+        )}
 
         {biometry && (
-          <button style={quietButton} onClick={() => void attemptBiometric()}>
+          <button type="button" className="btn btn--ghost applock-screen__quiet" onClick={() => void attemptBiometric()}>
             Use {biometry}
           </button>
         )}
 
-        <button style={{ ...quietButton, opacity: 0.7 }} onClick={() => setForgetting(true)}>
+        <button
+          type="button"
+          className="btn btn--ghost applock-screen__quiet applock-screen__quiet--faint"
+          onClick={() => setForgetting(true)}
+        >
           Forgot your PIN?
         </button>
       </div>
@@ -157,95 +202,12 @@ export function LockScreen({
  */
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="center-screen"
-      style={{
-        position: 'relative',
-        paddingTop: 'var(--safe-top)',
-        paddingBottom: 'var(--safe-bottom)',
-        paddingLeft: 'var(--safe-left)',
-        paddingRight: 'var(--safe-right)',
-      }}
-    >
-      <div
-        style={{
-          position: 'fixed',
-          width: 500,
-          height: 500,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(196,145,60,0.05) 0%, transparent 70%)',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -55%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          maxWidth: 340,
-          width: '100%',
-          padding: '0 24px',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <Mark size={40} style={{ marginBottom: 18 }} />
+    <div className="center-screen applock-screen">
+      <div className="applock-screen__glow" aria-hidden />
+      <div className="applock-screen__inner">
+        <Mark size={40} className="applock-screen__mark" />
         {children}
       </div>
     </div>
   )
-}
-
-const bodyText: React.CSSProperties = {
-  fontFamily: 'var(--font-serif)',
-  fontSize: 15,
-  color: 'var(--text-dim)',
-  textAlign: 'center',
-  lineHeight: 1.75,
-  margin: '0 0 22px',
-}
-
-const errorText: React.CSSProperties = {
-  fontFamily: "'Inter', -apple-system, sans-serif",
-  fontSize: 12,
-  color: 'var(--danger)',
-  textAlign: 'center',
-  margin: '10px 0 14px',
-  minHeight: '1em',
-}
-
-const primaryButton: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '100%',
-  maxWidth: 260,
-  // A finger's 44pt, which the 11px padding alone came to 39px short of.
-  minHeight: 44,
-  padding: '11px 20px',
-  borderRadius: 7,
-  background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-  border: '0.5px solid color-mix(in srgb, var(--accent) 38%, transparent)',
-  cursor: 'default',
-  fontFamily: "'Inter', -apple-system, sans-serif",
-  fontSize: 13.5,
-  fontWeight: 500,
-  color: 'var(--accent)',
-  letterSpacing: '-0.01em',
-}
-
-const quietButton: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  cursor: 'default',
-  fontFamily: "'Inter', -apple-system, sans-serif",
-  fontSize: 12,
-  color: 'var(--text-faint)',
-  letterSpacing: '0.01em',
-  minHeight: 44,
-  padding: '6px 12px',
 }

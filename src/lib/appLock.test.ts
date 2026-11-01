@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  autoSubmitLength,
   createLock,
   verifyLock,
   isAppLockConfig,
@@ -129,5 +130,42 @@ describe('validateSecret', () => {
   it('holds a passphrase to a length floor only', () => {
     expect(validateSecret('passphrase', 'dayspring')).toBeNull()
     expect(validateSecret('passphrase', 'short')).not.toBeNull()
+  })
+})
+
+describe('the stored PIN length', () => {
+  it('is recorded for a PIN, so the lock can open on the last digit', async () => {
+    const lock = await createLock('482135', { kind: 'pin', ...FAST })
+    expect(lock.pinLength).toBe(6)
+    expect(autoSubmitLength(lock)).toBe(6)
+  })
+
+  it('is never recorded for a passphrase, which can be any length', async () => {
+    const lock = await createLock('the dayspring from on high', { kind: 'passphrase', ...FAST })
+    expect('pinLength' in lock).toBe(false)
+    expect(autoSubmitLength(lock)).toBeNull()
+    // Even a passphrase row that somehow carries one.
+    expect(autoSubmitLength({ kind: 'passphrase', pinLength: 6 })).toBeNull()
+  })
+
+  // Locks made before the length was stored keep the Open button.
+  it('falls back to no auto-submit for a lock made before it existed', async () => {
+    const { pinLength: _, ...older } = await createLock('4821', { kind: 'pin', ...FAST })
+    expect(isAppLockConfig(older)).toBe(true)
+    expect(autoSubmitLength(older)).toBeNull()
+  })
+
+  // Auto-submitting at the wrong length would make a correct PIN impossible
+  // to enter, so a nonsense length is ignored rather than trusted.
+  it('ignores a length outside the PIN rules', () => {
+    expect(autoSubmitLength({ kind: 'pin', pinLength: 3 })).toBeNull()
+    expect(autoSubmitLength({ kind: 'pin', pinLength: 9 })).toBeNull()
+    expect(autoSubmitLength({ kind: 'pin', pinLength: 4.5 })).toBeNull()
+    expect(autoSubmitLength({ kind: 'pin', pinLength: Number.NaN })).toBeNull()
+  })
+
+  it('does not reveal the PIN itself', async () => {
+    const lock = await createLock('4821', { kind: 'pin', ...FAST })
+    expect(JSON.stringify(lock)).not.toContain('4821')
   })
 })
