@@ -145,6 +145,64 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [state.query, slashOpts, onSelect, onDismiss])
 
+  /*
+   * A popover pinned to the caret goes when the page moves out from under it,
+   * and when the window stops being the one in front (⌘Tab) — it would
+   * otherwise be left floating over a line it no longer points at, waiting for
+   * a key that is going to another app. Native popovers and menus behave this
+   * way; the typed `/command` stays.
+   *
+   * A scroll counts when the WRITER scrolled — a wheel or a drag — not when
+   * CodeMirror keeps the caret in view while the query is being typed. The
+   * sheet is docked to the bottom edge and pointing at nothing, so only the
+   * blur applies to it.
+   */
+  useEffect(() => {
+    const inPalette = (t: EventTarget | null) =>
+      t instanceof Node && !!paletteRef.current?.contains(t)
+    let lastKey = 0
+    const onKeyDown = () => {
+      lastKey = Date.now()
+    }
+    const onUserScroll = (e: Event) => {
+      if (inPalette(e.target)) return
+      onDismiss()
+    }
+    const onScroll = (e: Event) => {
+      if (inPalette(e.target)) return
+      if (Date.now() - lastKey < 250) return
+      onDismiss()
+    }
+    const onBlur = () => onDismiss()
+    window.addEventListener('blur', onBlur)
+    if (isMobile) {
+      return () => window.removeEventListener('blur', onBlur)
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('wheel', onUserScroll, { capture: true, passive: true })
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('wheel', onUserScroll, true)
+      window.removeEventListener('scroll', onScroll, true)
+    }
+  }, [isMobile, onDismiss])
+
+  /*
+   * A row is chosen on the mouse's RELEASE, as in a native menu: press, slide
+   * to the row you meant, let go. The press only has to start in the palette.
+   */
+  const pressedRef = useRef(false)
+  useEffect(() => {
+    const reset = () => {
+      pressedRef.current = false
+    }
+    // Bubble phase: a row's own mouseup reads the flag first.
+    window.addEventListener('mouseup', reset)
+    return () => window.removeEventListener('mouseup', reset)
+  }, [])
+
   // The touch that *opened* the palette must not also pick a row. Tapping to
   // place the caret next to an existing `/` re-opens the sheet under the finger,
   // and that same gesture's `touchend` used to land on whichever row happened to
@@ -196,8 +254,14 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
         data-active={active ? 'true' : undefined}
         title={item.hint}
         onMouseDown={(e) => {
+          // Keep the caret (and the keyboard) in the editor.
           e.preventDefault()
-          if (!isMobile) onSelect(item.selection)
+          if (e.button === 0) pressedRef.current = true
+        }}
+        onMouseUp={(e) => {
+          if (isMobile || e.button !== 0 || !pressedRef.current) return
+          pressedRef.current = false
+          onSelect(item.selection)
         }}
         onTouchStart={(e) => {
           const t = e.changedTouches[0] ?? e.touches[0]

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { clampPosition } from './SelectionFormatBar'
 
 export interface LinkPopoverTarget {
   /** Selection range the link applies to. */
@@ -18,17 +19,6 @@ interface Props {
   onCancel: () => void
 }
 
-function clampPosition(rect: DOMRect, bar: DOMRect) {
-  const pad = 10
-  const gap = 10
-  let top = rect.top - bar.height - gap
-  if (top < pad) top = rect.bottom + gap
-  let left = rect.left + rect.width / 2 - bar.width / 2
-  left = Math.max(pad, Math.min(left, window.innerWidth - bar.width - pad))
-  top = Math.max(pad, Math.min(top, window.innerHeight - bar.height - pad))
-  return { left, top }
-}
-
 /** Inline URL entry for ⌘K / the link button — replaces the native prompt(). */
 export function LinkPopover({ target, onSubmit, onRemove, onCancel }: Props) {
   const isEdit = target.url.trim() !== ''
@@ -38,10 +28,23 @@ export function LinkPopover({ target, onSubmit, onRemove, onCancel }: Props) {
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
   // Measure, then place — before paint, so the panel never flashes at 0,0.
+  // Clamped to the VISUAL viewport (the format bar's rule), and again whenever
+  // it changes: on iOS the keyboard rises after the field takes focus, and a
+  // clamp to the window left the field under the keys it was waiting for.
   useLayoutEffect(() => {
-    const el = panelRef.current
-    if (!el) return
-    setPos(clampPosition(target.rect, el.getBoundingClientRect()))
+    const place = () => {
+      const el = panelRef.current
+      if (!el) return
+      setPos(clampPosition(target.rect, el.getBoundingClientRect()))
+    }
+    place()
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', place)
+    vv?.addEventListener('scroll', place)
+    return () => {
+      vv?.removeEventListener('resize', place)
+      vv?.removeEventListener('scroll', place)
+    }
   }, [target.rect])
 
   useEffect(() => {
@@ -111,8 +114,9 @@ export function LinkPopover({ target, onSubmit, onRemove, onCancel }: Props) {
         placeholder="https://…"
         aria-label="Link URL"
         spellCheck={false}
-        autoCapitalize="off"
+        autoCapitalize="none"
         autoCorrect="off"
+        enterKeyHint="done"
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
