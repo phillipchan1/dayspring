@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/auth'
 import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -32,6 +32,7 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
   // Apple account — cold web traffic without either dies on OAuth-only.
   const [emailMode, setEmailMode] = useState<'signin' | 'signup'>('signin')
   const [info, setInfo] = useState<string | null>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const { settings, update } = useSettings()
   const isLight = isLightTheme(useResolvedTheme(settings))
   // iOS needs this for App Review's demo email+password path. Web needs it as
@@ -124,6 +125,19 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
     if (oauthProvider) handleSignIn(oauthProvider)
   }, waiting)
 
+  // Esc closes the overlay, as it closes any sheet on the Mac. Only the guest
+  // overlay has somewhere to go back to; the hard sign-in screen has no Esc.
+  useEffect(() => {
+    if (!onDismiss) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      e.preventDefault()
+      onDismiss()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onDismiss])
+
   function revealField(el: HTMLElement) {
     // html/body cannot scroll (position:fixed). The .signin scroller can.
     requestAnimationFrame(() => {
@@ -131,11 +145,14 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
     })
   }
 
+  // Apple's button is Apple's (HIG, and App Review): solid white on a dark
+  // ground, solid black on a light one. Dayspring keeps its radius and type;
+  // Google keeps the house gold.
   const appleBtn = showApple && (
     <button
       key="apple"
       type="button"
-      className={`signin__btn${busy === 'apple' && !waiting ? ' signin__btn--busy' : ''}`}
+      className={`signin__btn signin__btn--apple${busy === 'apple' && !waiting ? ' signin__btn--busy' : ''}`}
       aria-busy={busy === 'apple' && !waiting}
       aria-disabled={oauthBusy && !(waiting && busy === 'apple')}
       {...appleTap}
@@ -168,15 +185,20 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
   )
 
   return (
-    <div className={`center-screen signin${onDismiss ? ' signin--overlay' : ''}`}>
+    <div className={`center-screen signin${onDismiss ? ' signin--overlay' : ''}${isLight ? ' signin--light' : ''}`}>
       {onDismiss && (
+        // Top-leading, as a navigation bar keeps its way back: a chevron and
+        // where it goes. Esc does the same (above).
         <button
           type="button"
           className="signin__dismiss"
           onClick={onDismiss}
           aria-label="Back to journal"
         >
-          ← Back to journal
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+          <span>Journal</span>
         </button>
       )}
       <ThemeToggle
@@ -236,12 +258,20 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    // The key says "next", so it goes to the next field rather
+                    // than trying (and, with no password yet, failing) to submit.
+                    if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
+                    e.preventDefault()
+                    passwordRef.current?.focus()
+                  }}
                   onFocus={(e) => revealField(e.currentTarget)}
                   disabled={busy === 'email'}
                   className="signin__input"
                 />
                 <div className="signin__secret">
                   <input
+                    ref={passwordRef}
                     type={revealPassword ? 'text' : 'password'}
                     name="password"
                     autoComplete={emailMode === 'signup' ? 'new-password' : 'current-password'}
