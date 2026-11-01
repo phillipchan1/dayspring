@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { prefersReducedMotion } from '@/hooks/usePresence'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 
 /**
@@ -62,7 +63,7 @@ export function PushStack({
   // Derived during render so the first frame of the new screen already has the
   // old one beside it — no frame with neither.
   if (shownKey !== screenKey) {
-    const still = reducedMotion()
+    const still = prefersReducedMotion()
     // Read here, cleared after commit (below): StrictMode renders twice, and
     // a ref emptied in the first pass would be gone in the second.
     const fromSwipe = swiped.current
@@ -190,10 +191,3 @@ export function PushStack({
   )
 }
 
-function reducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-}

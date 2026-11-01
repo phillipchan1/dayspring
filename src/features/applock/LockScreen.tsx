@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Mark } from '@/components/Mark'
+import { prefersReducedMotion } from '@/hooks/usePresence'
 import { autoSubmitLength, verifyLock, type AppLockConfig } from '@/lib/appLock'
 import { markResetRequested, rememberPinLength } from '@/lib/appLockStore'
 import { signOut } from '@/lib/auth'
@@ -29,13 +30,6 @@ import './AppLock.css'
  */
 export const SHAKE_MS = 360
 
-function reducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-}
 
 export function LockScreen({
   config,
@@ -103,7 +97,7 @@ export function LockScreen({
     setError(config.kind === 'pin' ? 'That PIN doesn’t match.' : 'That doesn’t match.')
     setShake((n) => n + 1)
     // Let the filled dots shake before they empty for the next try.
-    const wait = config.kind === 'pin' && !reducedMotion() ? SHAKE_MS : 0
+    const wait = config.kind === 'pin' && !prefersReducedMotion() ? SHAKE_MS : 0
     clearTimer.current = setTimeout(() => {
       clearTimer.current = null
       setSecret('')

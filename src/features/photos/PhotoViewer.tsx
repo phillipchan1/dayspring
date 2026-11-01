@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom'
 import { cleanCaption } from '@/lib/photoSet'
 import { pageDragOffset, settleDurationMs, settlePage, SETTLE_MS } from '@/hooks/usePagedSwipe'
+import { prefersReducedMotion } from '@/hooks/usePresence'
 import { axisOf, commits, speedAtRelease } from '@/hooks/useSwipeToDismiss'
 import {
   clampPan,
@@ -72,13 +73,6 @@ function takenLine(iso: string | undefined): string | null {
   })
 }
 
-function reducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-}
 
 /** What the pointers on the stage are doing. */
 type Gesture =
@@ -185,7 +179,7 @@ export function PhotoViewer({ photos, index, onIndex, onClose, onCaption, captio
   const dismiss = useCallback(
     (how: 'pull' | 'fade') => {
       if (closeTimer.current) return
-      if (reducedMotion()) {
+      if (prefersReducedMotion()) {
         close()
         return
       }
@@ -268,7 +262,7 @@ export function PhotoViewer({ photos, index, onIndex, onClose, onCaption, captio
   // place and size and settles into the middle. Otherwise the viewer simply
   // fades in, as it always did.
   useLayoutEffect(() => {
-    if (reducedMotion() || !photo?.url) return
+    if (prefersReducedMotion() || !photo?.url) return
     const root = rootRef.current
     const flip = flipRef.current
     const img = frameRef.current?.querySelector('img')

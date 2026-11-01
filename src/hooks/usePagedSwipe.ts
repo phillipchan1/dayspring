@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { prefersReducedMotion } from './usePresence'
 import {
   axisOf,
   commits,
@@ -163,13 +164,6 @@ export function settleDurationMs(distance: number, speed: number): number {
   return Math.round(Math.max(SETTLE_MIN_MS, Math.min(SETTLE_MS, (SPRING_LAUNCH * distance) / speed)))
 }
 
-function reducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-}
 
 /** What a gesture has turned out to be. */
 type Axis = 'h' | 'down' | 'v' | null
@@ -364,7 +358,7 @@ export function usePagedSwipe({
         return
       }
       const exit = pd.exitMs ?? 0
-      if (exit <= 0 || reducedMotion()) {
+      if (exit <= 0 || prefersReducedMotion()) {
         pd.onDismiss()
         return
       }
