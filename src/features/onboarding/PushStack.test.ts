@@ -36,7 +36,7 @@ afterEach(() => {
 
 function show(key: string, direction: PushDirection) {
   act(() => {
-    root.render(createElement(PushStack, { screenKey: key, direction }, createElement('p', null, key)))
+    root.render(createElement(PushStack, { screenKey: key, direction, children: createElement('p', null, key) }))
   })
 }
 
