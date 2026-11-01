@@ -217,9 +217,11 @@ export function SelectionFormatBar({
       else b.removeAttribute('data-highlighted')
     })
   })
+  // Nothing drawn (see the markOnly guard below): no keys either.
+  const drawn = anchor != null && !(markOnly && !onMark)
   useEffect(() => {
     if (!keyHandlerRef) return
-    if (!anchor) {
+    if (!anchor || !drawn) {
       keyHandlerRef.current = null
       return
     }
@@ -252,7 +254,7 @@ export function SelectionFormatBar({
     return () => {
       keyHandlerRef.current = null
     }
-  }, [anchor, keyHandlerRef])
+  }, [anchor, drawn, keyHandlerRef])
 
   const measureFade = useCallback(() => {
     const el = scrollRef.current
