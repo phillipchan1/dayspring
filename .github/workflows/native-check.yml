@@ -1,0 +1,57 @@
+# Compiles the native shell (src-tauri) for both Apple targets on every PR that
+# touches it — the first place Rust changes meet a compiler before they reach
+# the release workflows. `cargo check` only: no bundling, no signing, no IPA.
+#
+# Setup mirrors release.yml (Mac) and ios-release.yml (iOS): stable Rust with
+# the target installed, swatinem/rust-cache on src-tauri/target. Node isn't
+# needed — `tauri::generate_context!` only needs `frontendDist` (../dist) to
+# exist, and a debug check embeds nothing from it — so an empty dist/ stands
+# in for the Vite build.
+name: native-check
+
+on:
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/native-check.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: native-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: cargo check (${{ matrix.target }})
+    runs-on: macos-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-apple-darwin, aarch64-apple-ios]
+    env:
+      # Matches bundle.iOS.minimumSystemVersion in tauri.conf.json.
+      IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,aarch64-apple-ios
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+          key: ${{ matrix.target }}
+
+      - name: Stand in for the web build
+        run: mkdir -p dist
+
+      - name: cargo check
+        working-directory: src-tauri
+        run: cargo check --target ${{ matrix.target }}
