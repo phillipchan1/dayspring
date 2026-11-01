@@ -1,3 +1,5 @@
+import { useSelectionPlate } from '@/hooks/useSelectionPlate'
+
 /**
  * ONE PILL, EVERY CONTROL.
  *
@@ -7,6 +9,7 @@
  * room's bar is this now — what you are looking for, how you are looking, and
  * when — set in the bar's sans, and the chosen one wears the rail's own chosen
  * tile (soft accent, accent ink), so "chosen" looks the same wherever you meet it.
+ * The tile is one plate that slides to the choice (useSelectionPlate).
  */
 export interface PillOption<T extends string> {
   key: T
@@ -29,8 +32,15 @@ export function PillSet<T extends string>({
   label: string
   className?: string
 }) {
+  // The chosen tile slides from pill to pill rather than jumping.
+  const plate = useSelectionPlate<HTMLDivElement>(value)
   return (
-    <div className={`pill-set${className ? ` ${className}` : ''}`} role="group" aria-label={label}>
+    <div
+      ref={plate}
+      className={`pill-set${className ? ` ${className}` : ''}`}
+      role="group"
+      aria-label={label}
+    >
       {options.map((o) => (
         <button
           key={o.key}

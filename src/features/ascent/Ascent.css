@@ -2110,6 +2110,14 @@
   background: color-mix(in srgb, var(--ascent-gold) 16%, transparent);
   color: var(--ascent-gold-soft);
 }
+/* The same tile, as the sliding plate (global.css, "THE SELECTION PLATE"):
+   once the plate is up, the chosen pill keeps the ink and gives up the tile. */
+.ascent--framed:not(.ascent--light) .pill-set {
+  --plate-bg: color-mix(in srgb, var(--ascent-gold) 16%, transparent);
+}
+.ascent--framed:not(.ascent--light) .pill-set[data-plate] .pill[aria-pressed='true'] {
+  background-color: transparent;
+}
 .ascent--framed:not(.ascent--light) .frame-bar::after {
   background: linear-gradient(
     to right,

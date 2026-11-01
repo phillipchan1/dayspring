@@ -4,6 +4,7 @@ import { track } from '@/lib/analytics'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import type { PresenceState } from '@/hooks/usePresence'
+import { useSelectionPlate } from '@/hooks/useSelectionPlate'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
@@ -288,6 +289,7 @@ const TYPEWRITER_HINT: Record<TypewriterMode, string> = {
 function WritingTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
   const typewriterAvailable = useTypewriterAvailable()
   const mode = typewriterMode(settings)
+  const typewriterPlate = useSelectionPlate<HTMLDivElement>(mode)
   return (
     <div className="settings-stack">
       {/* On mobile the settings panel covers the journal full-screen, so a
@@ -382,7 +384,7 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
           The corner switch is the quick version of this. */}
       {typewriterAvailable && (
         <Field label="Typewriter scrolling" hint={TYPEWRITER_HINT[mode]}>
-          <div className="segmented" role="group" aria-label="Typewriter scrolling">
+          <div ref={typewriterPlate} className="segmented" role="group" aria-label="Typewriter scrolling">
             {TYPEWRITER_MODES.map((opt) => (
               <button
                 key={opt.value}

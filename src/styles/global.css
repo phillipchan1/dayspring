@@ -2760,11 +2760,15 @@ textarea,
   }
 }
 
-/* ONE PILL (PillSet.tsx): the bar's sans, and the rail's own chosen tile. */
+/* ONE PILL (PillSet.tsx): the bar's sans, and the rail's own chosen tile —
+   which slides between the pills (see "THE SELECTION PLATE" below). */
 .pill-set {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   gap: 0.1rem;
+  --plate-radius: var(--radius-full);
 }
 .pill {
   display: inline-flex;
@@ -2781,7 +2785,9 @@ textarea,
   color: var(--bar-ink);
   white-space: nowrap;
   cursor: default;
-  transition: color var(--transition), background-color var(--transition);
+  transition:
+    color var(--dur-quick) var(--ease-out),
+    background-color var(--dur-quick) var(--ease-out);
 }
 .pill:hover {
   color: var(--bar-ink-hover);
@@ -3398,6 +3404,10 @@ html[data-chapter-pane] .focus-controls--docked {
 
 /* ── Settings segmented control (light / dark / auto) ───────────────────── */
 .segmented {
+  position: relative;
+  /* The plate sits under the labels and over the track: a stacking context of
+     its own, so z-index -1 can't fall behind the panel the control is on. */
+  isolation: isolate;
   display: flex;
   gap: 2px;
   padding: 3px;
@@ -3415,11 +3425,62 @@ html[data-chapter-pane] .focus-controls--docked {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   cursor: default;
-  transition: background var(--transition), color var(--transition);
+  transition:
+    background-color var(--dur-quick) var(--ease-out),
+    color var(--dur-quick) var(--ease-out);
 }
 .segmented__btn[data-active='true'] {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/*
+ * THE SELECTION PLATE (hooks/useSelectionPlate.ts), shared with `.pill-set`.
+ *
+ * One tile that slides to the choice, the way a UISegmentedControl's thumb
+ * travels, instead of the chosen tile blinking off one option and on at the
+ * next (DESIGN_PRINCIPLES N3: a state change, 100–200ms, decelerating). Until
+ * the hook has measured, the chosen option keeps drawing its own tile, so
+ * nothing depends on it having run.
+ */
+.segmented::before,
+.pill-set::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: var(--plate-w, 0);
+  height: var(--plate-h, 0);
+  translate: var(--plate-x, 0) var(--plate-y, 0);
+  /* The chosen option's own radius: 5px on a segment, round on a pill. */
+  border-radius: var(--plate-radius, 5px);
+  background: var(--plate-bg, var(--accent-soft));
+  opacity: 0;
+  pointer-events: none;
+}
+.segmented[data-plate]::before,
+.pill-set[data-plate]::before {
+  opacity: 1;
+}
+.segmented[data-plate='none']::before,
+.pill-set[data-plate='none']::before {
+  opacity: 0;
+}
+.segmented[data-plate='on']::before,
+.pill-set[data-plate='on']::before,
+.segmented[data-plate='none']::before,
+.pill-set[data-plate='none']::before {
+  transition:
+    translate var(--dur-base) var(--ease-out),
+    width var(--dur-base) var(--ease-out),
+    height var(--dur-base) var(--ease-out),
+    opacity var(--dur-quick) var(--ease-out);
+}
+/* The plate is the tile now; the choice only takes the ink. */
+.segmented[data-plate] .segmented__btn[data-active='true'],
+.pill-set[data-plate] .pill[aria-pressed='true'] {
+  background-color: transparent;
 }
 .segmented__btn:hover {
   color: var(--text-bright);
@@ -4538,7 +4599,7 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-dim);
   font-size: 0.88rem;
   text-align: left;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .settings-nav__item:hover {
   background: var(--bg-hover);
@@ -4741,7 +4802,7 @@ html[data-chapter-pane] .focus-controls--docked {
   background: transparent;
   color: var(--text-dim);
   font-size: 0.82rem;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .settings-back:hover {
   background: var(--bg-hover);
@@ -4770,17 +4831,32 @@ html[data-chapter-pane] .focus-controls--docked {
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: var(--bg-input);
-  transition: background var(--transition), border-color var(--transition);
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
+/*
+ * The thumb behaves like a UISwitch's and looks like ours: it travels on a
+ * spring (a finger let go of it), and while the switch is held it stretches
+ * toward the side it would go to — the "I've got it" a native switch gives
+ * under the finger. The colours stay the voice's (accent, never system green).
+ */
 .switch__thumb {
   display: block;
   width: 1.05rem;
   height: 1.05rem;
   margin-left: 0.1rem;
-  border-radius: 50%;
+  /* Round at rest, a pill when stretched. */
+  border-radius: var(--radius-full);
   background: var(--text-dim);
   box-shadow: var(--shadow-1);
-  transition: transform var(--transition), background var(--transition);
+  transition:
+    transform var(--dur-push) var(--ease-spring),
+    width var(--dur-quick) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
+}
+.switch:active:not(:disabled) .switch__thumb {
+  width: 1.3rem;
 }
 .switch[data-on='true'] {
   background: var(--accent-soft);
@@ -4789,6 +4865,10 @@ html[data-chapter-pane] .focus-controls--docked {
 .switch[data-on='true'] .switch__thumb {
   transform: translateX(1.1rem);
   background: var(--accent);
+}
+/* On, the thumb sits at the right: it stretches leftward, toward off. */
+.switch[data-on='true']:active:not(:disabled) .switch__thumb {
+  transform: translateX(0.85rem);
 }
 
 /* ── About tab ─────────────────────────────────────────────────────────── */
@@ -4889,7 +4969,7 @@ html[data-chapter-pane] .focus-controls--docked {
   padding: 0.4rem 0.75rem;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
-  transition: background var(--transition);
+  transition: background var(--dur-quick) var(--ease-out);
 }
 
 .settings-about__group {
@@ -4932,7 +5012,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .settings-about__row-toggle {
   padding: 0.4rem 0.75rem;
   border-radius: 0;
-  transition: background var(--transition);
+  transition: background var(--dur-quick) var(--ease-out);
 }
 
 .settings-about__row-toggle:hover {
@@ -5149,7 +5229,7 @@ html[data-chapter-pane] .focus-controls--docked {
   border-radius: var(--radius);
   background: var(--bg-input);
   text-align: left;
-  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  transition: border-color var(--dur-quick) var(--ease-out), background var(--dur-quick) var(--ease-out), transform var(--dur-quick) var(--ease-out);
 }
 .import-card:hover {
   border-color: var(--accent);
@@ -5197,7 +5277,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .import-card__go {
   color: var(--text-dim);
   font-size: 1rem;
-  transition: transform var(--transition), color var(--transition);
+  transition: transform var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .import-card:hover .import-card__go {
   color: var(--accent);
@@ -5293,7 +5373,7 @@ html[data-chapter-pane] .focus-controls--docked {
   background: var(--bg-input);
   color: var(--text-dim);
   font-size: 0.82rem;
-  transition: background var(--transition), border-color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
 }
 .dropzone:hover,
 .dropzone--active {
@@ -5407,7 +5487,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .import-progress__bar {
   height: 100%;
   background: var(--accent);
-  transition: width var(--transition);
+  transition: width var(--dur-base) var(--ease-out);
 }
 .import-success {
   color: var(--success);
@@ -5622,7 +5702,10 @@ html[data-chapter-pane] .focus-controls--docked {
   backdrop-filter: blur(16px) saturate(var(--glass-saturate));
   font-size: 0.8rem;
   color: var(--text);
-  animation: update-toast-in var(--transition-slow) both;
+  animation: update-toast-in var(--dur-push) var(--ease-out) both;
+}
+.update-toast[data-state='closing'] {
+  animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
 }
 @keyframes update-toast-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -5657,7 +5740,7 @@ html[data-chapter-pane] .focus-controls--docked {
   padding: 0.3rem 0.65rem;
   font-size: 0.76rem;
   font-weight: 600;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .update-toast__btn:hover {
   background: var(--accent);
@@ -6223,7 +6306,7 @@ html[data-chapter-pane] .focus-controls--docked {
   align-items: center;
   gap: 7px;
   padding: 3px 0;
-  transition: color var(--transition);
+  transition: color var(--dur-quick) var(--ease-out);
 }
 
 .settings-disclosure__summary::-webkit-details-marker {
@@ -6237,7 +6320,7 @@ html[data-chapter-pane] .focus-controls--docked {
   border-left: 4px solid currentColor;
   border-top: 3.5px solid transparent;
   border-bottom: 3.5px solid transparent;
-  transition: transform var(--transition);
+  transition: transform var(--dur-quick) var(--ease-out);
 }
 
 .settings-disclosure[open] > .settings-disclosure__summary::before {
