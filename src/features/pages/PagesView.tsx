@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { fetchAnniversarySenses, type AnniversarySense } from '@/lib/echoes'
@@ -19,6 +19,7 @@ import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { computeVolumes, type Volume } from '@/features/volumes/volumes'
 import { Shelf } from '@/features/volumes/Shelf'
 import { VolumeView } from '@/features/volumes/VolumeView'
+import { VolumePush } from '@/features/volumes/VolumePush'
 import { ClosingMoment } from '@/features/volumes/ClosingMoment'
 import { floorFor } from '@/features/lifemap/lifeMap'
 import {
@@ -314,6 +315,36 @@ export function PagesView({
     if (openVolume !== null) return onVolumeAt(0, volumeFrom === 'shelf' ? 'up' : 'to')
     if (!onShelf) onVolumeAt(0, 'in', 'wall')
   }
+  /*
+   * The shelf's place, across a trip to the wall and back.
+   *
+   * The shelf unmounts when you step back into pages (the wall takes its
+   * slot), and a scroller that unmounts forgets where it was. A volume opened
+   * from the shelf needs none of this — the shelf stays mounted under it.
+   */
+  const shelfScroll = useRef(0)
+  const keepShelfScroll = useCallback((el: HTMLDivElement | null) => {
+    if (el) el.scrollTop = shelfScroll.current
+  }, [])
+  /*
+   * Esc steps back out of the shelf when the shelf was stepped INTO from the
+   * wall — the same way Back does. (A volume handles its own Esc; see
+   * VolumeView. The reader's belongs to JournalScreen.) A shelf reached by
+   * zooming out is a zoom level, not a place you entered, so Esc leaves it be.
+   */
+  const shelfEntered = volumeAt === 0 && volumeFrom === 'wall' && !spreadId
+  useEffect(() => {
+    if (!shelfEntered) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      const t = e.target
+      if (t instanceof HTMLElement && t.closest('input, textarea, select, [contenteditable="true"]')) return
+      e.preventDefault()
+      onVolumeAt(null, 'up')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [shelfEntered, onVolumeAt])
   // The slider and the dates reach the shelf and the volume: the shelf is the
   // far end of the zoom, so moving the slider off it walks back into pages;
   // bracketing dates narrows the shelf, and from inside a volume takes you to
@@ -1259,6 +1290,18 @@ export function PagesView({
       </div>
     )
 
+  /*
+   * Where the canvas stands: a volume open over something, and what that
+   * something is. A volume reached from the wall pushes over the wall, which
+   * stays mounted underneath and keeps its place; from anywhere else it pushes
+   * over the shelf. Neither an empty filter nor another arrangement than date
+   * has a volume over it — the same precedence the canvas had when a volume
+   * replaced it.
+   */
+  const canvasIsOrder = !(anyLit && shown.length === 0) && reading === 'order'
+  const volumeShown = canvasIsOrder && volumesOn && openVolume !== null ? volumes[openVolume - 1] : undefined
+  const shelfShown = onShelf || (volumeShown !== undefined && volumeFrom !== 'wall')
+
   return (
     <div className="pg" data-reading-page={openPage ? 'true' : undefined}>
       <div className="pg__head-wrap">
@@ -1500,26 +1543,21 @@ export function PagesView({
               onOpen={onSpread}
             />
           </div>
-        ) : volumesOn && openVolume !== null && volumes[openVolume - 1] ? (
-          <div className="pg__inner pg__inner--read pg__inner--scroll">
-            <VolumeView
-              volume={volumes[openVolume - 1]!}
-              prev={volumes[openVolume - 2]}
-              next={volumes[openVolume]}
-              entries={entries}
-              names={settings.volumeNames}
-              onClose={() => setOpenVolume(null)}
-              backLabel={volumeFrom === 'wall' ? '← the pages' : '← the shelf'}
-              onOpenPage={(id) => onSpread(id)}
-              onWalk={walkVolume}
-              onOpenEntry={(id) => onOpenEntry(id)}
-              onName={nameVolume}
-              lit={lit}
-              looking={subjects.length > 0 ? subjects.map((x) => x.label).join(' + ') : undefined}
-            />
-          </div>
-        ) : onShelf ? (
-          <div className="pg__inner pg__inner--read pg__inner--scroll">
+        ) : shelfShown ? (
+          /*
+           * Keyed, so the shelf and anything else that scrolls here never share
+           * a scroller (and a scroll position). Its place is kept across a trip
+           * to the wall and back by `keepShelfScroll`; across a volume opened
+           * from it, by staying mounted under the volume.
+           */
+          <div
+            key="shelf"
+            ref={keepShelfScroll}
+            className="pg__inner pg__inner--read pg__inner--scroll"
+            onScroll={(e) => {
+              shelfScroll.current = e.currentTarget.scrollTop
+            }}
+          >
             <Shelf
               volumes={shelfVolumes}
               all={volumes}
@@ -1569,6 +1607,34 @@ export function PagesView({
               : {})}
           />
         )}
+
+        {/*
+          A volume, pushed over what it was opened from (see VolumePush) — the
+          shelf, or the wall when a ribbon on the wall opened it. Keyed on the
+          volume, so each volume opens at its own top.
+        */}
+        {volumeShown ? (
+          <VolumePush key={volumeShown.n} onBack={() => setOpenVolume(null)}>
+            <div className="pg__inner">
+            <VolumeView
+              volume={volumeShown}
+              prev={volumes[volumeShown.n - 2]}
+              next={volumes[volumeShown.n]}
+              entries={entries}
+              names={settings.volumeNames}
+              onClose={() => setOpenVolume(null)}
+              backLabel={volumeFrom === 'wall' ? '← the pages' : '← the shelf'}
+              covered={openPage !== null}
+              onOpenPage={(id) => onSpread(id)}
+              onWalk={walkVolume}
+              onOpenEntry={(id) => onOpenEntry(id)}
+              onName={nameVolume}
+              lit={lit}
+              looking={subjects.length > 0 ? subjects.map((x) => x.label).join(' + ') : undefined}
+            />
+            </div>
+          </VolumePush>
+        ) : null}
 
         {/*
           A page, open — OVER the wall rather than instead of it.
