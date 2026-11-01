@@ -220,6 +220,9 @@ export function PhotoArrange({ refs, onMove, onRemove, onAdd, onRefresh, onClose
                 if (dragRef.current?.pointerId === e.pointerId) endDrag(true)
               }}
               onPointerCancel={() => endDrag(false)}
+              // The tile is moved by the pointer above; the browser's own drag
+              // (a ghost image on a Mac) must never start alongside it.
+              onDragStart={(e) => e.preventDefault()}
               onKeyDown={(e) => {
                 if ((e.key === 'Delete' || e.key === 'Backspace') && ref.hash) {
                   e.preventDefault()
