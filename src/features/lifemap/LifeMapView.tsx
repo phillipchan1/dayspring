@@ -126,6 +126,12 @@ function Section({
             onChange={(e) => setDraft(e.target.value)}
             placeholder={section.ask}
             aria-label={section.ask}
+            // Return adds it: the keyboard says Done. Names are names —
+            // capitalised as words, never "corrected".
+            enterKeyHint="done"
+            autoCorrect="off"
+            autoCapitalize="words"
+            autoComplete="off"
           />
         </form>
       </div>

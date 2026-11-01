@@ -688,6 +688,16 @@ export function LookFor({
             <input
               ref={field}
               autoFocus={!narrow}
+              // A search field, said the way the platform hears it: the
+              // keyboard's Search key, no autocorrect or capitals on a name.
+              type="search"
+              enterKeyHint="search"
+              autoCorrect="off"
+              autoCapitalize="none"
+              autoComplete="off"
+              spellCheck={false}
+              // Pages.css draws this field; keep WebKit's search chrome off it.
+              style={{ appearance: 'none', WebkitAppearance: 'none' }}
               value={typed}
               placeholder="a name, a word, or something you wrote"
               aria-label="Search your pages"

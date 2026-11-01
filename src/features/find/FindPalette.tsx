@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { guessVerb, shouldOfferAsk, type Verb } from './askVerb'
 import {
   findBridge,
@@ -62,9 +62,11 @@ export function FindPalette({ onClose, onOpenEntry, onAsk, initialQuery = '' }: 
     }
   }, [])
 
-  useEffect(() => {
-    const id = requestAnimationFrame(() => inputRef.current?.focus())
-    return () => cancelAnimationFrame(id)
+  // Focus in the same commit that shows the field — not a frame later. On iOS
+  // a focus outside the opening gesture may not raise the keyboard at all, and
+  // on the Mac the first keystroke typed after ⌘K went nowhere.
+  useLayoutEffect(() => {
+    inputRef.current?.focus()
   }, [])
 
   const hits = useMemo(() => (ready ? findEntries(query) : []), [query, ready])
@@ -130,20 +132,41 @@ export function FindPalette({ onClose, onOpenEntry, onAsk, initialQuery = '' }: 
     }
   }
 
-  // Esc closes, in capture so it wins over focus mode's handler underneath.
+  const clear = useCallback(() => {
+    setQuery('')
+    setLockedVerb(null)
+    inputRef.current?.focus()
+  }, [])
+
+  // Esc, as in a Mac search field: the first clears what was typed, the
+  // second closes. In capture so it wins over focus mode's handler underneath.
+  const queryRef = useRef(query)
+  queryRef.current = query
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       e.preventDefault()
       e.stopPropagation()
-      onClose()
+      if (queryRef.current) clear()
+      else onClose()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  }, [onClose, clear])
+
+  /*
+   * A row takes the selection when the POINTER moves onto it, not when it
+   * merely ends up under a resting pointer: arrowing scrolls the list, and the
+   * row that scrolled under the mouse used to steal the selection — and so
+   * Return — from the keyboard.
+   */
+  const pointTo = (i: number) => (e: React.MouseEvent) => {
+    if (e.movementX === 0 && e.movementY === 0) return
+    setSel((s) => (s === i ? s : i))
+  }
 
   return (
-    <div className="scrim glass-scrim find-scrim" onClick={onClose}>
+    <div className="scrim find-scrim" onClick={onClose}>
       <div
         className="find glass-surface"
         role="dialog"
@@ -164,7 +187,8 @@ export function FindPalette({ onClose, onOpenEntry, onAsk, initialQuery = '' }: 
           <input
             ref={inputRef}
             className="find__input"
-            type="text"
+            type="search"
+            enterKeyHint="search"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
@@ -174,8 +198,25 @@ export function FindPalette({ onClose, onOpenEntry, onAsk, initialQuery = '' }: 
             placeholder="a word, or a question"
             aria-label="Find a word, or ask a question"
             autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
             spellCheck={false}
           />
+          {query ? (
+            <button
+              type="button"
+              className="find__clear"
+              aria-label="Clear"
+              // Keep the caret in the field.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={clear}
+            >
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
+                <circle cx="8" cy="8" r="7" fill="currentColor" />
+                <path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8" stroke="var(--bg)" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </button>
+          ) : null}
           <button
             type="button"
             className="find__verb"
@@ -209,7 +250,7 @@ export function FindPalette({ onClose, onOpenEntry, onAsk, initialQuery = '' }: 
               className="find__bridge"
               data-row={0}
               data-sel={sel === 0 ? 'true' : undefined}
-              onMouseEnter={() => setSel(0)}
+              onMouseMove={pointTo(0)}
               onClick={submit}
             >
               <span className="find__bridge-main">
@@ -234,7 +275,7 @@ export function FindPalette({ onClose, onOpenEntry, onAsk, initialQuery = '' }: 
                 className="find__row"
                 data-row={i}
                 data-sel={sel === i ? 'true' : undefined}
-                onMouseEnter={() => setSel(i)}
+                onMouseMove={pointTo(i)}
                 onClick={submit}
               >
                 <span className="find__row-t">
