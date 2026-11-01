@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
 import { EditorView, highlightActiveLine, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
 import { editorTheme } from './theme'
@@ -34,6 +34,7 @@ import { isIOSTauri } from '@/lib/platform'
 import type { SpiritualItemType } from '@/lib/types'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
+import { proseKeymap, writingDefaultKeymap } from './proseKeymap'
 import {
   applyHighlight as applyHighlightToSelection,
   clearLink,
@@ -620,7 +621,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         doc: initialDoc,
         extensions: [
           history(),
-          keymap.of([...defaultKeymap, ...historyKeymap]),
+          // NSTextView's keys ahead of CodeMirror's, minus its code-editor
+          // bindings (⌥↑ moved the line; ⌘/ commented it out) — proseKeymap.ts.
+          keymap.of([...proseKeymap, ...writingDefaultKeymap, ...historyKeymap]),
           // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
           Prec.highest(
             formatKeymap(
