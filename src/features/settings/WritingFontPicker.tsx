@@ -67,7 +67,15 @@ export function WritingFontPicker({ value, onChange }: Props) {
   // page) scrolls or resizes underneath it.
   useEffect(() => {
     if (!open) return
-    const onScroll = () => setOpen(false)
+    const onScroll = (e: Event) => {
+      // Scroll events don't bubble, but capture listeners on window still see
+      // scrolls on descendants — including this menu's overflow-y:auto list.
+      // Closing on those made the list feel stuck, especially on touch where
+      // every drag is a scroll gesture.
+      const target = e.target
+      if (target instanceof Node && menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
     window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', onScroll)
     return () => {

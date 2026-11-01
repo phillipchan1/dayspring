@@ -2943,6 +2943,9 @@ a {
   border-radius: var(--radius);
   box-shadow: var(--shadow-2);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 .font-picker__option {
   display: flex;
