@@ -200,16 +200,25 @@ export function ImageContextMenu({
    * menu at all. Options are the right-click and the long-press.
    */
   const look = phase.kind === 'menu' && phase.point.intent === 'look'
+  /*
+   * One press, one opening. Callers build `phase` inline on every render
+   * (JournalScreen, photosPreview), so the phase object is new each time; the
+   * press's `point` is the stable thing — it lives in the caller's state.
+   */
+  const press = phase.kind === 'menu' ? phase.point : null
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
   const onLookRef = useRef(onLook)
   onLookRef.current = onLook
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
   useLayoutEffect(() => {
-    if (phase.kind !== 'menu' || phase.point.intent !== 'look') return
+    const now = phaseRef.current
+    if (now.kind !== 'menu' || now.point.intent !== 'look') return
     // Exactly what the menu's own Look row does.
-    onLookRef.current(phase.target)
+    onLookRef.current(now.target)
     onCloseRef.current()
-  }, [phase])
+  }, [press])
 
   const open = phase.kind !== 'closed' && !look
   const drag = useSheetDismiss({ onDismiss: onClose, enabled: sheet && open })
@@ -222,7 +231,7 @@ export function ImageContextMenu({
     onClose,
     initial: sheet ? 'none' : 'auto',
     restoreFocus: !sheet,
-    openKey: phase,
+    openKey: press,
   })
 
   useEffect(() => {
