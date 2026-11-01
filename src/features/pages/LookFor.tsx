@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import { useMergedRef, usePresence } from '@/hooks/usePresence'
 import type { FacetChip, MarkingChip } from './facets'
 import { PrintGlyph } from './PrintGlyph'
 import type { KeptSubject } from './keptSubjects'
@@ -229,6 +230,14 @@ export function LookFor({
   onOpenRequestHandled,
 }: Props) {
   const [open, setOpen] = useState(false)
+  /*
+   * Mounted through its exit (usePresence): the phone's sheet goes back down
+   * the edge it rose from, the dropdown fades. What it shows is worked out
+   * while it is SHOWN, not only while it is open, so it doesn't empty itself
+   * on the way out.
+   */
+  const presence = usePresence(open)
+  const shown = presence.mounted
   const [typed, setTyped] = useState('')
   const box = useRef<HTMLDivElement>(null)
   const field = useRef<HTMLInputElement>(null)
@@ -308,7 +317,11 @@ export function LookFor({
    * lands somewhere already scrolled, so pulling the options back up never
    * throws the sheet off the screen.
    */
+  //
+  // The drag is drawn straight onto the sheet (`ref`), and a dismissal leaves
+  // it where the finger let go for the exit to carry on from.
   const sheet = useSheetDismiss({ onDismiss: () => setOpen(false), enabled: narrow && open })
+  const sheetRef = useMergedRef<HTMLDivElement>(presence.ref, sheet.ref)
 
   const on = useMemo(() => new Set(chips.map((c) => c.key)), [chips])
   const q = typed.trim()
@@ -327,10 +340,10 @@ export function LookFor({
   const deferred = useDeferredValue(typed)
   const search = useMemo(() => {
     const dq = deferred.trim()
-    if (!open || dq.length < 2) return null
+    if (!shown || dq.length < 2) return null
     // A trailing space means the last word is finished.
     return searchPages(index, dq, !deferred.endsWith(' '))
-  }, [open, deferred, index])
+  }, [shown, deferred, index])
   /** What the bracket is hiding, asked only when it hides everything. */
   const elsewhere = useMemo(() => {
     if (!search || search.found.length > 0 || !window || !archiveIndex) return 0
@@ -354,7 +367,7 @@ export function LookFor({
    * capped at six.
    */
   const heldRows = useMemo(() => {
-    if (!open) return NONE
+    if (!shown) return NONE
     const matched = q
       ? kept.filter((s) => s.label.toLowerCase().includes(q.toLowerCase()))
       : kept
@@ -363,10 +376,10 @@ export function LookFor({
     // from the floor for the same reason — a name she answered must never
     // disappear for going quiet, which would be arithmetic overruling her.
     return withCounts(index, matched)
-  }, [open, kept, index, q])
+  }, [shown, kept, index, q])
 
   const noticedRows = useMemo(() => {
-    if (!open) return NONE
+    if (!shown) return NONE
     /*
      * THE FLOOR, and the one way past it.
      *
@@ -414,13 +427,13 @@ export function LookFor({
     }
 
     return withCounts(index, aboveFloor(offered, floor)).filter((s) => s.count)
-  }, [open, offered, index, q, searching, floor, window])
+  }, [shown, offered, index, q, searching, floor, window])
 
   // Detection finds people and cannot find matters — it will never return
   // "marriage", because nobody capitalises it. So a matter becomes a subject
   // the moment she says so, typed from this same field.
   const mine = useMemo(() => {
-    if (!open || q.length < 2) return null
+    if (!shown || q.length < 2) return null
     const w = wordSubject(q)
     if (!w) return null
     const known = [...kept, ...offered].some((s) => s.label.toLowerCase() === q.toLowerCase())
@@ -430,7 +443,7 @@ export function LookFor({
     // Matters read as "your search found nothing" while saying it badly. The
     // pages section above answers that question now.
     return counted && counted.count ? counted : null
-  }, [open, q, kept, offered, index])
+  }, [shown, q, kept, offered, index])
 
   /*
    * The four lists, and they are the Life Map's four lists — `groupSubjects`
@@ -644,28 +657,30 @@ export function LookFor({
         )}
       </div>
 
-      {open ? (
+      {shown ? (
         <Layer portal={narrow}>
           {narrow ? (
             <button
               type="button"
               className="pg-sheet__scrim"
               aria-label="Close"
+              data-state={presence.state}
               onClick={() => setOpen(false)}
             />
           ) : null}
 
           <div
+          ref={sheetRef}
           className="pg-sheet"
           role={narrow ? 'dialog' : undefined}
           aria-modal={narrow || undefined}
           data-narrow={narrow ? 'true' : undefined}
+          data-state={presence.state}
           data-sheet-scroll={narrow ? 'true' : undefined}
           data-dragging={sheet.dragging ? 'true' : undefined}
-          // The `translate` property, not `transform`: the entrance animation
-          // owns `transform`, and an animation with a `both` fill beats an
-          // inline style on the same property for good. The two compose.
-          style={sheet.dragY ? { translate: `0 ${sheet.dragY}px` } : undefined}
+          // The drag is written to the `translate` property by the hook, not
+          // `transform`: the entrance animation owns `transform`, and the two
+          // compose.
           {...sheet.handlers}
         >
           {narrow ? <span className="pg-sheet__grab" aria-hidden /> : null}
