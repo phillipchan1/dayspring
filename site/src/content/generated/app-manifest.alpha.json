@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.522",
+  "appVersion": "1.0.523",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -125,6 +125,54 @@
         ],
         "mac": "⌘⏎",
         "pc": "Ctrl + Enter"
+      },
+      {
+        "id": "shortcut.larger-writing",
+        "group": "Writing",
+        "label": "Larger writing",
+        "when": "on the wall, larger pages",
+        "keys": [
+          "Mod",
+          "="
+        ],
+        "mac": "⌘=",
+        "pc": "Ctrl + ="
+      },
+      {
+        "id": "shortcut.smaller-writing",
+        "group": "Writing",
+        "label": "Smaller writing",
+        "when": "on the wall, smaller pages",
+        "keys": [
+          "Mod",
+          "-"
+        ],
+        "mac": "⌘-",
+        "pc": "Ctrl + -"
+      },
+      {
+        "id": "shortcut.writing-at-its-usual-size",
+        "group": "Writing",
+        "label": "Writing at its usual size",
+        "when": null,
+        "keys": [
+          "Mod",
+          "0"
+        ],
+        "mac": "⌘0",
+        "pc": "Ctrl + 0"
+      },
+      {
+        "id": "shortcut.print-the-entry",
+        "group": "Writing",
+        "label": "Print the entry",
+        "when": null,
+        "keys": [
+          "Mod",
+          "P"
+        ],
+        "mac": "⌘P",
+        "pc": "Ctrl + P"
       },
       {
         "id": "shortcut.indent-line",
