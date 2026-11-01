@@ -64,6 +64,15 @@
   transition: translate 240ms var(--ease-exit);
 }
 
+/* Leaving by Not now / Esc / Done: the ground and the card fade (the phone's
+   sheet goes back down, below). The shared exits are in global.css. */
+.firstlight[data-state='closing']::before {
+  animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
+}
+.firstlight__panel[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
+}
+
 /* Only the phone sheet shows a grabber; see the media query below. */
 .firstlight__grabber {
   display: none;
@@ -337,6 +346,9 @@
     border-radius: 20px 20px 0 0;
     border-bottom: 0;
     animation: firstlight-sheet-in var(--dur-sheet) var(--ease-ios) both;
+  }
+  .firstlight__panel[data-state='closing'] {
+    animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
   }
   .firstlight__grabber {
     display: block;

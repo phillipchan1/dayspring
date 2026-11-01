@@ -25,6 +25,12 @@ const GUARD_KEY = 'dayspring.firstlight.seen'
  */
 const PULL_EXIT_MS = 240
 
+/**
+ * Longer than the closing animation (`--dur-exit`); only for when its
+ * `animationend` never comes.
+ */
+const EXIT_FALLBACK_MS = 320
+
 function readGuard(): string | null {
   try {
     return localStorage.getItem(GUARD_KEY)
@@ -71,23 +77,44 @@ export function FirstLight() {
   const restoreTo = useRef<Element | null>(null)
   const { go } = useAppNavigation()
 
+  // Leaving plays an exit first — the card fades, the phone's sheet goes back
+  // down — and only then is the deck gone (and, from Done, the surface opened).
+  const [closing, setClosing] = useState(false)
+  const landing = useRef(false)
+
+  const finish = useCallback(() => {
+    if (!deck) return
+    setClosing(false)
+    setOpen(false)
+    setManual(null)
+    if (landing.current && deck.land) go({ surface: deck.land })
+    landing.current = false
+  }, [deck, go])
+
   const close = useCallback(
-    (land?: boolean) => {
-      if (!deck) return
-      // Mark seen on EVERY exit path — "Not now", Esc, backdrop, and finishing
-      // all count. Dismissing is final; there is no second attempt.
+    (land?: boolean, how: 'exit' | 'now' = 'exit') => {
+      if (!deck || closing) return
+      // Mark seen on EVERY exit path — "Not now", Esc, backdrop, a pull, and
+      // finishing all count. Dismissing is final; there is no second attempt.
+      // Marked now, not after the exit, so quitting mid-fade still counts.
       try {
         localStorage.setItem(GUARD_KEY, deck.seenId)
       } catch {
         /* ignore quota / private-mode failures */
       }
       settingsStore.update({ lastSeenRelease: deck.seenId })
-      setOpen(false)
-      setManual(null)
-      if (land && deck.land) go({ surface: deck.land })
+      landing.current = Boolean(land)
+      if (how === 'now' || prefersReducedMotion()) finish()
+      else setClosing(true)
     },
-    [deck, go],
+    [deck, closing, finish],
   )
+
+  useEffect(() => {
+    if (!closing) return
+    const t = window.setTimeout(finish, EXIT_FALLBACK_MS)
+    return () => window.clearTimeout(t)
+  }, [closing, finish])
 
   useEffect(
     () =>
@@ -119,7 +146,8 @@ export function FirstLight() {
     count: deck?.cards.length ?? 0,
     onIndex: setAt,
     enabled: open && deck != null,
-    pullDown: { onDismiss: () => close(), exitMs: PULL_EXIT_MS },
+    // The pull has already carried it off; nothing more to play.
+    pullDown: { onDismiss: () => close(false, 'now'), exitMs: PULL_EXIT_MS },
   })
   const pulling = swipe.dragging === 'down'
 
@@ -141,6 +169,7 @@ export function FirstLight() {
   return (
     <div
       className="firstlight"
+      data-state={closing ? 'closing' : 'open'}
       data-leaving={swipe.leaving}
       data-pulling={pulling}
       style={
@@ -161,7 +190,11 @@ export function FirstLight() {
         aria-labelledby="firstlight-title"
         tabIndex={-1}
         ref={panelRef}
+        data-state={closing ? 'closing' : 'open'}
         onKeyDown={onKeyDown}
+        onAnimationEnd={(e) => {
+          if (closing && e.target === e.currentTarget) finish()
+        }}
         {...swipe.handlers}
         style={{
           // `translate`, not `transform`: the sheet's entrance animation owns
