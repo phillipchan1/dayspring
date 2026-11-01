@@ -73,6 +73,24 @@ describe('SelectionFormatBar keys (desktop)', () => {
     expect(lit()).not.toBe('Italic')
   })
 
+  it('keeps its place as it follows the caret after a press', () => {
+    act(() => {
+      root.render(
+        createElement(SelectionFormatBar, { anchor: anchor(true), onRequestLink: () => {}, keyHandlerRef: handler }),
+      )
+    })
+    act(() => {
+      handler.current!(key('ArrowRight'))
+    })
+    // A fresh anchor object — what the editor sends after Italic is applied.
+    act(() => {
+      root.render(
+        createElement(SelectionFormatBar, { anchor: anchor(true), onRequestLink: () => {}, keyHandlerRef: handler }),
+      )
+    })
+    expect(lit()).toBe('Italic')
+  })
+
   it('Return presses the lit button', () => {
     act(() => {
       root.render(

@@ -201,9 +201,13 @@ export function SelectionFormatBar({
   pageRef.current = page
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
-  useEffect(() => {
+  // Back to the first button when the bar is summoned anew or turns a page —
+  // not each time it follows the caret, or Return would lose its place after
+  // every press. Before the effect below that paints the highlight.
+  const summoned = anchor ? (anchor.caret ? 'caret' : 'selection') : null
+  useLayoutEffect(() => {
     roveRef.current = 0
-  }, [anchor, page])
+  }, [summoned, page])
   const buttons = () =>
     Array.from(barRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
   useLayoutEffect(() => {

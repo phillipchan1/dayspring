@@ -625,7 +625,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     if (!empty) caretFormatRef.current = false
     const settle = settleRef.current
     if (!settle) return
-    // The keystroke path: a caret with no pinned bar. One branch, no reads.
+    // The keystroke path: a caret with no pinned bar — one branch, no layout
+    // or document reads.
     if (empty && !caretFormatRef.current) {
       settle.update({ userSelect: false, pointerSelect: false, focusGained: false })
       return
