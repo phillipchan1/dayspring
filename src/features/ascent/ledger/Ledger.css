@@ -991,3 +991,25 @@
      width belongs to the grid track — only the height is ours to give. */
   .year-now__film > * { aspect-ratio: auto; min-height: 44px; }
 }
+
+/* ── pressed ─────────────────────────────────────────────────────────────────
+ * Answer the press, not the release (DESIGN_PRINCIPLES N2). Each row washes in
+ * the room's own glow the instant a finger lands and lets go over --dur-exit,
+ * the way `.altar-strand:active` does. A press that becomes a scroll loses
+ * `:active` as the scroll begins, so the wash never sticks. */
+.ledger__row,
+.story__line,
+.alive__lines button,
+.across__lines button {
+  transition: background-color var(--dur-exit) var(--ease-exit);
+}
+.ledger__row:active,
+.story__line:active,
+.alive__lines button:active {
+  background-color: color-mix(in srgb, var(--ascent-glow) 14%, transparent);
+  transition-duration: 0s;
+}
+.across__lines button:active {
+  background-color: color-mix(in srgb, var(--accent, #b0762c) 14%, transparent);
+  transition-duration: 0s;
+}

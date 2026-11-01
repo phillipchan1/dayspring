@@ -93,6 +93,10 @@ function StrandRow({ s, hero, onOpen }: { s: AltarStrand; hero: boolean; onOpen:
         <StrandGlyph heft={s.heft} lenses={s.lenses} pools={s.pools} />
         {s.repLine ? <span className="altar-strand__snip">“{s.repLine.excerpt}”</span> : null}
       </span>
+      {/* The row opens the strand's own view, and says so — faintly. */}
+      <span className="altar-strand__chev" aria-hidden>
+        ›
+      </span>
     </button>
   )
 }
