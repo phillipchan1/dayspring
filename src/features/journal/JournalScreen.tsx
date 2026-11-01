@@ -13,6 +13,7 @@ import { FONT_SIZE_MIN, FONT_SIZE_DEFAULT, FONT_SIZE_MAX } from '@/lib/settings'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
 import { useTypewriterAvailable } from '@/hooks/useTypewriterAvailable'
+import { usePresence } from '@/hooks/usePresence'
 import { resolveTypewriter } from '@/lib/typewriterMode'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { beginArrivals, dropArrival } from '@/lib/photoArrival'
@@ -261,6 +262,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const touchFirst = isMobile || coarsePointer
   const settingsOpen = state.settings !== null
   const helpOpen = state.help
+  // Kept on screen through their exit animations; see usePresence.
+  const settingsPresence = usePresence(state.settings)
+  const helpPresence = usePresence(helpOpen)
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
@@ -1795,6 +1799,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       entryId: null,
       entryReturn: null,
       ascentDrill: null,
+      // A fresh arrival starts at now. The period you had stepped to belongs to
+      // the frame you are leaving — Back returns to that frame, and finds it there.
+      ascentOffset: 0,
+      ascentSeat: null,
       settings: null,
       help: false,
       // Leaving a surface closes the page you had open on Pages.
@@ -3274,21 +3282,24 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         />
       )}
 
-      {settingsOpen && state.settings && (
+      {/* Mounted through their exits (usePresence): the settings sheet goes
+          back down the edge it rose from, the dialogs fade out. */}
+      {settingsPresence.mounted && settingsPresence.value && (
         <SettingsPanel
           settings={settings}
           update={updateSettings}
           onClose={closeSettings}
-          tab={state.settings.tab}
-          importSourceId={state.settings.importSource}
+          tab={settingsPresence.value.tab}
+          importSourceId={settingsPresence.value.importSource}
           userEmail={userEmail}
           featureFlags={featureFlags}
+          presence={settingsPresence}
           onTabChange={(tab) =>
             go(
               {
                 settings: {
                   tab,
-                  importSource: tab === 'import' ? state.settings!.importSource : null,
+                  importSource: tab === 'import' ? (state.settings?.importSource ?? null) : null,
                 },
               },
               { replace: true },
@@ -3300,7 +3311,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onImportSourceBack={back}
         />
       )}
-      {helpOpen && <ShortcutsOverlay onClose={back} />}
+      {helpPresence.mounted && <ShortcutsOverlay onClose={back} presence={helpPresence} />}
       <EntryEditDateModal
         entry={editDateEntry}
         onClose={() => setEditDateEntry(null)}

@@ -15,9 +15,16 @@
  * signed-in account. Dev-only; the import in main.tsx sits behind
  * `import.meta.env.DEV` and is dropped from a production build.
  *
- *   surface = editor | pages | reader | ascent | summit | altar | lamp | settings
+ *   surface = editor | pages | reader | ascent | summit | altar | lamp | settings | ascent-trip
  *   &tab=   appearance | writing | import | shortcuts | billing | about  (settings)
  *   &theme= any theme id (default ink)
+ *
+ * `ascent-trip` is the one that is not a still: the Ascent with an entry to open,
+ * so the way back can be walked — step to an earlier period, open anything, then
+ * Back / Esc / ⌘[ / the mouse's side button. It runs the real navigation
+ * provider, the real AscentView and the real shell's Back control; only the
+ * entry itself is a stand-in, and the `go(...)` that opens it is the one
+ * `handleOpenReflectionEntry` makes (JournalScreen.tsx).
  */
 
 import { useEffect, useState } from 'react'
@@ -32,7 +39,7 @@ import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { PagesView } from '@/features/pages/PagesView'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
-import type { SettingsTab } from '@/lib/appHistory'
+import { entryReturnFromState, type SettingsTab } from '@/lib/appHistory'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettings } from '@/hooks/useSettings'
 import { EDITOR_FONT_VARS, settingsStore } from '@/lib/settings'
@@ -42,7 +49,7 @@ import { MOCK_ENTRIES } from './mock'
 
 const noop = () => {}
 
-type Surface = 'editor' | 'pages' | 'reader' | 'ascent' | 'summit' | 'altar' | 'lamp' | 'settings'
+type Surface = 'editor' | 'pages' | 'reader' | 'ascent' | 'summit' | 'altar' | 'lamp' | 'settings' | 'ascent-trip'
 
 function applyTheme(theme: ThemeId): void {
   settingsStore.update({
@@ -100,9 +107,67 @@ function Summit({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * The Ascent with somewhere to go. Opening an entry makes the same `go(...)`
+ * JournalScreen's `handleOpenReflectionEntry` makes; Esc is `returnFromEntryOrigin`
+ * (a history pop); the shell's own top bar draws the Back control from the ticket.
+ */
+function AscentTrip() {
+  const isMobile = useIsMobile()
+  const Shell = isMobile ? MobileJournal : DesktopJournal
+  const { state, go, back } = useAppNavigation()
+  const reading = state.surface === 'journal' && state.entryId !== null
+
+  // Boot on the Ascent, as the rail would (the provider starts on the journal).
+  useEffect(() => {
+    if (state.surface === 'journal' && state.entryId === null) go({ surface: 'reflections' }, { replace: true })
+    // Mount only: the trip itself is navigation, and must not be re-seated.
+  }, [])
+
+  useEffect(() => {
+    if (!reading) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      back()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [reading, back])
+
+  const openEntry = (id: string) =>
+    go({
+      surface: 'journal',
+      entryId: id,
+      entryReturn: entryReturnFromState(state),
+      ascentDrill: null,
+      scriptureBook: null,
+      scriptureVerse: null,
+      settings: null,
+      help: false,
+    })
+
+  const slot = reading ? (
+    <div data-testid="trip-entry" style={{ padding: '4rem 2rem', color: 'var(--text)' }}>
+      <h2 style={{ fontFamily: 'var(--font-display, inherit)', fontWeight: 400 }}>An entry</h2>
+      <p style={{ opacity: 0.7 }}>{state.entryId}</p>
+    </div>
+  ) : (
+    <AscentView onOpenEntry={openEntry} />
+  )
+  return (
+    <Shell
+      {...journalProps(slot, reading ? {} : { reflectionsActive: true })}
+      entryReturn={state.entryReturn}
+      onReturnFromEntry={back}
+    />
+  )
+}
+
 function Screen({ surface, tab }: { surface: Surface; tab: SettingsTab }) {
   const isMobile = useIsMobile()
   const Shell = isMobile ? MobileJournal : DesktopJournal
+  if (surface === 'ascent-trip') return <AscentTrip />
 
   let slot: React.ReactNode
   let active: Parameters<typeof journalProps>[1] = {}
@@ -151,7 +216,7 @@ function Screen({ surface, tab }: { surface: Surface; tab: SettingsTab }) {
   )
 }
 
-const SURFACES: Surface[] = ['editor', 'pages', 'reader', 'ascent', 'summit', 'altar', 'lamp', 'settings']
+const SURFACES: Surface[] = ['editor', 'pages', 'reader', 'ascent', 'summit', 'altar', 'lamp', 'settings', 'ascent-trip']
 
 export function renderScreensPreview(): void {
   const params = new URLSearchParams(window.location.search)

@@ -217,16 +217,37 @@ const GRAIN_WORD: Record<Grain, string> = { week: 'week', month: 'month', season
 
 /**
  * The line above a room's title: which period the room is lit for, in words.
- * "This season · Fall 2026" for the current one, "Season · Summer 2026" for one
- * stepped back to, "All time" for everything. Sentence case — the eyebrow's own
- * CSS sets it in capitals.
+ * "This season · Fall 2026" for the current one, "Last season · Summer 2026" for
+ * the one before it, "Season · Spring 2026" for any further back, "All time" for
+ * everything. Sentence case — the eyebrow's own CSS sets it in capitals.
+ *
+ * "Last" is the one that matters: the bare grain word said nothing about which
+ * side of now the reader was on, so a stepped-back month and the current one
+ * differed by a single dropped word.
  */
 export function periodEyebrow(span: Span, offset = 0, now: Date = new Date()): string {
   if (span === 'all') return 'All time'
   const name = periodName(span, offset, now)
   if (offset <= 0) return `This ${GRAIN_WORD[span]} · ${name}`
+  if (offset === 1) return `Last ${GRAIN_WORD[span]} · ${name}`
   const word = GRAIN_WORD[span]
   return `${word[0]!.toUpperCase()}${word.slice(1)} · ${name}`
+}
+
+/** What the way home to the current period is called: "This month". */
+export function periodNowLabel(grain: Grain): string {
+  const word = GRAIN_WORD[grain]
+  return `This ${word}`
+}
+
+/**
+ * The writer's own day, as the anchor every period is counted from: noon UTC of
+ * their LOCAL date, so a late evening never shows tomorrow's month. The one
+ * place that says so — the Ascent's When and the Back label that names its
+ * period must count from the same day or they would disagree at midnight.
+ */
+export function writersDay(now: Date = new Date()): Date {
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12))
 }
 
 /** The short word a picker shows. Spans say what they are. */

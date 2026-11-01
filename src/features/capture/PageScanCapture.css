@@ -12,14 +12,21 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  animation: voice-card-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: voice-card-in var(--dur-base) var(--ease-out);
+}
+.page-scan:not(.page-scan--sheet)[data-state='closing'] {
+  animation: voice-card-out var(--dur-exit) var(--ease-exit) forwards;
 }
 
+/* Up from the bottom edge and back down it — see VoiceCapture.css. */
 .page-scan--sheet {
   width: 100%;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding-bottom: env(safe-area-inset-bottom);
-  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios);
+}
+.page-scan--sheet[data-state='closing'] {
+  animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
 }
 
 .page-scan__body {
@@ -109,8 +116,8 @@
   font-size: 0.7rem;
   cursor: default;
   transition:
-    background 140ms ease,
-    border-color 140ms ease;
+    background var(--dur-quick) var(--ease-out),
+    border-color var(--dur-quick) var(--ease-out);
 }
 .page-scan__add:hover {
   background: color-mix(in srgb, rgb(var(--scripture-gold)) 12%, var(--bg-input));
@@ -133,6 +140,13 @@
 .page-scan__draft:focus {
   outline: none;
   border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 55%, var(--border));
+}
+/* iOS zooms the whole page into any field under 16px the moment it takes
+   focus, and leaves it zoomed (DESIGN_PRINCIPLES N4). On a finger, 16px. */
+@media (pointer: coarse) {
+  .page-scan__draft {
+    font-size: max(16px, 1rem);
+  }
 }
 
 /* ── Status + actions ────────────────────────────────────────────────── */
@@ -190,9 +204,8 @@
   color: color-mix(in srgb, rgb(var(--scripture-gold)) 70%, var(--text-faint));
 }
 
+/* The card and the sheet fade instead (global.css, "Presence"). */
 @media (prefers-reduced-motion: reduce) {
-  .page-scan,
-  .page-scan--sheet,
   .page-scan__add {
     animation: none !important;
     transition: none !important;

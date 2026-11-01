@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
-import { EditorView, highlightActiveLine, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { EditorView, highlightActiveLine, keymap, placeholder as cmPlaceholder, type ViewUpdate } from '@codemirror/view'
+import { history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
 import { editorTheme } from './theme'
@@ -34,6 +34,7 @@ import { isIOSTauri } from '@/lib/platform'
 import type { SpiritualItemType } from '@/lib/types'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
+import { proseKeymap, writingDefaultKeymap } from './proseKeymap'
 import {
   applyHighlight as applyHighlightToSelection,
   clearLink,
@@ -44,7 +45,13 @@ import {
   setLink,
 } from './formatSelection'
 import { LinkPopover, type LinkPopoverTarget } from './LinkPopover'
-import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
+import {
+  anchorFromView,
+  SelectionFormatBar,
+  type FormatBarAnchor,
+  type FormatBarKeyHandler,
+} from './SelectionFormatBar'
+import { FormatBarSettle } from './formatBarSettle'
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
 import { scriptureVerseAt, snapToWords } from './scriptureBody'
@@ -335,10 +342,25 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const [formatBar, setFormatBar] = useState<FormatBarAnchor | null>(null)
   /**
    * The format bar is selection-triggered by default. This flag pins it at a
-   * collapsed caret — summoned with ⌘⇧F or a desktop right-click — so highlight
-   * colours stay reachable without dragging. Cleared on type, Escape, or blur.
+   * collapsed caret — summoned with ⌘⇧F — so highlight colours stay reachable
+   * without dragging. Cleared on type, Escape, a click, or blur. (A right-click
+   * used to pin it too; a right-click is the native menu's alone now.)
    */
   const caretFormatRef = useRef(false)
+  /**
+   * When the bar may show: after a selection settles, never mid-drag or for
+   * ⌘A, never with the native context menu. See formatBarSettle.ts. Created
+   * with the view; null before.
+   */
+  const settleRef = useRef<FormatBarSettle | null>(null)
+  /** The bar's own keys (Esc, and ←/→/Return at the caret), asked first. */
+  const barKeyRef = useRef<FormatBarKeyHandler | null>(null)
+  /** Put the bar away, keeping the selection, until the selection changes. */
+  const dismissFormatBar = useCallback(() => {
+    caretFormatRef.current = false
+    if (settleRef.current) settleRef.current.dismiss()
+    else setFormatBar(null)
+  }, [])
   const [slashState, setSlashState] = useState<SlashState | null>(null)
   const [linkTarget, setLinkTarget] = useState<LinkPopoverTarget | null>(null)
   const setSlashRef = useRef(setSlashState)
@@ -405,13 +427,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   requestLinkRef.current = requestLink
 
   const toggleFormatBarRef = useRef<(view: EditorView) => boolean>(() => false)
-  toggleFormatBarRef.current = (view) => {
+  toggleFormatBarRef.current = () => {
     caretFormatRef.current = !caretFormatRef.current
-    if (view.state.selection.main.empty && !caretFormatRef.current) {
-      setFormatBar(null)
+    if (!caretFormatRef.current) {
+      dismissFormatBar()
       return true
     }
-    setFormatBar(anchorFromView(view))
+    // Summoned: shown at once, and driven from the keyboard (anchor.caret).
+    settleRef.current?.update({ userSelect: false, pointerSelect: false, focusGained: false })
     return true
   }
 
@@ -420,25 +443,19 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     keydown: (_event: KeyboardEvent) => false,
   })
   formatBarEventsRef.current = {
-    contextmenu(event, view) {
+    // A right-click is the native menu's — spelling, Look Up, Writing Tools.
+    // No bar beside it, and the caret stays where the writer left it.
+    contextmenu() {
+      // On iOS the bar IS the edit menu (lib.rs suppresses the system one);
+      // a long-press there must never put it away.
       if (isIOSTauri()) return false
-      if (typeof window !== 'undefined' && !window.matchMedia('(pointer: fine)').matches) {
-        return false
-      }
-      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
-      if (pos == null) return false
-      if (!view.state.selection.main.empty) return false
-      caretFormatRef.current = true
-      const sel = view.state.selection.main
-      if (sel.anchor !== pos || sel.head !== pos) {
-        view.dispatch({ selection: { anchor: pos } })
-      } else {
-        setFormatBar(anchorFromView(view))
-      }
-      view.focus()
+      if (typeof window !== 'undefined' && !window.matchMedia('(pointer: fine)').matches) return false
+      caretFormatRef.current = false
+      settleRef.current?.contextMenu()
       return false
     },
     keydown(event) {
+      settleRef.current?.key()
       if (!caretFormatRef.current) return false
       if (event.metaKey || event.ctrlKey || event.altKey) return false
       if (event.key.length === 1) caretFormatRef.current = false
@@ -446,14 +463,21 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     },
   }
 
+  // The bar's keys, heard before anything else in the app hears them: this
+  // listener is registered when the editor mounts, ahead of the screens' own
+  // Esc handlers. Esc puts the bar away and KEEPS the selection; at the caret,
+  // ←/→ rove the buttons and Return presses one (SelectionFormatBar).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (!caretFormatRef.current) return
+      const handler = barKeyRef.current
+      if (!handler) return
+      // Only while the writing has the keyboard (or the bar itself does): an
+      // Esc meant for Settings must not be spent on a bar left behind.
+      const inBar = document.activeElement instanceof Element && !!document.activeElement.closest('.format-bar')
+      if (!viewRef.current?.hasFocus && !inBar) return
+      if (!handler(e)) return
       e.preventDefault()
       e.stopImmediatePropagation()
-      caretFormatRef.current = false
-      setFormatBar(null)
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
@@ -594,15 +618,28 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     },
   }))
 
-  const syncFormatBar = useCallback((view: EditorView) => {
+  const syncFormatBar = useCallback((u: ViewUpdate) => {
+    const view = u.view
     if (!view.hasFocus) caretFormatRef.current = false
     const empty = view.state.selection.main.empty
     if (!empty) caretFormatRef.current = false
+    const settle = settleRef.current
+    if (!settle) return
+    // The keystroke path: a caret with no pinned bar — one branch, no layout
+    // or document reads.
     if (empty && !caretFormatRef.current) {
-      setFormatBarRef.current(null)
+      settle.update({ userSelect: false, pointerSelect: false, focusGained: false })
       return
     }
-    setFormatBarRef.current(anchorFromView(view))
+    let userSelect = false
+    let pointerSelect = false
+    for (const tr of u.transactions) {
+      if (tr.isUserEvent('select')) {
+        userSelect = true
+        if (tr.isUserEvent('select.pointer')) pointerSelect = true
+      }
+    }
+    settle.update({ userSelect, pointerSelect, focusGained: u.focusChanged && view.hasFocus })
   }, [])
 
   // Create the view once.
@@ -620,7 +657,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         doc: initialDoc,
         extensions: [
           history(),
-          keymap.of([...defaultKeymap, ...historyKeymap]),
+          // NSTextView's keys ahead of CodeMirror's, minus its code-editor
+          // bindings (⌥↑ moved the line; ⌘/ commented it out) — proseKeymap.ts.
+          keymap.of([...proseKeymap, ...writingDefaultKeymap, ...historyKeymap]),
           // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
           Prec.highest(
             formatKeymap(
@@ -792,7 +831,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
                 onUserInputRef.current()
               }
             }
-            if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
+            if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u)
             if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {
               const detected = detectSlash(u.view, titleStylingRef.current)
               const sel = u.view.state.selection.main
@@ -809,6 +848,18 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       }),
     })
     viewRef.current = view
+    settleRef.current = new FormatBarSettle(
+      () => {
+        const sel = view.state.selection.main
+        return {
+          empty: sel.empty,
+          wholeDoc: sel.from === 0 && sel.to === view.state.doc.length,
+          caret: caretFormatRef.current,
+        }
+      },
+      () => setFormatBarRef.current(anchorFromView(view, caretFormatRef.current)),
+      () => setFormatBarRef.current(null),
+    )
     // Honour the skip flag here too, not just on docKey swaps. This effect runs
     // on every *mount*, and the editor unmounts whenever an alternate surface
     // takes the canvas — so without this, returning to an entry from Lamp/Altar/
@@ -821,11 +872,32 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       view.focus()
     }
 
-    const onScroll = () => syncFormatBar(view)
+    const onScroll = () => settleRef.current?.refresh()
     view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
+
+    // A press hides the bar until the selection it makes has settled; a
+    // secondary press (right button, ⌃-click) hands over to the native menu.
+    // Capture, so a widget that claims the press (editorTap) still counts.
+    const onPress = (e: PointerEvent) => {
+      const secondary = e.button === 2 || (e.button === 0 && e.ctrlKey && e.pointerType === 'mouse')
+      if (!secondary && e.button !== 0) return
+      if (!secondary) caretFormatRef.current = false
+      settleRef.current?.pressed(!secondary, e.pointerType !== 'touch')
+    }
+    const onRelease = () => settleRef.current?.released()
+    view.dom.addEventListener('pointerdown', onPress, true)
+    window.addEventListener('pointerup', onRelease, true)
+    window.addEventListener('pointercancel', onRelease, true)
+    window.addEventListener('blur', onRelease)
 
     return () => {
       view.scrollDOM.removeEventListener('scroll', onScroll)
+      view.dom.removeEventListener('pointerdown', onPress, true)
+      window.removeEventListener('pointerup', onRelease, true)
+      window.removeEventListener('pointercancel', onRelease, true)
+      window.removeEventListener('blur', onRelease)
+      settleRef.current?.destroy()
+      settleRef.current = null
       view.destroy()
       viewRef.current = null
       setFormatBarRef.current(null)
@@ -909,12 +981,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   }, [commandLinePos])
 
   useEffect(() => {
-    if (slashState) {
-      caretFormatRef.current = false
-      setFormatBar(null)
-    }
+    if (slashState) dismissFormatBar()
     onSlashPaletteChange?.(slashState !== null)
-  }, [slashState, onSlashPaletteChange])
+  }, [slashState, onSlashPaletteChange, dismissFormatBar])
 
   // Push marks into the view when they load or change. Between pushes the field
   // maps its ranges through edits itself, so typing never re-runs this.
@@ -1076,8 +1145,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     if (from === to) return
     onToggleMark?.(normalizeQuote(view.state.sliceDoc(from, to)), from, selectionMark)
     // The bar is transient; dismissing it makes the mark feel committed.
-    caretFormatRef.current = false
-    setFormatBar(null)
+    dismissFormatBar()
   }
 
   return (
@@ -1089,10 +1157,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         onMark={canMark ? handleToggleMark : undefined}
         marked={!!selectionMark}
         markOnly={Boolean(markTarget?.scripture)}
-        onDismiss={() => {
-          caretFormatRef.current = false
-          setFormatBar(null)
-        }}
+        onDismiss={dismissFormatBar}
+        keyHandlerRef={barKeyRef}
       />
       {linkTarget && (
         <LinkPopover

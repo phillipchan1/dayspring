@@ -28,9 +28,12 @@
  * reading surface in the product that cannot hallucinate, because there is
  * nothing on it the writer did not type.
  */
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { skyFor } from '@/editor/practices/ritualSky'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { PUSH_MS, useEdgeSwipeBack } from '@/features/pages/edgeSwipe'
+import { useArrowList } from '@/hooks/useArrowList'
 import type { Entry } from '@/lib/types'
 import { track } from '@/lib/analytics'
 import {
@@ -123,6 +126,14 @@ export function RitualThreads({ entries, onClose, onOpenEntry, initialPractice, 
   const movement: RitualMovementThread | null = thread
     ? (thread.movements.find((m) => m.label === openLabel) ?? openingMovement(thread))
     : null
+  // Opened straight onto a practice, the surface itself is arriving — the
+  // thread is already there, not pushed in over a shelf nobody saw.
+  const arrivedOn = useRef(initialPractice ?? null)
+  const backToShelf = () => {
+    arrivedOn.current = null
+    setOpenPractice(null)
+    setOpenLabel(null)
+  }
 
   return createPortal(
     <div
@@ -142,40 +153,136 @@ export function RitualThreads({ entries, onClose, onOpenEntry, initialPractice, 
       />
       <div className="practice-sky practice-sky--stars" aria-hidden />
 
-      <button
-        type="button"
-        className="practice-modal__close"
-        onClick={onClose}
-        aria-label="Close"
-        title="Close"
-      >
-        ✕
+      <button type="button" className="practice-modal__close" onClick={onClose} aria-label="Close">
+        <svg className="rt__glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+          <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+        </svg>
       </button>
 
-      <div className="rt">
-        {thread && movement ? (
+      {/*
+        The shelf stays mounted under an open practice, so it keeps its place
+        and is what a back-swipe uncovers. Inert while covered.
+      */}
+      <div className="rt" inert={thread !== null} aria-hidden={thread !== null || undefined}>
+        <ShelfView
+          threads={threads}
+          onOpen={(p) => {
+            arrivedOn.current = null
+            setOpenPractice(p)
+            setOpenLabel(null)
+          }}
+        />
+      </div>
+
+      {thread && movement ? (
+        <ThreadPush
+          key={thread.practice}
+          sky={sky.tokens as CSSProperties}
+          still={arrivedOn.current === thread.practice}
+          onBack={backToShelf}
+        >
           <ThreadView
             thread={thread}
             movement={movement}
             onPickMovement={setOpenLabel}
-            onBack={() => {
-              setOpenPractice(null)
-              setOpenLabel(null)
-            }}
             onOpenEntry={onOpenEntry}
           />
-        ) : (
-          <ShelfView
-            threads={threads}
-            onOpen={(p) => {
-              setOpenPractice(p)
-              setOpenLabel(null)
-            }}
-          />
-        )}
-      </div>
+        </ThreadPush>
+      ) : null}
     </div>,
     document.body,
+  )
+}
+
+/**
+ * A practice's thread, pushed over the shelf.
+ *
+ * It used to swap in place: the same scroller re-filled (so the thread opened
+ * at the shelf's scroll offset), no movement to say where it came from, and a
+ * small "← Practices" text link as the only way back. Now it is a pushed view,
+ * as the reader is on a phone — in from the right, an edge swipe back out
+ * (`useEdgeSwipeBack`), its own scroller, and a back control at the top
+ * leading corner, where a thumb and every iOS habit look for it. On a pointer
+ * it arrives with a short fade; Macs do not slide their panes.
+ *
+ * The page carries its own copy of the sky. A pushed view is opaque, and the
+ * sky is what this room is made of — a flat parchment sliding over it would be
+ * a different room arriving.
+ */
+function ThreadPush({
+  sky,
+  still,
+  onBack,
+  children,
+}: {
+  sky: CSSProperties
+  /** Already there when the surface opened: no entrance. */
+  still: boolean
+  onBack: () => void
+  children: React.ReactNode
+}) {
+  const touch = useMediaQuery('(pointer: coarse)')
+  const pushes = useMediaQuery('(max-width: 767px), (pointer: coarse)')
+  const back = useEdgeSwipeBack({ onBack, enabled: touch })
+  /*
+   * The back control pops the way the swipe does where views push: the page
+   * carries on out to the right and the shelf comes back with it, then the
+   * practice is closed. On a pointer the page simply goes, as the reader's does.
+   */
+  const [popping, setPopping] = useState(false)
+  const popTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(popTimer.current), [])
+  const pop = () => {
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (!pushes || still) return onBack()
+    if (popping) return
+    setPopping(true)
+    popTimer.current = window.setTimeout(onBack, PUSH_MS)
+  }
+  const leaving = back.leaving || popping
+  const out = popping ? 1 : back.out
+  /*
+   * The shelf is a sibling, so the push's progress is written on the modal they
+   * share — per frame of a drag, through the DOM — for the shelf's parallax.
+   */
+  const layerRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    layerRef.current?.parentElement?.style.setProperty('--rt-out', String(out))
+  }, [out])
+  useLayoutEffect(() => {
+    const host = layerRef.current?.parentElement
+    return () => {
+      host?.style.removeProperty('--rt-out')
+    }
+  }, [])
+  return (
+    <div
+      ref={layerRef}
+      className="rt-push"
+      data-still={still ? 'true' : undefined}
+      data-dragging={back.dragging ? 'true' : undefined}
+      data-leaving={leaving ? 'true' : undefined}
+      style={{ ['--rt-out']: out } as CSSProperties}
+      {...back.handlers}
+    >
+      <div
+        className="rt-push__slide"
+        style={back.dragX && !back.leaving ? { transform: `translateX(${back.dragX}px)` } : undefined}
+      >
+        <div className="practice-sky practice-sky--fixed" aria-hidden />
+        <div className="practice-sky practice-sky--hour" aria-hidden style={sky} />
+        <div className="practice-sky practice-sky--stars" aria-hidden />
+
+        <button type="button" className="rt__back" onClick={pop} aria-label="Back to Practices">
+          <svg className="rt__glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
+          <span>Practices</span>
+        </button>
+
+        <div className="rt rt--thread">{children}</div>
+      </div>
+    </div>
   )
 }
 
@@ -186,6 +293,8 @@ function ShelfView({
   threads: RitualThread[]
   onOpen: (practice: string) => void
 }) {
+  // ↑/↓ through the practices, one Tab stop for the lot; Return opens one.
+  const rowKeys = useArrowList('.rt__row')
   return (
     <div className="rt__pane">
       <header className="rt__head">
@@ -203,7 +312,7 @@ function ShelfView({
           movement will gather here.
         </p>
       ) : (
-        <div className="rt__shelf">
+        <div className="rt__shelf" ref={rowKeys.ref} onKeyDown={rowKeys.onKeyDown} onFocus={rowKeys.onFocus}>
           {threads.map((t) => (
             <button
               key={t.practice}
@@ -214,6 +323,10 @@ function ShelfView({
               <span className="rt__row-name">{t.practice}</span>
               {/* Last walked, and nothing else. No count, no gap. */}
               <span className="rt__row-when">{longDate(t.lastAt)}</span>
+              {/* A row that pushes a view says so, faintly, at its trailing edge. */}
+              <span className="rt__row-chev" aria-hidden>
+                ›
+              </span>
             </button>
           ))}
         </div>
@@ -226,13 +339,11 @@ function ThreadView({
   thread,
   movement,
   onPickMovement,
-  onBack,
   onOpenEntry,
 }: {
   thread: RitualThread
   movement: RitualMovementThread
   onPickMovement: (label: string) => void
-  onBack: () => void
   onOpenEntry: (entryId: string) => void
 }) {
   // A year heading over a column that is all one year is a label nobody needs.
@@ -241,10 +352,6 @@ function ThreadView({
 
   return (
     <div className="rt__pane">
-      <button type="button" className="rt__back" onClick={onBack}>
-        ← Practices
-      </button>
-
       <h1 className="rt__title rt__title--practice">{thread.practice}</h1>
 
       {thread.movements.length > 1 && (
@@ -276,12 +383,7 @@ function ThreadView({
           return (
             <div key={`${a.entryId}-${a.at}`}>
               {showYear ? <div className="rt__year">{y}</div> : null}
-              <button
-                type="button"
-                className="rt__answer"
-                onClick={() => onOpenEntry(a.entryId)}
-                title="Open this page"
-              >
+              <button type="button" className="rt__answer" onClick={() => onOpenEntry(a.entryId)}>
                 <span className="rt__answer-date">{longDate(a.at)}</span>
                 <AnswerText text={a.text} />
               </button>

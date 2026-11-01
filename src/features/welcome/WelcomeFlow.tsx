@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { usePagedSwipe } from '@/hooks/usePagedSwipe'
 import { SpiritualBlockIcon } from '@/editor/spiritualBlockIcons'
 import { IconAltar, IconAscent, IconPages, IconRitual, IconScripture } from '@/features/journal/navIcons'
 import './Welcome.css'
@@ -448,8 +449,17 @@ function IconMoon() {
 }
 
 /**
+ * The exit's twin is `.welcome-flow--leaving` (700ms, 280ms under Reduce
+ * Motion). The real hand-off waits for that animation's own `animationend`;
+ * this only covers the case where it never fires (a backgrounded tab, an
+ * animation stripped by a stylesheet), and is longer than either.
+ */
+const EXIT_FALLBACK_MS = 900
+
+/**
  * Self-contained, full-screen overlay. Mounted via portal so it floats above
- * all app chrome. Keyboard: ←/→ navigate, Esc closes. Touch: swipe to navigate.
+ * all app chrome. Keyboard: ←/→ navigate, Esc closes. Touch: the slides are a
+ * paged track that follows the finger (see usePagedSwipe).
  */
 export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }: WelcomeFlowProps) {
   const [i, setI] = useState(0)
@@ -483,12 +493,23 @@ export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }
     setLeaving((prev) => prev ?? reason)
   }, [])
 
+  // Hand off when the exit has actually finished — 700ms, or 280ms under
+  // Reduce Motion. It used to wait a fixed 760ms either way, so someone who
+  // had asked for less motion sat behind a finished fade for half a second
+  // with every control disabled.
+  const handedOff = useRef(false)
+  const finishExit = useCallback(() => {
+    if (!leaving || handedOff.current) return
+    handedOff.current = true
+    if (leaving === 'begin') onBegin()
+    else onClose()
+  }, [leaving, onBegin, onClose])
+
   useEffect(() => {
     if (!leaving) return
-    // Slightly longer than the CSS exit (700ms) so it always finishes first.
-    const t = window.setTimeout(() => (leaving === 'begin' ? onBegin() : onClose()), 760)
+    const t = window.setTimeout(finishExit, EXIT_FALLBACK_MS)
     return () => window.clearTimeout(t)
-  }, [leaving, onBegin, onClose])
+  }, [leaving, finishExit])
 
   // Keyboard: arrows navigate, Esc skips. Capture phase so it wins over the
   // app's own global key handlers while the overlay is up.
@@ -552,18 +573,17 @@ export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }
     }
   }, [])
 
-  // Touch swipe.
-  const txRef = useRef<number | null>(null)
-  const onTouchStart = (e: React.TouchEvent) => {
-    txRef.current = e.touches[0]!.clientX
-  }
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (txRef.current == null || leaving) return
-    const dx = e.changedTouches[0]!.clientX - txRef.current
-    if (dx < -50) next()
-    else if (dx > 50) back()
-    txRef.current = null
-  }
+  // The slides are a paged track under the finger: it follows the drag, gives
+  // a little past either end, and settles on a spring when let go.
+  const swipe = usePagedSwipe({ index: i, count: SLIDES.length, onIndex: setI, enabled: !leaving })
+
+  // A slide's motif plays the first time that slide is the one showing, and
+  // then stays drawn. A neighbour dragged into view waits, unplayed, until it
+  // lands; going back to a slide does not replay it.
+  const [played, setPlayed] = useState<ReadonlySet<number>>(() => new Set([0]))
+  useEffect(() => {
+    setPlayed((seen) => (seen.has(i) ? seen : new Set(seen).add(i)))
+  }, [i])
 
   return createPortal(
     <div
@@ -574,8 +594,10 @@ export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }
       aria-modal="true"
       aria-label="Welcome to Dayspring"
       tabIndex={-1}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
+      {...swipe.handlers}
+      onAnimationEnd={(e) => {
+        if (e.target === e.currentTarget) finishExit()
+      }}
     >
       {/* Outgoing gradient, fading out over the current one painted on the root.
           Keyed so the fade replays on each slide change; never leaves a gap. */}
@@ -627,28 +649,47 @@ export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }
       </button>
 
       <div className="welcome-flow__stage">
-        <div className="welcome-flow__glass" key={slide.key}>
-          <div className="welcome-flow__glow" aria-hidden />
-          <div
-            className={`welcome-flow__motif-wrap${
-              slide.motif === 'insert' || slide.motif === 'door' ? ' welcome-flow__motif-wrap--demo' : ''
-            }`}
-          >
-            <Motif name={slide.motif} />
-          </div>
-          <div className="welcome-flow__copy">
-          <span className="welcome-flow__eyebrow">{slide.eyebrow}</span>
-          <h1 className="welcome-flow__title">
-            {slide.title.split('\n').map((lineText, k) => (
-              <span key={k}>
-                {lineText}
-                <br />
-              </span>
-            ))}
-          </h1>
-          <p className="welcome-flow__body">{slide.body}</p>
-          {slide.find ? <FindIt hints={isTouch ? slide.find.touch : slide.find.desktop} /> : null}
-          </div>
+        <div
+          className="welcome-flow__track"
+          data-dragging={swipe.dragging === 'h'}
+          style={{
+            transform: `translate3d(calc(${-i * 100}% + ${swipe.offsetX}px), 0, 0)`,
+            transitionDuration: `${swipe.settleMs}ms`,
+          }}
+        >
+          {SLIDES.map((s, k) => (
+            <div
+              key={s.key}
+              className="welcome-flow__page"
+              data-played={played.has(k)}
+              aria-hidden={k !== i}
+              inert={k !== i}
+            >
+              <div className="welcome-flow__glass">
+                <div className="welcome-flow__glow" aria-hidden />
+                <div
+                  className={`welcome-flow__motif-wrap${
+                    s.motif === 'insert' || s.motif === 'door' ? ' welcome-flow__motif-wrap--demo' : ''
+                  }`}
+                >
+                  <Motif name={s.motif} />
+                </div>
+                <div className="welcome-flow__copy">
+                  <span className="welcome-flow__eyebrow">{s.eyebrow}</span>
+                  <h1 className="welcome-flow__title">
+                    {s.title.split('\n').map((lineText, n) => (
+                      <span key={n}>
+                        {lineText}
+                        <br />
+                      </span>
+                    ))}
+                  </h1>
+                  <p className="welcome-flow__body">{s.body}</p>
+                  {s.find ? <FindIt hints={isTouch ? s.find.touch : s.find.desktop} /> : null}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

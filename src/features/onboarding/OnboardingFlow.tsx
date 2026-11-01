@@ -9,6 +9,8 @@ import { setSeedPrompt } from '@/lib/onboardingSeed'
 import { WelcomeFlow } from '@/features/welcome/WelcomeFlow'
 import { onboardingCopy as copy, pickOpeningPrompt } from './onboardingCopy'
 import { ImportFlow } from './ImportFlow'
+import { BackControl } from './BackControl'
+import { PushStack, type PushDirection } from './PushStack'
 import './Onboarding.css'
 import { CURRENT_RELEASE_ID } from '@/features/firstlight/releases'
 
@@ -31,6 +33,18 @@ interface Props {
  */
 export function OnboardingFlow({ onFinish }: Props) {
   const [step, setStep] = useState<Step>('tour')
+  // Which way the last step change went, so the screens push and pop like a
+  // navigation stack instead of swapping in place.
+  const [direction, setDirection] = useState<PushDirection>('forward')
+  const goTo = useCallback((next: Step, dir: PushDirection = 'forward') => {
+    setDirection(dir)
+    setStep(next)
+  }, [])
+  // Inside the desktop import, Back can mean "choose a different file"; the
+  // import says which, and this draws the one control for every step.
+  const [importBack, setImportBack] = useState<(() => void) | null>(null)
+  const onImportBackChange = useCallback((back: (() => void) | null) => setImportBack(() => back), [])
+  const backToFork = useCallback(() => goTo('fork', 'back'), [goTo])
   const [finishing, setFinishing] = useState(false)
   // Carried from the fresh-start path into the editor as a gentle first prompt.
   const seedRef = useRef<string | undefined>(undefined)
@@ -69,6 +83,15 @@ export function OnboardingFlow({ onFinish }: Props) {
     seedRef.current = pickOpeningPrompt()
     void finish()
   }, [finish])
+
+  const backAction =
+    step === 'fork'
+      ? () => goTo('tour', 'back')
+      : step === 'fresh' || (step === 'import' && isMobile)
+        ? backToFork
+        : step === 'import'
+          ? importBack
+          : null
 
   return (
     <div className={`ob-root${isLight ? ' is-light' : ''}`}>
@@ -113,102 +136,131 @@ export function OnboardingFlow({ onFinish }: Props) {
             // Welcome's own Skip button — a genuine skip, distinct from Begin
             // even though both land on the same next step.
             track('onboarding_skipped', { step: 'tour' })
-            setStep('fork')
+            goTo('fork')
           }}
           onBegin={() => {
             track('onboarding_step_completed', { step: 'tour' })
-            setStep('fork')
+            goTo('fork')
           }}
         />
       )}
 
+      {/* The way back lives in the top-leading corner, as a navigation bar
+          keeps it — outside the moving screens, so it stays put while they
+          push and pop. */}
+      {backAction && <BackControl disabled={finishing} onBack={backAction} />}
+
       <main className="ob-column">
-        {step === 'fork' && (
-          <div className="ob-screen ob-fade-in">
-            <h1 className="ob-title">{copy.fork.title}</h1>
-            <div className="ob-fork">
-              <button
-                type="button"
-                className="ob-card"
-                onClick={() => {
-                  track('onboarding_step_completed', { step: 'fork' })
-                  setStep('import')
-                }}
-              >
-                <span className="ob-card__icon" aria-hidden>❧</span>
-                <span className="ob-card__label">{copy.fork.veteran.label}</span>
-                <span className="ob-card__sub">{copy.fork.veteran.sub}</span>
-              </button>
-              <button
-                type="button"
-                className="ob-card"
-                onClick={() => {
-                  track('onboarding_step_completed', { step: 'fork' })
-                  setStep('fresh')
-                }}
-              >
-                <span className="ob-card__icon" aria-hidden>✦</span>
-                <span className="ob-card__label">{copy.fork.fresh.label}</span>
-                <span className="ob-card__sub">{copy.fork.fresh.sub}</span>
-              </button>
-            </div>
-            <button type="button" className="ob-tertiary" onClick={() => setStep('tour')}>
-              ← Back to the welcome
-            </button>
-          </div>
-        )}
+        {step !== 'tour' && (
+          <PushStack
+            screenKey={step}
+            direction={direction}
+            back={
+              step === 'fork'
+                ? { key: 'tour', go: () => goTo('tour', 'back') }
+                : // Once an import has started there is no going back from it.
+                  step === 'import' && !isMobile && !importBack
+                  ? undefined
+                  : { key: 'fork', go: backToFork, render: forkScreen }
+            }
+          >
+            {step === 'fork' && forkScreen()}
 
-        {/* Import parses a whole archive in memory. Settings refuses to offer
-            that on a phone (ImportPanel.tsx) but this fork did not, so a
-            first-run iPhone user could hand a multi-hundred-MB zip to the
-            WKWebView. Same gate, same reason. */}
-        {step === 'import' &&
-          (isMobile ? (
-            <div className="ob-screen ob-fade-in">
-              <h1 className="ob-title">{copy.importMobile.title}</h1>
-              <p className="ob-body">{copy.importMobile.body}</p>
-              <button
-                type="button"
-                className="ob-primary"
-                onClick={() => {
-                  // The mobile fallback never offers a real import — this IS
-                  // how the step resolves there, not a skip of it.
-                  track('onboarding_step_completed', { step: 'import' })
-                  void finish()
-                }}
-                disabled={finishing}
-              >
-                {copy.importMobile.cta}
-              </button>
-              <button type="button" className="ob-tertiary" onClick={() => setStep('fork')}>
-                ← Back
-              </button>
-            </div>
-          ) : (
-            <ImportFlow onComplete={() => void finish()} onBack={() => setStep('fork')} />
-          ))}
+            {/* Import parses a whole archive in memory. Settings refuses to offer
+                that on a phone (ImportPanel.tsx) but this fork did not, so a
+                first-run iPhone user could hand a multi-hundred-MB zip to the
+                WKWebView. Same gate, same reason. */}
+            {step === 'import' &&
+              (isMobile ? (
+                <div className="ob-screen">
+                  <div className="ob-screen__body">
+                    <h1 className="ob-title">{copy.importMobile.title}</h1>
+                    <p className="ob-body">{copy.importMobile.body}</p>
+                  </div>
+                  <div className="ob-screen__foot">
+                    <button
+                      type="button"
+                      className="ob-primary"
+                      onClick={() => {
+                        // The mobile fallback never offers a real import — this IS
+                        // how the step resolves there, not a skip of it.
+                        track('onboarding_step_completed', { step: 'import' })
+                        void finish()
+                      }}
+                      disabled={finishing}
+                    >
+                      {copy.importMobile.cta}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <ImportFlow
+                  onComplete={() => void finish()}
+                  onBack={backToFork}
+                  onBackChange={onImportBackChange}
+                />
+              ))}
 
-        {step === 'fresh' && (
-          <div className="ob-screen ob-fade-in">
-            <h1 className="ob-title">{copy.fresh.title}</h1>
-            <p className="ob-body">{copy.fresh.body}</p>
+            {step === 'fresh' && (
+              <div className="ob-screen">
+                <div className="ob-screen__body">
+                  <h1 className="ob-title">{copy.fresh.title}</h1>
+                  <p className="ob-body">{copy.fresh.body}</p>
 
-            <figure className="ob-example">
-              <figcaption className="ob-example__label">{copy.fresh.exampleLabel}</figcaption>
-              <p className="ob-example__text">{copy.fresh.example}</p>
-            </figure>
-
-            <button type="button" className="ob-primary" onClick={startFresh} disabled={finishing}>
-              {copy.fresh.primary}
-            </button>
-            <button type="button" className="ob-tertiary" onClick={() => setStep('fork')}>
-              ← Back
-            </button>
-          </div>
+                  <figure className="ob-example">
+                    <figcaption className="ob-example__label">{copy.fresh.exampleLabel}</figcaption>
+                    <p className="ob-example__text">{copy.fresh.example}</p>
+                  </figure>
+                </div>
+                <div className="ob-screen__foot">
+                  <button type="button" className="ob-primary" onClick={startFresh} disabled={finishing}>
+                    {copy.fresh.primary}
+                  </button>
+                </div>
+              </div>
+            )}
+          </PushStack>
         )}
       </main>
     </div>
   )
+
+  /** The fork, drawn as its own screen and again under a swipe back to it. */
+  function forkScreen() {
+    return (
+      <div className="ob-screen">
+        <div className="ob-screen__body">
+          <h1 className="ob-title">{copy.fork.title}</h1>
+          <div className="ob-fork">
+            <button
+              type="button"
+              className="ob-card"
+              onClick={() => {
+                track('onboarding_step_completed', { step: 'fork' })
+                goTo('import')
+              }}
+            >
+              <span className="ob-card__icon" aria-hidden>❧</span>
+              <span className="ob-card__label">{copy.fork.veteran.label}</span>
+              <span className="ob-card__sub">{copy.fork.veteran.sub}</span>
+            </button>
+            <button
+              type="button"
+              className="ob-card"
+              onClick={() => {
+                track('onboarding_step_completed', { step: 'fork' })
+                goTo('fresh')
+              }}
+            >
+              <span className="ob-card__icon" aria-hidden>✦</span>
+              <span className="ob-card__label">{copy.fork.fresh.label}</span>
+              <span className="ob-card__sub">{copy.fork.fresh.sub}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 }
 
 function IconSun() {

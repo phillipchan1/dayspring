@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.517",
+  "appVersion": "1.0.521",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -409,6 +409,30 @@
         ],
         "mac": "↑↓",
         "pc": "↑ + ↓"
+      },
+      {
+        "id": "shortcut.back-to-where-you-were",
+        "group": "Navigation",
+        "label": "Back to where you were",
+        "when": "from an entry, not while typing",
+        "keys": [
+          "Mod",
+          "["
+        ],
+        "mac": "⌘[",
+        "pc": "Ctrl + ["
+      },
+      {
+        "id": "shortcut.forward-again",
+        "group": "Navigation",
+        "label": "Forward again",
+        "when": "not while typing",
+        "keys": [
+          "Mod",
+          "]"
+        ],
+        "mac": "⌘]",
+        "pc": "Ctrl + ]"
       },
       {
         "id": "shortcut.show-this-shortcut-guide",

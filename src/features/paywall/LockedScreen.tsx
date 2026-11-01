@@ -33,6 +33,7 @@ import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
 import { FULL_ACCESS_SENTENCE, SERVICE_BULLETS } from './valueCopy'
 import { RitualLibraryGrowth } from './RitualLibraryGrowth'
+import { untilHandoffSettles } from './handoff'
 import './Paywall.css'
 
 interface Props {
@@ -150,6 +151,9 @@ export function LockedScreen({
           return
         case 'stripe':
           await openExternal(await startCheckout(selectedPlan), { sameTab: true })
+          // The browser has it; give the button back once the hand-off is over.
+          await untilHandoffSettles()
+          setLoading(null)
           return
       }
     } catch (e) {

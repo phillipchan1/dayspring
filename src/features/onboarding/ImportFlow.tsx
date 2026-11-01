@@ -1,5 +1,6 @@
-import { useRef, useState, Fragment } from 'react'
+import { useEffect, useRef, useState, Fragment } from 'react'
 import { createPortal } from 'react-dom'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { track } from '@/lib/analytics'
 import { upsertImportedEntries } from '@/lib/entries'
 import { scanAllForRefs, getImportedEntryCount, writeScanWatermark } from '@/lib/scripture/scan'
@@ -13,8 +14,20 @@ import { backfillRecentMonth } from '@/lib/onboarding'
 import { apiPost } from '@/lib/api'
 import { onboardingCopy as copy } from './onboardingCopy'
 import { MonthReveal } from './MonthReveal'
+import { PushStack, type PushDirection } from './PushStack'
 
 type Phase = 'upload' | 'parsing' | 'preview' | 'importing' | 'building' | 'reveal'
+
+/**
+ * The screens a person navigates between, as opposed to the states one screen
+ * passes through. Choosing a file and reading it are one screen; the preview is
+ * a step on from it (and a step back); the import's progress and the reveal
+ * replace each other rather than being places you go.
+ */
+function screenOf(phase: Phase): string {
+  if (phase === 'upload' || phase === 'parsing') return 'upload'
+  return phase
+}
 
 // Parsers we offer at onboarding, tried in order to auto-detect the export type
 // (the user just drops a file — no need to pick the app first).
@@ -46,6 +59,13 @@ interface Props {
   onComplete: () => void
   /** Back to the Fork. */
   onBack: () => void
+  /**
+   * Where the top-leading Back goes right now, or null when there is no going
+   * back (the import has started). The control itself is drawn by the parent:
+   * this screen sits inside a moving layer during a push, and a fixed-position
+   * button inside a transformed layer would travel with it.
+   */
+  onBackChange?: (back: (() => void) | null) => void
 }
 
 /**
@@ -54,7 +74,7 @@ interface Props {
  * lands on the Reveal: the user's real, freshly generated most-recent
  * month-in-review.
  */
-export function ImportFlow({ onComplete, onBack }: Props) {
+export function ImportFlow({ onComplete, onBack, onBackChange }: Props) {
   const [phase, setPhase] = useState<Phase>('upload')
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -67,6 +87,10 @@ export function ImportFlow({ onComplete, onBack }: Props) {
   const [bgDismissed, setBgDismissed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
+  // On a touch screen there is nothing to drop with; the zone is a button.
+  const coarse = useMediaQuery('(pointer: coarse)')
+  // Choosing a file and then changing your mind is a step back, not forward.
+  const [direction, setDirection] = useState<PushDirection>('forward')
 
   async function handleArchive(archive: ImportArchive | null) {
     if (!archive || archive.files.length === 0) {
@@ -98,6 +122,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
       }
       setResult(parsed)
       setSourceId(detected)
+      setDirection('forward')
       setPhase('preview')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read the export.')
@@ -108,6 +133,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
   function resetToUpload() {
     setResult(null)
     setError(null)
+    setDirection('back')
     setPhase('upload')
     if (inputRef.current) inputRef.current.value = ''
     if (folderInputRef.current) folderInputRef.current.value = ''
@@ -115,6 +141,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
 
   async function confirmImport() {
     if (!result) return
+    setDirection('fade')
     setPhase('importing')
     setProgress({ done: 0, total: result.dated.length })
     try {
@@ -188,218 +215,268 @@ export function ImportFlow({ onComplete, onBack }: Props) {
     }
   }
 
+  // Back is a place to go only before anything has been written: from the file
+  // chooser to the fork, and from the preview to the file chooser.
+  useEffect(() => {
+    onBackChange?.(phase === 'upload' ? onBack : phase === 'preview' ? resetToUpload : null)
+    // resetToUpload only touches setters and refs; the phase is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, onBack, onBackChange])
+
   // ── render ────────────────────────────────────────────────────────────────
 
-  if (phase === 'upload' || phase === 'parsing') {
+  /**
+   * Choosing the export. Drawn for the upload phase, and again under a swipe
+   * back from the preview — `at` is the phase it is drawn for.
+   */
+  function uploadScreen(at: Phase) {
     return (
       <div className="ob-screen">
-        <h1 className="ob-title">{copy.importUpload.title}</h1>
-        <p className="ob-body">{copy.importUpload.body}</p>
+        <div className="ob-screen__body">
+          <h1 className="ob-title">{copy.importUpload.title}</h1>
+          <p className="ob-body">{copy.importUpload.body}</p>
 
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".zip,application/zip"
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            void archiveFromFiles(e.target.files).then(handleArchive)
-          }}
-        />
-        <input
-          ref={folderInputRef}
-          type="file"
-          // @ts-expect-error — webkitdirectory is a non-standard but widely supported attr
-          webkitdirectory=""
-          directory=""
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            void archiveFromFiles(e.target.files).then(handleArchive)
-          }}
-        />
+          <input
+            ref={at === phase ? inputRef : undefined}
+            type="file"
+            accept=".zip,application/zip"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              void archiveFromFiles(e.target.files).then(handleArchive)
+            }}
+          />
+          <input
+            ref={at === phase ? folderInputRef : undefined}
+            type="file"
+            // @ts-expect-error — webkitdirectory is a non-standard but widely supported attr
+            webkitdirectory=""
+            directory=""
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              void archiveFromFiles(e.target.files).then(handleArchive)
+            }}
+          />
 
-        {phase === 'parsing' ? (
-          <div className="ob-dropzone ob-dropzone--busy" aria-live="polite">
-            <span className="ob-pulse" aria-hidden />
-            <span>{copy.importUpload.reading}</span>
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              className={`ob-dropzone${dragging ? ' ob-dropzone--active' : ''}`}
-              onClick={() => inputRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault()
-                setDragging(true)
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault()
-                setDragging(false)
-                void archiveFromDrop(e.dataTransfer).then(handleArchive)
-              }}
-            >
-              <span className="ob-dropzone__icon" aria-hidden>↓</span>
-              <span className="ob-dropzone__text">{copy.importUpload.dropzone}</span>
-              <span className="ob-dropzone__hint">{copy.importUpload.sourceHint}</span>
-            </button>
-            <button
-              type="button"
-              className="ob-tertiary"
-              onClick={() => folderInputRef.current?.click()}
-            >
-              Or choose a folder…
-            </button>
-          </>
-        )}
+          {at === 'parsing' ? (
+            <div className="ob-dropzone ob-dropzone--busy" aria-live="polite">
+              <span className="ob-pulse" aria-hidden />
+              <span>{copy.importUpload.reading}</span>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={`ob-dropzone${dragging ? ' ob-dropzone--active' : ''}`}
+                onClick={() => inputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragging(true)
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragging(false)
+                  void archiveFromDrop(e.dataTransfer).then(handleArchive)
+                }}
+              >
+                <span className="ob-dropzone__icon" aria-hidden>↓</span>
+                <span className="ob-dropzone__text">
+                  {coarse ? copy.importUpload.dropzoneTouch : copy.importUpload.dropzone}
+                </span>
+                <span className="ob-dropzone__hint">{copy.importUpload.sourceHint}</span>
+              </button>
+              <button
+                type="button"
+                className="ob-tertiary"
+                onClick={() => folderInputRef.current?.click()}
+              >
+                Or choose a folder…
+              </button>
+            </>
+          )}
 
-        {error && <p className="ob-error">{error}</p>}
-        {phase === 'upload' && (
-          <div className="ob-export-help">
-            <button
-              type="button"
-              className="ob-export-help__trigger"
-              aria-expanded={showExportHelp}
-              onClick={() => setShowExportHelp((v) => !v)}
-            >
-              <span className="ob-export-help__chevron" aria-hidden>
-                {showExportHelp ? '▾' : '▸'}
-              </span>
-              {copy.importUpload.howToExport.trigger}
-            </button>
-            {showExportHelp && (
-              <div className="ob-export-help__panel">
-                {copy.importUpload.howToExport.sources.map((src) => (
-                  <Fragment key={src.name}>
-                    <h3 className="ob-export-help__app">{src.name}</h3>
-                    <ol className="ob-export-help__steps">
-                      {src.steps.map((step, i) => (
-                        <li key={i}>{step}</li>
-                      ))}
-                    </ol>
-                  </Fragment>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {phase === 'upload' && (
-          <button type="button" className="ob-tertiary" onClick={onBack}>
-            ← Back
-          </button>
-        )}
-      </div>
-    )
-  }
-
-  if (phase === 'preview' && result) {
-    const n = result.dated.length
-    return (
-      <div className="ob-screen ob-screen--wide">
-        <div className="ob-preview__count">
-          <span className="ob-preview__number">{n.toLocaleString()}</span>
-          <span className="ob-preview__caption">{copy.importPreview.importableLabel}</span>
-        </div>
-
-        <div className="ob-preview__meta">
-          <div>
-            <span className="ob-preview__meta-label">{copy.importPreview.dateRangeLabel}</span>
-            <span className="ob-preview__meta-value">{rangeLabel(result.dateRange)}</span>
-          </div>
-          {result.skipped.length > 0 && (
-            <div>
-              <span className="ob-preview__meta-label">{result.skipped.length}</span>
-              <span className="ob-preview__meta-value">{copy.importPreview.skippedLabel}</span>
+          {error && <p className="ob-error">{error}</p>}
+          {at === 'upload' && (
+            <div className="ob-export-help">
+              <button
+                type="button"
+                className="ob-export-help__trigger"
+                aria-expanded={showExportHelp}
+                onClick={() => setShowExportHelp((v) => !v)}
+              >
+                <span className="ob-export-help__chevron" aria-hidden>
+                  {showExportHelp ? '▾' : '▸'}
+                </span>
+                {copy.importUpload.howToExport.trigger}
+              </button>
+              {showExportHelp && (
+                <div className="ob-export-help__panel">
+                  {copy.importUpload.howToExport.sources.map((src) => (
+                    <Fragment key={src.name}>
+                      <h3 className="ob-export-help__app">{src.name}</h3>
+                      <ol className="ob-export-help__steps">
+                        {src.steps.map((step, i) => (
+                          <li key={i}>{step}</li>
+                        ))}
+                      </ol>
+                    </Fragment>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
-
-        {result.dated[0] && (
-          <div className="ob-sample">
-            <div className="ob-sample__label">{copy.importPreview.sampleLabel}</div>
-            <div className="ob-sample__date">{dayOf(result.dated[0].created_at)}</div>
-            <p className="ob-sample__body">
-              {result.dated[0].body_markdown.trim().slice(0, 240)}
-              {result.dated[0].body_markdown.trim().length > 240 ? '…' : ''}
-            </p>
-          </div>
-        )}
-
-        <p className="ob-reassure">{copy.importPreview.reassurance}</p>
-
-        <button type="button" className="ob-primary" onClick={() => void confirmImport()}>
-          {copy.importPreview.primaryPrefix} {n.toLocaleString()} {n === 1 ? 'entry' : 'entries'}
-        </button>
-        <button type="button" className="ob-tertiary" onClick={resetToUpload}>
-          {copy.importPreview.chooseDifferent}
-        </button>
       </div>
     )
   }
 
-  if (phase === 'importing') {
-    const pct = progress.total ? (progress.done / progress.total) * 100 : 0
+  function currentScreen() {
+    if (phase === 'upload' || phase === 'parsing') return uploadScreen(phase)
+
+    if (phase === 'preview' && result) {
+      const n = result.dated.length
+      return (
+        <div className="ob-screen ob-screen--wide">
+          <div className="ob-screen__body">
+            <div className="ob-preview__count">
+              <span className="ob-preview__number">{n.toLocaleString()}</span>
+              <span className="ob-preview__caption">{copy.importPreview.importableLabel}</span>
+            </div>
+
+            <div className="ob-preview__meta">
+              <div>
+                <span className="ob-preview__meta-label">{copy.importPreview.dateRangeLabel}</span>
+                <span className="ob-preview__meta-value">{rangeLabel(result.dateRange)}</span>
+              </div>
+              {result.skipped.length > 0 && (
+                <div>
+                  <span className="ob-preview__meta-label">{result.skipped.length}</span>
+                  <span className="ob-preview__meta-value">{copy.importPreview.skippedLabel}</span>
+                </div>
+              )}
+            </div>
+
+            {result.dated[0] && (
+              <div className="ob-sample">
+                <div className="ob-sample__label">{copy.importPreview.sampleLabel}</div>
+                <div className="ob-sample__date">{dayOf(result.dated[0].created_at)}</div>
+                <p className="ob-sample__body">
+                  {result.dated[0].body_markdown.trim().slice(0, 240)}
+                  {result.dated[0].body_markdown.trim().length > 240 ? '…' : ''}
+                </p>
+              </div>
+            )}
+
+            <p className="ob-reassure">{copy.importPreview.reassurance}</p>
+          </div>
+
+          <div className="ob-screen__foot">
+            <button type="button" className="ob-primary" onClick={() => void confirmImport()}>
+              {copy.importPreview.primaryPrefix} {n.toLocaleString()} {n === 1 ? 'entry' : 'entries'}
+            </button>
+            <button type="button" className="ob-tertiary" onClick={resetToUpload}>
+              {copy.importPreview.chooseDifferent}
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    if (phase === 'importing') {
+      // No cancel here: upsertImportedEntries has no way to stop between
+      // batches, and abandoning it half-way would leave a partial import with
+      // nothing on screen to say so. (Re-running it is safe — it never
+      // duplicates — but that is not something to ask of someone mid-arrival.)
+      const pct = progress.total ? (progress.done / progress.total) * 100 : 0
+      return (
+        <div className="ob-screen">
+          <div className="ob-screen__body">
+            <h1 className="ob-title">Bringing in your journal…</h1>
+            <p className="ob-body">
+              {progress.done.toLocaleString()} / {progress.total.toLocaleString()}
+            </p>
+            <div className="ob-progress" role="progressbar" aria-valuenow={Math.round(pct)}>
+              <div className="ob-progress__bar" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (phase === 'building') {
+      return (
+        <div className="ob-screen ob-screen--center">
+          <div className="ob-screen__body">
+            <span className="ob-bigpulse" aria-hidden />
+            <h1 className="ob-title">{copy.importBuilding.title}</h1>
+            <p className="ob-body">{copy.importBuilding.body}</p>
+            <p className="ob-hint">{copy.importBuilding.hint}</p>
+          </div>
+          <div className="ob-screen__foot">
+            <button
+              type="button"
+              className="ob-tertiary"
+              onClick={() => {
+                track('onboarding_skipped', { step: 'import' })
+                onComplete()
+              }}
+            >
+              {copy.importBuilding.skip} →
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    // phase === 'reveal'
     return (
-      <div className="ob-screen">
-        <h1 className="ob-title">Bringing in your journal…</h1>
-        <p className="ob-body">
-          {progress.done.toLocaleString()} / {progress.total.toLocaleString()}
-        </p>
-        <div className="ob-progress" role="progressbar" aria-valuenow={Math.round(pct)}>
-          <div className="ob-progress__bar" style={{ width: `${pct}%` }} />
+      <div className="ob-screen ob-screen--wide">
+        <div className="ob-screen__body">
+          {reveal ? (
+            <>
+              <h1 className="ob-title ob-title--reveal">{copy.reveal.title}</h1>
+              <MonthReveal rollup={reveal} />
+            </>
+          ) : (
+            <>
+              <h1 className="ob-title">{copy.reveal.pendingTitle}</h1>
+              <p className="ob-body">{copy.reveal.pendingBody}</p>
+            </>
+          )}
+        </div>
+
+        <div className="ob-screen__foot">
+          <button
+            type="button"
+            className="ob-primary"
+            onClick={() => {
+              track('onboarding_step_completed', { step: 'import' })
+              onComplete()
+            }}
+          >
+            {copy.reveal.primary}
+          </button>
         </div>
       </div>
     )
   }
 
-  if (phase === 'building') {
-    return (
-      <div className="ob-screen ob-screen--center">
-        <span className="ob-bigpulse" aria-hidden />
-        <h1 className="ob-title">{copy.importBuilding.title}</h1>
-        <p className="ob-body">{copy.importBuilding.body}</p>
-        <p className="ob-hint">{copy.importBuilding.hint}</p>
-        <button
-          type="button"
-          className="ob-tertiary"
-          onClick={() => {
-            track('onboarding_skipped', { step: 'import' })
-            onComplete()
-          }}
-        >
-          {copy.importBuilding.skip} →
-        </button>
-      </div>
-    )
-  }
-
-  // phase === 'reveal'
+  const screen = screenOf(phase)
   return (
-    <div className="ob-screen ob-screen--wide ob-fade-in">
-      {reveal ? (
-        <>
-          <h1 className="ob-title ob-title--reveal">{copy.reveal.title}</h1>
-          <MonthReveal rollup={reveal} />
-        </>
-      ) : (
-        <>
-          <h1 className="ob-title">{copy.reveal.pendingTitle}</h1>
-          <p className="ob-body">{copy.reveal.pendingBody}</p>
-        </>
-      )}
-
-      <button
-        type="button"
-        className="ob-primary"
-        onClick={() => {
-          track('onboarding_step_completed', { step: 'import' })
-          onComplete()
-        }}
+    <>
+      <PushStack
+        screenKey={screen}
+        direction={direction}
+        back={
+          phase === 'preview'
+            ? { key: 'upload', go: resetToUpload, render: () => uploadScreen('upload') }
+            : undefined
+        }
       >
-        {copy.reveal.primary}
-      </button>
+        {currentScreen()}
+      </PushStack>
 
-      {bgBuilding && !bgDismissed &&
+      {phase === 'reveal' && bgBuilding && !bgDismissed &&
         createPortal(
           <div className="ob-bg-indicator" role="status">
             <span className="ob-bg-indicator__dot" aria-hidden />
@@ -415,6 +492,6 @@ export function ImportFlow({ onComplete, onBack }: Props) {
           </div>,
           document.body,
         )}
-    </div>
+    </>
   )
 }

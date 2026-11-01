@@ -223,16 +223,38 @@ No haptic on a Face ID match (the system gives one) or as a reward. Principle 2.
    - Shared `:active` press wash; hover-lifts removed (the wall keeps its warm shadow);
      no `transition: all`.
    - Tripwires: `src/styles/nativeFeel.test.ts`.
-   - Still open from §2: per-surface `:active` states on Ascent/Ledger/Rituals rows,
-     Scripture tiles, Life Map chips and Find rows; focus trap and `inert` for modals.
-2. **Mac shell PR**: menu bar from `shortcuts.ts`, drag regions, window-state, theme
-   sync, white-flash fix, devtools gating, global context-menu guard, ⌘W/⌘. layering.
-3. **Motion PR**: tokens, exit phases, menu timing, `useSheetDismiss` physics.
+   - The §2 leftovers (per-surface `:active`, focus trap and `inert`) landed in batch 2.
+2. **Mac shell**: menu bar from `shortcuts.ts`, drag strip, window-state, theme sync,
+   white-flash fix, devtools gating, global context-menu guard, ⌘W/⌘. layering. Written
+   on `claude/native-feel-native`; compiled by `native-check.yml` in CI (no local Rust
+   toolchain when it was written).
+3. ✅ **Motion** (batch 2): tokens (`--dur-*`, `--ease-*`), presence/exit phases for
+   Settings, Shortcuts, capture sheets, Concordance, drill-ins and the Look-for sheet;
+   `useSheetDismiss` velocity, rubber band and leave-from-release; sliding selection
+   plate; spring switch; the Ascent rises once a session; Reduce Motion crossfades.
 4. ✅ **Touch-up-inside for money and auth buttons** (2026-11-01): `useTapAction`
    commits on release only. It lets go when the finger travels more than 10px or the
    press becomes a scroll, and keeps every iPad release path from #84/#86. Needs an
    on-device pass on the paywall and sign-in before shipping to `stable`.
-5. **Haptics PR**: plugin + helper + the map above.
-6. **iOS native capture**: VisionKit scan, PHPicker, accessory view, edit-menu ruling.
-7. **Lists & navigation**: long-press previews, swipe actions, push for Volumes/Rituals,
-   reader selection, menu keyboard nav, editor keymap fixes.
+5. **Haptics**: plugin + `haptic()` helper on `claude/native-feel-native`, call sites
+   wired there.
+6. **iOS native capture**: VisionKit scan, PHPicker, Open Settings, status-bar tap,
+   theme-synced status bar and tint, on `claude/native-feel-native`. Not done: a real
+   `inputAccessoryView`, and the edit-menu ruling (still Phil's call).
+7. ✅ **Lists, navigation, keyboard and first run** (batch 2):
+   - **Menus:** keyboard and type-ahead; instant appear, fade out; no window dim.
+   - **Editor:** keymap parity (⌥↑ by paragraph, `Intl.Segmenter` words); the format
+     bar waits for the selection to settle; checkbox and photo tap fixes.
+   - **Find:** Spotlight-style.
+   - **Focus:** trap and `inert` for Settings and Shortcuts.
+   - **Keys:** ⌘[ back; Print via iframe.
+   - **Pages and rooms:** Volumes and Rituals push with edge swipe back. Reader prose is
+     selectable on touch, with an edge-strip swipe and iPhone parallax. Wall long-press
+     gives and lifts; narrow rows get swipe actions. Scripture and Life Map paint from
+     cache; Life Map edits are optimistic with Undo. Arrow-key lists.
+   - **First run:** Welcome and What's new page with the finger. Onboarding pushes, with
+     its CTA pinned. Sign in with Apple follows the HIG.
+   - **App lock:** passcode dots and a shake.
+   - **Photo viewer:** live paging, pull to close, pinch and double-tap zoom.
+   - **Deferred to Phil:** the paywall's select-then-Subscribe restructure
+     (App Review-sensitive).

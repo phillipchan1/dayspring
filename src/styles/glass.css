@@ -3,8 +3,13 @@
  * Used for settings, shortcuts, confirms, and floating chrome.
  */
 
+/* Two classes, not `!important`: this file is imported ahead of `.scrim`, and
+   the specificity is what lets it win. `!important` did too, but an important
+   declaration outranks animations as well, so the scrim's dimming could never
+   be faded in or out (see "Presence" in global.css). */
+.scrim.glass-scrim,
 .glass-scrim {
-  background: var(--glass-scrim) !important;
+  background: var(--glass-scrim);
   -webkit-backdrop-filter: blur(14px) saturate(1.05);
   backdrop-filter: blur(14px) saturate(1.05);
 }

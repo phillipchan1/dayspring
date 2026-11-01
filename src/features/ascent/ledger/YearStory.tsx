@@ -108,7 +108,7 @@ export function YearStory({
           <span className="ascent-dim__eyebrow">{LEDGER_COPY.yearNew}</span>
           <div className="new-names">
             {extras.news.map((n) => (
-              <button key={n.label} type="button" className="new-name" onClick={() => onOpenEntry?.(n.entryId)}>
+              <button key={n.label} type="button" className="new-name" data-entry-id={n.entryId} onClick={() => onOpenEntry?.(n.entryId)}>
                 <span className="new-name__label">{n.label}</span>
                 <span className="new-name__first">
                   first on {MONTH_SHORT[+n.date.slice(5, 7) - 1]} {+n.date.slice(8, 10)}

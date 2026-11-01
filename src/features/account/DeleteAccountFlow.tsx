@@ -23,6 +23,7 @@ import { exportEntriesToZip } from '@/lib/export/exportEntries'
 import { openExternal } from '@/lib/openExternal'
 import { appleMayStillCharge, type Subscription } from '@/lib/subscription'
 import { useTapAction } from '@/lib/tapAction'
+import './DeleteAccount.css'
 
 interface Props {
   /** The account being deleted, named back to the user before they confirm. */
@@ -165,36 +166,43 @@ export function DeleteAccountFlow({ userEmail, subscription, variant = 'danger-z
         </div>
       )}
 
-      <label className="delete-account__field">
-        <span className="delete-account__label">
-          Type <strong>DELETE</strong> to confirm
-        </span>
-        <input
-          className="delete-account__input"
-          type="text"
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          aria-label="Type DELETE to confirm"
-        />
-      </label>
+      {/* A form, so the keyboard's own key confirms once the word is typed —
+          and does nothing before then: implicit submission is refused while
+          the submit button is disabled, and handleDelete checks again. */}
+      <form
+        className="delete-account__form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void handleDelete()
+        }}
+      >
+        <label className="delete-account__field">
+          <span className="delete-account__label">
+            Type <strong>DELETE</strong> to confirm
+          </span>
+          <input
+            className="delete-account__input"
+            type="text"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="done"
+            aria-label="Type DELETE to confirm"
+          />
+        </label>
 
-      <div className="delete-account__actions">
-        <button
-          type="button"
-          className="btn btn--danger"
-          disabled={!confirmed || busy}
-          onClick={() => void handleDelete()}
-        >
-          {busy ? 'Deleting…' : 'Delete my account'}
-        </button>
-        <button type="button" className="btn btn--ghost" disabled={busy} onClick={close}>
-          Cancel
-        </button>
-      </div>
+        <div className="delete-account__actions">
+          <button type="submit" className="btn btn--danger" disabled={!confirmed || busy}>
+            {busy ? 'Deleting…' : 'Delete my account'}
+          </button>
+          <button type="button" className="btn btn--ghost" disabled={busy} onClick={close}>
+            Cancel
+          </button>
+        </div>
+      </form>
 
       {error && <p className="delete-account__error">{error}</p>}
     </div>

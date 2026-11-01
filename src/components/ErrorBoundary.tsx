@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { buildCrashPayload, reportCrash } from '@/lib/crashReport'
+import { isDesktopTauri, isTauri } from '@/lib/platform'
 import './ErrorBoundary.css'
 
 // ---------------------------------------------------------------------------
@@ -68,7 +69,20 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ error: null, retries: 0, showDetails: false })
   }
 
+  /**
+   * In the app, a real restart: "Reload" is a browser's word, and reloading a
+   * web view inside a Mac app is not something a Mac app does. On the Mac the
+   * process relaunches (plugin-process). iOS has no relaunch — an app may not
+   * quit itself — so there the web view starts over, which is the same thing
+   * from where the person is sitting. On the web it stays a reload.
+   */
   private handleReload = () => {
+    if (isDesktopTauri()) {
+      void import('@tauri-apps/plugin-process')
+        .then(({ relaunch }) => relaunch())
+        .catch(() => window.location.reload())
+      return
+    }
     window.location.reload()
   }
 
@@ -90,13 +104,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // ----- Root variant: full-screen, only reload -----
     if (variant === 'root') {
+      const inApp = isTauri()
       return (
         <div className="error-boundary error-boundary--root" role="alert">
           <div className="error-boundary__inner">
             <span className="error-boundary__mark" aria-hidden />
             <p className="error-boundary__label">Something went wrong.</p>
             <p className="error-boundary__sub">
-              The app ran into an unexpected error. Reloading should fix it.
+              The app ran into an unexpected error. {inApp ? 'Restarting' : 'Reloading'} should fix it.
             </p>
             <div className="error-boundary__actions">
               <button
@@ -104,7 +119,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="error-boundary__btn error-boundary__btn--primary"
                 onClick={this.handleReload}
               >
-                Reload
+                {inApp ? 'Restart Dayspring' : 'Reload'}
               </button>
             </div>
             {this.renderDetails(error)}

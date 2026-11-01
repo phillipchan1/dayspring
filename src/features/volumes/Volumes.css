@@ -135,6 +135,131 @@
 .vol-shelf__year:first-of-type { margin-top: 4px; }
 .vol-shelf__yearname { margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); font-weight: 400; font-size: 11px; letter-spacing: 0.16em; color: var(--text-dim); }
 
+/* ── a volume, pushed (VolumePush) ───────────────────────────────────────
+ * The reader's twin: a layer over the shelf or the wall, its own scroller, and
+ * the same push. On a pointer it arrives the way the reader does there (a
+ * short fade); on a phone it is a pushed view — in from the right, an edge
+ * swipe takes it back out, and the shelf underneath parallaxes with it. */
+.vol-push {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  animation: pg-open 190ms var(--ease-out) both;
+  --vol-out: 0;
+}
+
+/* The veil over what is underneath — see `.pg-read1::before` in Pages.css. */
+.vol-push::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  opacity: calc(1 - var(--vol-out));
+  pointer-events: none;
+}
+
+.vol-push__slide {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  /* The browser gets the vertical axis; the edge swipe keeps the horizontal. */
+  touch-action: pan-y;
+  transition: transform var(--dur-push) var(--ease-ios);
+}
+
+.vol-push[data-dragging='true'] .vol-push__slide {
+  transition: none;
+}
+
+/* `--dur-push` is `PUSH_MS` in edgeSwipe.ts: how long the layer stays mounted
+   once a swipe commits. */
+.vol-push[data-leaving='true'] .vol-push__slide {
+  transform: translateX(100%);
+}
+
+/* Nothing under the layer answers a pointer while it is covered. */
+.pg__body:has(> .vol-push) > :not(.vol-push, .pg-read1) {
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .vol-push {
+    animation: none;
+  }
+
+  .vol-push__slide {
+    animation: pg-open-narrow var(--dur-push) var(--ease-ios) backwards;
+  }
+
+  .vol-push::before {
+    animation: pg-veil-in var(--dur-push) var(--ease-ios) backwards;
+  }
+
+  /* What it was opened from, pushed aside and back in step with the swipe. */
+  .pg__body:has(> .vol-push) > :not(.vol-push, .pg-read1) {
+    transform: translateX(calc(-30% * (1 - var(--vol-out, 0))));
+    transition: transform var(--dur-push) var(--ease-ios);
+  }
+
+  .pg__body:has(> .vol-push[data-dragging='true']) > :not(.vol-push, .pg-read1) {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vol-push,
+  .vol-push__slide,
+  .vol-push::before {
+    animation: none;
+  }
+
+  .vol-push__slide {
+    transition: none;
+  }
+
+  .pg__body:has(> .vol-push) > :not(.vol-push, .pg-read1) {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ── pressed ────────────────────────────────────────────────────────────
+ * Answer the press, not the release (DESIGN_PRINCIPLES N2): the cover dims
+ * the instant a finger lands and lets go over --dur-exit. The cover, not the
+ * card — the title under it is text, and a wash behind text reads as a
+ * selection. */
+.vol-card__cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 12, 4, 0.22);
+  opacity: 0;
+  transition: opacity var(--dur-exit) var(--ease-exit);
+  pointer-events: none;
+}
+.vol-card:active .vol-card__cover::after {
+  opacity: 1;
+  transition-duration: 0s;
+}
+.vol-end,
+.vol-new,
+.vol-found__row {
+  transition: background-color var(--dur-exit) var(--ease-exit), border-color var(--dur-exit) var(--ease-exit);
+}
+.vol-end:active,
+.vol-new:active {
+  background-color: color-mix(in srgb, var(--accent) 9%, var(--bg-elevated));
+  transition-duration: 0s;
+}
+.vol-found__row:active {
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  transition-duration: 0s;
+}
+
 /* ── touch ──────────────────────────────────────────────────────────────
  * Hit area only, never ink — and last in the file, since a media query adds
  * no specificity and some of what it overrides is declared below. */

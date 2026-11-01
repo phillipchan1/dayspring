@@ -52,7 +52,7 @@ function NewNames({ news, onOpenEntry }: { news: NewName[]; onOpenEntry: Open })
   return (
     <div className="new-names">
       {news.map((n) => (
-        <button key={n.label} type="button" className="new-name" onClick={() => onOpenEntry?.(n.entryId)}>
+        <button key={n.label} type="button" className="new-name" data-entry-id={n.entryId} onClick={() => onOpenEntry?.(n.entryId)}>
           <span className="new-name__label">{n.label}</span>
           <span className="new-name__first">first on {fmtDay(n.date)}</span>
           <span className="new-name__line">{n.line}</span>
@@ -181,7 +181,7 @@ export function MonthView({
                 </div>
                 <div className="alive__lines">
                   {t.lines.slice(-3).map((l, i) => (
-                    <button key={`${l.entryId}${i}`} type="button" onClick={() => onOpenEntry?.(l.entryId)}>
+                    <button key={`${l.entryId}${i}`} type="button" data-entry-id={l.entryId} onClick={() => onOpenEntry?.(l.entryId)}>
                       <span className="alive__when">{fmtDay(l.date)}</span>
                       <span className="alive__text">{l.text}</span>
                     </button>

@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { bookByOsis } from '@/lib/bible/canon'
 import { formatOsisRef, osisChapterOf } from '@/lib/scripture/format'
 import {
-  getBookChapterHeat,
-  getBookEntries,
-  getBookSummary,
-  getReturning,
   type BookChapterHeat,
   type BookEntry,
   type BookSummary,
@@ -13,9 +9,11 @@ import {
   type ReturningRef,
 } from '@/lib/scripture/query'
 import { windowCacheKey } from '@/lib/asyncCache'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { heatColor, intensity, useHeatRamp } from './heat'
+import { cachedBook, loadBook } from './bookCache'
+import { nearestLit } from './nearestCell'
 
 /** The book the panel is showing — optionally focused on one verse's thread. */
 export interface BookTarget {
@@ -35,6 +33,9 @@ interface Props {
 }
 
 type Filter = { kind: 'chapter'; chapter: number } | { kind: 'verse'; osisRef: string } | null
+
+/** Nothing lit yet — the strip drawn as a placeholder while a book is read. */
+const NO_HEAT: BookChapterHeat = { chapters: new Map(), max: 0 }
 
 // ── date helpers (browser-local; this view is client-only) ───────────────────
 function monthYear(iso: string): string {
@@ -77,8 +78,10 @@ export function ScriptureBookView({
 }: Props) {
   useHeatRamp()
   // Latch the displayed book so the panel can slide out showing its last content.
+  // Layout effects here and in the load below, so a kept reading is on screen
+  // in the same frame the panel starts to slide, never a frame later.
   const [display, setDisplay] = useState<BookTarget | null>(target)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (target) setDisplay(target)
   }, [target])
 
@@ -110,29 +113,46 @@ export function ScriptureBookView({
   const activeWindow: DateWindow = widened ? {} : seasonWindow
   const windowKey = windowCacheKey(activeWindow)
 
-  // Load (and reset the filter) whenever a different book / verse / window opens.
-  useEffect(() => {
+  /*
+   * Load (and reset the filter) whenever a different book / verse / window
+   * opens — painting the last reading of this book at once, if there is one,
+   * and refreshing behind it (see bookCache). Only a book never read through
+   * this window starts empty, and then the strip holds its place (`pending`).
+   */
+  useLayoutEffect(() => {
     if (!bookOsis) return
     const id = ++reqId.current
-    setEntries(null)
-    setChapterHeat(null)
-    setSummary(null)
-    setReturning([])
+    const kept = cachedBook(bookOsis, activeWindow)
+    setEntries(kept?.entries ?? null)
+    setChapterHeat(kept?.heat ?? null)
+    setSummary(kept?.summary ?? null)
+    setReturning(kept?.returning ?? [])
     setFilter(display?.focusVerse ? { kind: 'verse', osisRef: display.focusVerse } : null)
-    Promise.all([
-      getBookEntries(bookOsis, activeWindow),
-      getBookChapterHeat(bookOsis, activeWindow),
-      getBookSummary(bookOsis, activeWindow),
-      getReturning(8, activeWindow, bookOsis),
-    ]).then(([e, h, s, r]) => {
-      if (id !== reqId.current) return
-      setEntries(e)
-      setChapterHeat(h)
-      setSummary(s)
-      setReturning(r)
-    })
+    loadBook(bookOsis, activeWindow).then(
+      (page) => {
+        if (id !== reqId.current) return
+        setEntries(page.entries)
+        setChapterHeat(page.heat)
+        setSummary(page.summary)
+        setReturning(page.returning)
+      },
+      () => {
+        // A failed refresh leaves what was painted; a failed cold read leaves
+        // the placeholder, which is no worse than the panel it replaced.
+      },
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookOsis, display?.focusVerse, windowKey])
+
+  /*
+   * A different book opens at its own top. The panel is one scroller kept
+   * mounted across books (it slides out still showing the last), so without
+   * this the second book opened at the first one's scroll offset.
+   */
+  const panelRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0
+  }, [bookOsis])
 
   // Esc closes the panel when open.
   useEffect(() => {
@@ -194,6 +214,7 @@ export function ScriptureBookView({
         aria-hidden
       />
       <aside
+        ref={panelRef}
         className={`scripture-book${open ? ' scripture-book--open' : ''}`}
         aria-hidden={!open}
         aria-label={book ? book.name : undefined}
@@ -235,7 +256,21 @@ export function ScriptureBookView({
               )}
 
               {loading ? (
-                <p className="scripture-book__loading">Reading…</p>
+                /*
+                 * A book never read through this window: the strip and the
+                 * timeline hold their places, unlit, rather than a "Reading…"
+                 * that the whole panel then jumps down from (N5). The strip is
+                 * the real grid for this book, so it is exactly as tall.
+                 */
+                <div className="scripture-book__pending" aria-busy="true" aria-label={`Reading ${book.name}`}>
+                  <ChapterStrip book={book} heat={NO_HEAT} filter={null} onToggle={() => {}} />
+                  <section className="scripture-book__section" aria-hidden>
+                    <div className="scripture-book__slabel">When you came here</div>
+                    <div className="scripture-book__tl">
+                      <div className="scripture-book__tl-axis" />
+                    </div>
+                  </section>
+                </div>
               ) : summary!.distinctEntries === 0 ? (
                 <p className="scripture-book__loading">
                   {scoped && !widened
@@ -333,10 +368,41 @@ function ChapterStrip({
   onToggle: (chapter: number) => void
 }) {
   const cols = Math.min(30, book.chapters)
+  /*
+   * On touch the grid takes the tap, not the cell: a ~26px square is half a
+   * fingertip, so a tap goes to the nearest lit cell within a 44pt reach
+   * (`nearestLit`) — including a tap that lands on an unlit square beside it.
+   * Unlit cells drop out of hit-testing on touch (Scripture.css) so their taps
+   * reach the grid too. A pointer clicks the cell it is on, as before.
+   */
+  const coarse = useMediaQuery('(pointer: coarse)')
+  const gridRef = useRef<HTMLDivElement>(null)
+  const onGridClick = (e: React.MouseEvent) => {
+    const grid = gridRef.current
+    if (!coarse || !grid) return
+    const cell = (e.target as HTMLElement).closest<HTMLElement>('[data-ch]')
+    let chapter: number | null
+    if (e.detail === 0) {
+      // A keyboard press (Enter / Space on a focused cell) has no position.
+      chapter = cell?.dataset.lit === 'true' ? Number(cell.dataset.ch) : null
+    } else {
+      const boxes = [...grid.querySelectorAll<HTMLElement>('[data-ch]')].map((el) => {
+        const r = el.getBoundingClientRect()
+        return { chapter: Number(el.dataset.ch), left: r.left, top: r.top, width: r.width, height: r.height, lit: el.dataset.lit === 'true' }
+      })
+      chapter = nearestLit(e.clientX, e.clientY, boxes)
+    }
+    if (chapter !== null) onToggle(chapter)
+  }
   return (
     <section className="scripture-book__section">
       <div className="scripture-book__slabel">Where you go in {book.name}</div>
-      <div className="scripture-book__chapters" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+      <div
+        ref={gridRef}
+        className="scripture-book__chapters"
+        style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+        onClick={coarse ? onGridClick : undefined}
+      >
         {Array.from({ length: book.chapters }, (_, i) => {
           const chapter = i + 1
           const count = heat.chapters.get(chapter) ?? 0
@@ -348,10 +414,12 @@ function ChapterStrip({
             <button
               key={chapter}
               type="button"
+              data-ch={chapter}
+              data-lit={lit ? 'true' : undefined}
               className={`scripture-book__ch${lit ? ' scripture-book__ch--lit' : ''}${selected ? ' scripture-book__ch--sel' : ''}`}
               aria-label={`${book.name} ${chapter}${lit ? ', returned to' : ', unvisited'}`}
               disabled={!lit}
-              onClick={() => lit && onToggle(chapter)}
+              onClick={coarse ? undefined : () => lit && onToggle(chapter)}
               style={color ? { background: color, boxShadow: `0 0 ${Math.round(4 + 9 * t)}px ${color}` } : undefined}
             />
           )

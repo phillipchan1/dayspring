@@ -20,6 +20,9 @@
   /* The current slide's living gradient is painted here (inline, per slide) so
      the background is always present — no see-through frame between slides. */
   background: linear-gradient(180deg, #0c1018, #121a2a);
+  /* Every drag on the overlay is the track's (usePagedSwipe): nothing here
+     scrolls, so WebKit is never given a pan to start. */
+  touch-action: none;
 }
 
 .welcome-flow *,
@@ -167,10 +170,41 @@ html[data-platform='desktop'] .welcome-flow__skip {
   z-index: 2;
   flex: 1;
   display: flex;
+  min-height: 0;
+}
+
+/* ── The paged track ──────────────────────────────────────────────────────
+   Every slide is laid out side by side and the track is translated under the
+   finger (WelcomeFlow.tsx → usePagedSwipe). While a finger is on it the track
+   follows exactly; let go, and it settles on the spring, timed from how fast
+   the finger was going (the duration is set inline). */
+.welcome-flow__track {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  transition-property: transform;
+  transition-timing-function: var(--ease-spring);
+}
+.welcome-flow__track[data-dragging='true'] {
+  transition: none;
+}
+
+.welcome-flow__page {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 40px 24px;
-  min-height: 0;
+}
+
+/* A slide's motif waits until that slide has been shown (data-played), so a
+   neighbour dragged into view arrives with its copy whole and its motif still
+   to come; it plays as the slide lands, and once only. */
+.welcome-flow__page:not([data-played='true']) .welcome-flow__motif-wrap *,
+.welcome-flow__page:not([data-played='true']) .welcome-flow__motif-wrap *::before,
+.welcome-flow__page:not([data-played='true']) .welcome-flow__motif-wrap *::after {
+  animation-play-state: paused;
 }
 
 .welcome-flow__glass {
@@ -188,7 +222,10 @@ html[data-platform='desktop'] .welcome-flow__skip {
     0 1px 0 rgba(255, 255, 255, 0.14) inset,
     0 30px 80px -30px rgba(0, 0, 0, 0.7),
     0 0 60px -20px rgba(232, 184, 115, 0.15);
-  animation: wf-enter 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  /* One piece, quickly: the title and body arrive with the card instead of
+     being held back by a stagger (DESIGN_PRINCIPLES N3). Only the motif takes
+     its time. A slide that is paged to does not replay this — it slides in. */
+  animation: wf-enter 360ms var(--ease-out) both;
 }
 
 .welcome-flow__glass > :not(.welcome-flow__glow) {
@@ -236,7 +273,6 @@ html[data-platform='desktop'] .welcome-flow__skip {
   color: #e8b873;
   opacity: 0.85;
   margin-bottom: 18px;
-  animation: wf-rise 0.6s both 0.15s;
 }
 
 .welcome-flow__title {
@@ -245,7 +281,6 @@ html[data-platform='desktop'] .welcome-flow__skip {
   line-height: 1.22;
   letter-spacing: -0.01em;
   margin: 0 0 20px;
-  animation: wf-rise 0.6s both 0.25s;
 }
 .welcome-flow__title span {
   display: inline;
@@ -258,7 +293,6 @@ html[data-platform='desktop'] .welcome-flow__skip {
   max-width: 430px;
   margin: 0 auto;
   font-style: italic;
-  animation: wf-rise 0.6s both 0.38s;
 }
 
 .welcome-flow__nav {
@@ -675,7 +709,6 @@ html[data-platform='desktop'] .welcome-flow__skip {
   justify-content: center;
   gap: 8px;
   max-width: 460px;
-  animation: wf-rise 0.6s both 0.5s;
 }
 .wf-hint {
   display: inline-flex;
@@ -1055,6 +1088,11 @@ html[data-platform='desktop'] .welcome-flow__skip {
   .welcome-flow__glass {
     animation: wf-fade 0.3s both;
   }
+  /* The ascent's contours are drawn by animating their dash offset. With the
+     animation gone they would stay undrawn, so draw them outright. */
+  .wf-m-contour {
+    stroke-dashoffset: 0;
+  }
   .welcome-flow__glass,
   .welcome-flow {
     -webkit-backdrop-filter: none;
@@ -1072,7 +1110,7 @@ html[data-platform='desktop'] .welcome-flow__skip {
 /* ── Mobile responsive ──────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  .welcome-flow__stage {
+  .welcome-flow__page {
     padding: 24px 16px;
   }
 

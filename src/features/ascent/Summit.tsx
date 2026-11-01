@@ -280,6 +280,7 @@ export function Summit({
             <button
               type="button"
               className="ascent-oneline"
+              data-entry-id={refrain.entryId}
               onClick={() => onOpenEntry?.(refrain.entryId)}
             >
               “{refrain.text}”
@@ -335,7 +336,7 @@ export function Summit({
             <span className="ascent-dim__eyebrow">{SUMMIT_COPY.namingEyebrow}</span>
             {naming && naming.text ? (
               <>
-                <button type="button" className="ascent-naming__answer" onClick={() => onOpenEntry?.(naming.entryId)}>
+                <button type="button" className="ascent-naming__answer" data-entry-id={naming.entryId} onClick={() => onOpenEntry?.(naming.entryId)}>
                   “{naming.text}”
                 </button>
                 <span className="ascent-oneline__date">{SUMMIT_COPY.namingBy(naming.dateLabel)}</span>
@@ -417,7 +418,7 @@ function StonePair({
         <span className="ascent-oneline__date">
           {stone.ask.dateLabel} · {SUMMIT_COPY.stoneAsk}
         </span>
-        <button type="button" className="ascent-stone-pair__text" onClick={() => onOpenEntry?.(stone.ask.entryId)}>
+        <button type="button" className="ascent-stone-pair__text" data-entry-id={stone.ask.entryId} onClick={() => onOpenEntry?.(stone.ask.entryId)}>
           “{stone.ask.text}”
         </button>
       </div>
@@ -425,7 +426,7 @@ function StonePair({
         <span className="ascent-oneline__date">
           {stone.later.dateLabel} · {SUMMIT_COPY.stoneLater}
         </span>
-        <button type="button" className="ascent-stone-pair__text" onClick={() => onOpenEntry?.(stone.later.entryId)}>
+        <button type="button" className="ascent-stone-pair__text" data-entry-id={stone.later.entryId} onClick={() => onOpenEntry?.(stone.later.entryId)}>
           “{stone.later.text}”
         </button>
       </div>

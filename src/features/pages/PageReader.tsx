@@ -4,7 +4,7 @@ import { SCRIPTURE_RITUALS } from '@/lib/writerWords'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { findAnchorBlock } from './readerAnchor'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
+import { useEdgeSwipeBack } from './edgeSwipe'
 import { colophonLines, formatColophon } from '@/lib/circumstances'
 import { renderMarkdown } from '@/lib/markdown'
 import { passagesForEntry } from '@/lib/remember'
@@ -51,6 +51,9 @@ function layoutLeft(el: HTMLElement): number {
 
 /** How many lines of a neighbour show through at the edge. */
 const EDGE_LINES = 8
+
+/** Whether the neighbours' leaves have been introduced yet this session. */
+let leavesIntroduced = false
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -222,10 +225,19 @@ export function PageReader({
    * that left leftward — away from the list it came from — while claiming to be
    * going back to it. A view that came in from the right goes out to the right,
    * and the wall showing through behind it says where that is.
+   *
+   * And only from the leading edge (`useEdgeSwipeBack`). It used to come off
+   * the whole page, which meant the prose had to be taken out of hit-testing
+   * to keep WebKit's text recogniser from swallowing the drag — and nobody
+   * could select or copy their own words. The edge strip is how UIKit settles
+   * the same conflict, and it gives the page back its text.
+   *
+   * Nothing else animates this away — the reader is simply unmounted — so the
+   * gesture carries it off the screen before it says it is done.
    */
   const touch = useMediaQuery('(pointer: coarse)')
-  const back = useSwipeToDismiss({
-    onDismiss: onBack,
+  const back = useEdgeSwipeBack({
+    onBack,
     enabled: touch,
     // Dragging a selection handle is a horizontal gesture too, and copying a
     // sentence out of a page is the other thing this view is for.
@@ -233,10 +245,17 @@ export function PageReader({
       const sel = window.getSelection()
       return !sel || sel.isCollapsed
     },
-    threshold: 72,
-    // Nothing else animates this away — the reader is simply unmounted — so the
-    // gesture has to carry it off the screen before it says it is done.
-    exit: true,
+  })
+  /*
+   * The neighbours' leaves slide in from their own edges the first time a page
+   * is opened in a session, which is when they need introducing. After that
+   * they are known, and a slide on every open is an entrance replaying on a
+   * surface somebody visits all day (DESIGN_PRINCIPLES N3) — so they fade.
+   */
+  const [firstLeaves] = useState(() => {
+    if (!leaves || touch || leavesIntroduced) return false
+    leavesIntroduced = true
+    return true
   })
   /*
    * The whole page, marking blocks included. `renderMarkdown` draws each
@@ -550,10 +569,31 @@ export function PageReader({
    * most of a phone's width — far enough that the veil is still doing something
    * at the point the gesture commits.
    */
-  const out = Math.min(1, Math.max(0, back.dragX / 320))
+  const out = back.out
+  /*
+   * ...and the same number on the view underneath, which is a sibling.
+   *
+   * On a phone the wall parallaxes as the page pushes in and comes back in
+   * step with it on the way out — UINavigationController's geometry, which is
+   * what says "this view is on top of that one" (see `--pg-out` on `.pg__body`
+   * in Pages.css). A sibling cannot inherit a custom property, so it is written
+   * on the parent directly: per frame of a drag, through the DOM, rather than
+   * by re-rendering the whole Pages surface sixty times a second.
+   */
+  const layerRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    layerRef.current?.parentElement?.style.setProperty('--pg-out', String(out))
+  }, [out])
+  useLayoutEffect(() => {
+    const host = layerRef.current?.parentElement
+    return () => {
+      host?.style.removeProperty('--pg-out')
+    }
+  }, [])
 
   return (
     <div
+      ref={layerRef}
       className="pg-read1"
       data-arrive={arrived?.how}
       data-dragging={back.dragging ? 'true' : undefined}
@@ -574,17 +614,18 @@ export function PageReader({
         Excerpts are cheap and already cached upstream.
       */}
       {leaves && !touch && newer ? (
-        <TurnEdge side="newer" entry={newer} match={match} onTurn={() => turn('newer')} />
+        <TurnEdge side="newer" entry={newer} match={match} first={firstLeaves} onTurn={() => turn('newer')} />
       ) : null}
       {leaves && !touch && older ? (
-        <TurnEdge side="older" entry={older} match={match} onTurn={() => turn('older')} />
+        <TurnEdge side="older" entry={older} match={match} first={firstLeaves} onTurn={() => turn('older')} />
       ) : null}
       {/*
         The page follows the finger while the back-swipe is being made, and
         snaps back or carries on off the screen on release. On the inner element
-        rather than the container, because `.pg-read1` carries the entrance
-        animation and an animated transform beats an inline one for as long as
-        the animation's `both` fill holds.
+        rather than the container, because the container holds the veil, which
+        must stay still while the page crosses it. On a phone the page's own
+        push-in runs here too, with `backwards` fill only, so once it has played
+        it never outranks the inline transform a drag writes.
       */}
       <div
         ref={slideRef}
@@ -748,11 +789,14 @@ function TurnEdge({
   side,
   entry,
   match,
+  first,
   onTurn,
 }: {
   side: 'newer' | 'older'
   entry: Entry
   match: RegExp | null
+  /** The first reader open this session: slide in from the edge, not fade. */
+  first: boolean
   onTurn: () => void
 }) {
   const excerpt = useMemo(() => pageExcerpt(entry, [], EDGE_LINES, match), [entry, match])
@@ -761,6 +805,7 @@ function TurnEdge({
       type="button"
       className="pg-read1__edge"
       data-side={side}
+      data-first={first ? 'true' : undefined}
       onClick={onTurn}
       aria-label={`Turn to the ${side} page, ${shortDate(entry.created_at)}`}
     >

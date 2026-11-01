@@ -1,0 +1,6 @@
+/* The confirm field and its buttons are a <form> (so Return confirms), but
+   they lay out as the panel's own rows, exactly as they did before it. The
+   panel itself is styled in global.css (.delete-account). */
+.delete-account__form {
+  display: contents;
+}

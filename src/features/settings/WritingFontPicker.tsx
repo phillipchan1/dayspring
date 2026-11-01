@@ -1,5 +1,6 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
+import { useMenuExit, useMenuKeyboard } from '@/hooks/useMenuKeyboard'
 import type { WritingFace } from '@/lib/settings'
 import { WRITING_FACE_VARS } from '@/lib/settings'
 
@@ -56,6 +57,12 @@ export function WritingFontPicker({ value, onChange }: Props) {
   const listId = useId()
   const active = FONTS.find((f) => f.value === value) ?? FONTS[0]!
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
+  const close = useCallback(() => setOpen(false), [])
+  // A pop-up button: opens on the current face, ↑/↓ and type-ahead move,
+  // Return picks, Esc closes back to the trigger (N4). It appears at once and
+  // fades out (N3).
+  const keys = useMenuKeyboard({ open, menuRef, onClose: close, initial: 'selected' })
+  const exit = useMenuExit(open ? menuStyle : null)
 
   useEffect(() => {
     if (!open) return
@@ -117,6 +124,15 @@ export function WritingFontPicker({ value, onChange }: Props) {
     })
   }, [open])
 
+  // Once the list has its height, bring the current face into view: the menu
+  // opens on it, and a lit row below the fold is no help.
+  useLayoutEffect(() => {
+    if (!open) return
+    menuRef.current
+      ?.querySelector<HTMLElement>('[data-highlighted="true"]')
+      ?.scrollIntoView?.({ block: 'nearest' })
+  }, [open, menuStyle])
+
   return (
     <div className="font-picker" ref={rootRef}>
       <button
@@ -128,6 +144,13 @@ export function WritingFontPicker({ value, onChange }: Props) {
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          // Arrows open a pop-up button, as Space and Return do.
+          if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !open) {
+            e.preventDefault()
+            setOpen(true)
+          }
+        }}
       >
         <span className="font-picker__trigger-inner">
           <span className="font-picker__label" style={{ fontFamily: FONT_VARS[value] }}>
@@ -140,14 +163,17 @@ export function WritingFontPicker({ value, onChange }: Props) {
         <span className="font-picker__chevron" aria-hidden />
       </button>
 
-      {open && createPortal(
+      {exit.shown && createPortal(
         <ul
           ref={menuRef}
           id={listId}
           className="font-picker__menu"
           role="listbox"
           aria-label="Writing font"
-          style={menuStyle}
+          tabIndex={-1}
+          data-leaving={exit.leaving ? 'true' : undefined}
+          style={exit.shown}
+          {...keys.menuProps}
         >
           {FONTS.map((f) => {
             const selected = f.value === value
@@ -158,6 +184,7 @@ export function WritingFontPicker({ value, onChange }: Props) {
                   role="option"
                   aria-selected={selected}
                   className="font-picker__option"
+                  data-typeahead={f.label}
                   onClick={() => {
                     onChange(f.value)
                     setOpen(false)
