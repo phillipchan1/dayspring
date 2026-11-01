@@ -1266,8 +1266,15 @@ a[href] {
     inset 0 1px 0 var(--glass-edge);
   -webkit-backdrop-filter: blur(16px) saturate(var(--glass-saturate));
   backdrop-filter: blur(16px) saturate(var(--glass-saturate));
-  animation: format-bar-in 0.1s cubic-bezier(0.2, 0.9, 0.25, 1);
+  /* In one piece, inside the ~80ms a popover may take (N3)… */
+  animation: format-bar-in 80ms var(--ease-out);
   pointer-events: auto;
+}
+/* …and a short fade on the way out, click-through while it goes. */
+.format-bar[data-leaving='true'] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-exit) var(--ease-exit);
 }
 .format-bar__scroller {
   display: flex;
@@ -1290,10 +1297,10 @@ a[href] {
   font-size: 0.82rem;
   line-height: 1.3;
   cursor: default;
-  animation: format-bar-btn-in 0.12s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
 }
 .format-bar__guess:hover,
-.format-bar__guess:focus-visible {
+.format-bar__guess:focus-visible,
+.format-bar__guess[data-highlighted='true'] {
   background: var(--bg-hover);
   outline: none;
 }
@@ -1415,11 +1422,6 @@ a[href] {
 @keyframes format-bar-in {
   from {
     opacity: 0;
-    transform: translateY(3px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: none;
   }
 }
 .format-bar__group {
@@ -1449,25 +1451,17 @@ a[href] {
   background: transparent;
   color: var(--text-dim);
   cursor: default;
-  animation: format-bar-btn-in 0.12s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
   transition:
-    background var(--transition),
-    color var(--transition),
-    box-shadow var(--transition),
-    transform 0.12s ease;
+    background var(--dur-quick) var(--ease-out),
+    color var(--dur-quick) var(--ease-out),
+    box-shadow var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
 }
-@keyframes format-bar-btn-in {
-  from {
-    opacity: 0;
-    transform: scale(0.92);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
+/* The roving highlight when the bar is summoned at the caret and driven by
+   ←/→ (SelectionFormatBar `anchor.caret`). */
 .format-bar__btn:hover,
-.format-bar__btn:focus-visible {
+.format-bar__btn:focus-visible,
+.format-bar__btn[data-highlighted='true'] {
   background: var(--bg-hover);
   color: var(--text-bright);
   outline: none;
@@ -1478,15 +1472,21 @@ a[href] {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 .format-bar__btn[data-active='true']:hover,
-.format-bar__btn[data-active='true']:focus-visible {
+.format-bar__btn[data-active='true']:focus-visible,
+.format-bar__btn[data-active='true'][data-highlighted='true'] {
   background: color-mix(in srgb, var(--accent) 32%, transparent);
   color: var(--accent);
 }
+/* A Mac press tints; only a finger's press shrinks the button (Rulings). */
 .format-bar__btn:active {
+  background: var(--bg-hover);
+}
+.format-bar--touch .format-bar__btn:active {
   transform: scale(0.9);
 }
 .format-bar__btn:hover .format-bar__icon,
 .format-bar__btn:focus-visible .format-bar__icon,
+.format-bar__btn[data-highlighted='true'] .format-bar__icon,
 .format-bar__btn[data-active='true'] .format-bar__icon {
   opacity: 1;
 }
@@ -1535,7 +1535,8 @@ a[href] {
   transition: color var(--transition);
 }
 .format-bar__chevron:hover,
-.format-bar__chevron:focus-visible {
+.format-bar__chevron:focus-visible,
+.format-bar__chevron[data-highlighted='true'] {
   color: var(--text-bright);
   outline: none;
 }
@@ -1552,10 +1553,9 @@ a[href] {
   border-radius: var(--radius-full);
   background: rgba(var(--hl-hue), 0.85);
   cursor: default;
-  animation: format-bar-btn-in 0.12s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
   transition:
-    box-shadow var(--transition),
-    transform 0.12s ease;
+    box-shadow var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
 }
 .format-bar__swatch[data-color='amber'] {
   --hl-hue: var(--hl-amber);
@@ -1573,7 +1573,8 @@ a[href] {
   --hl-hue: var(--hl-lilac);
 }
 .format-bar__swatch:hover,
-.format-bar__swatch:focus-visible {
+.format-bar__swatch:focus-visible,
+.format-bar__swatch[data-highlighted='true'] {
   outline: none;
   transform: scale(1.1);
 }
@@ -5970,12 +5971,12 @@ html[data-chapter-pane] .focus-controls--docked {
   background: transparent;
   text-align: left;
   cursor: default;
-  transition: background var(--transition);
 }
 
 /* Highlight follows the palette cursor only (SlashPalette drives it from the
    keyboard and from *real* pointer movement). A `:hover` rule would light up
-   whatever row the palette opened under a resting pointer. */
+   whatever row the palette opened under a resting pointer. It snaps, as a menu
+   row does — no transition (N3). */
 .slash-palette__item[data-active='true'] {
   background: var(--bg-hover);
 }
