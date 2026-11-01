@@ -89,8 +89,9 @@ export const MENU_COMMANDS: Record<string, MenuCommand> = {
     },
   },
   'new-entry': { chord: mod('n', 'KeyN', 78) },
-  // No page claims ⌘P today; the webview's own print panel is the answer then.
-  print: { chord: mod('p', 'KeyP', 80), fallback: () => window.print(), unlisted: true },
+  // useJournalShortcuts prints the entry in front (an iframe, never the app's
+  // own window); the fallback only runs if nothing claimed the key.
+  print: { chord: mod('p', 'KeyP', 80), fallback: () => window.print() },
   find: { chord: mod('f', 'KeyF', 70) },
   'find-or-ask': { chord: mod('k', 'KeyK', 75) },
   bold: { chord: mod('b', 'KeyB', 66) },
@@ -102,10 +103,10 @@ export const MENU_COMMANDS: Record<string, MenuCommand> = {
   // same chord would open Find, which is not what "Link…" promised.
   link: { chord: mod('k', 'KeyK', 75), when: hasEditorSelection },
   'focus-mode': { chord: mod('Enter', 'Enter', 13) },
-  // useJournalShortcuts binds these; the sheet doesn't list them yet.
-  'zoom-in': { chord: mod('=', 'Equal', 187), unlisted: true },
-  'zoom-out': { chord: mod('-', 'Minus', 189), unlisted: true },
-  'zoom-reset': { chord: mod('0', 'Digit0', 48), unlisted: true },
+  // Larger / smaller / usual writing (or pages on the wall), useJournalShortcuts.
+  'zoom-in': { chord: mod('=', 'Equal', 187) },
+  'zoom-out': { chord: mod('-', 'Minus', 189) },
+  'zoom-reset': { chord: mod('0', 'Digit0', 48) },
   'go-write': { chord: mod('1', 'Digit1', 49) },
   'go-journal': { chord: mod('2', 'Digit2', 50) },
   'go-ascent': { chord: mod('3', 'Digit3', 51) },
@@ -114,8 +115,8 @@ export const MENU_COMMANDS: Record<string, MenuCommand> = {
   // History is how the app navigates (lib/appHistory.ts), so Back is the
   // browser's back — the same thing the mouse's back button does. Not a
   // replayed ⌘[: in the editor CodeMirror reads that as "outdent".
-  'go-back': { accelerator: 'CmdOrCtrl+[', fallback: () => history.back(), unlisted: true },
-  'go-forward': { accelerator: 'CmdOrCtrl+]', fallback: () => history.forward(), unlisted: true },
+  'go-back': { accelerator: 'CmdOrCtrl+[', fallback: () => history.back() },
+  'go-forward': { accelerator: 'CmdOrCtrl+]', fallback: () => history.forward() },
   // The sheet ignores "?" typed into a field or the editor, so it goes to <body>.
   shortcuts: { chord: { key: '?', code: 'Slash', keyCode: 191, shift: true }, target: 'body' },
 }

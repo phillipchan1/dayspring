@@ -104,25 +104,6 @@ export function setFullscreenInsets(fullscreen: boolean): void {
   }
 }
 
-/**
- * Where the native traffic lights sit — `trafficLightPosition` in
- * src-tauri/tauri.macos.conf.json, in points (src/lib/platform.test.ts holds
- * the two together).
- *
- * They are centred on the frame bar's first row, the way a unified toolbar
- * holds them in Notes and Mail: the row runs from `--frame-bar-top` (1.7rem)
- * for `--frame-bar-row` (2rem), so its middle is 2.7rem = 43.2pt down. Tao
- * keeps each button's own vertical offset inside the title-bar view it
- * resizes to `button height + y`, which puts a button's centre within a
- * point or two of `y`; 42 lands it on the row. Horizontally the three
- * buttons (54pt across) are centred over the collapsed rail's icon column
- * (`--rail-width` 4.5rem = 72pt): (72 − 54) / 2 = 9.
- *
- * Verify on a Mac after changing either number: the lights' centre should
- * line up with "← Pages" in the bar.
- */
-export const MAC_TRAFFIC_LIGHTS = { x: 9, y: 42 } as const
-
 /** Room for macOS traffic lights under Tauri’s overlay title bar. */
 export const MAC_TRAFFIC_INSET = {
   /**
@@ -132,10 +113,12 @@ export const MAC_TRAFFIC_INSET = {
    */
   railTop: 'var(--mac-traffic-rail-top, 0.5rem)',
   /**
-   * With the lights on the frame bar's row, the rail's first item starts
-   * where the bar ends: its top clearance, its row and its floor.
+   * Room under the traffic lights at their default spot. Moving the lights onto
+   * the frame bar's row (`trafficLightPosition`) is a later change: the rail,
+   * the ritual composer and the Scripture margins all clear 2.85rem today, and
+   * they should move together, checked on a Mac.
    */
-  railClearance: 'calc(var(--frame-bar-top) + var(--frame-bar-row) + var(--frame-bar-floor))',
+  railClearance: '2.85rem',
   sidebarX: '1rem',
   /** Main toolbar when the entry list is visible */
   mainTop: '1.7rem',

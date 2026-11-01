@@ -12,6 +12,7 @@ import { EditorView } from '@codemirror/view'
 import { settingsStore } from '@/lib/settings'
 import { deriveTitle } from './deriveTitle'
 import { printMarkdown } from './entryActions'
+import { MENU_COMMAND_EVENT } from '@/lib/nativeMenu'
 
 export interface JournalShortcutActions {
   onNew: () => void
@@ -238,13 +239,25 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
       if (e.type === 'mouseup') goUpOneLayer()
     }
 
+    // The Mac menu's Find or Ask. Its ⌘K replay would mean Link whenever words
+    // are selected in the editor (see ⌘K above), but the menu item names Find —
+    // so take it here, directly, and the selection seeds nothing.
+    const onMenuCommand = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id
+      if (id !== 'find-or-ask' || settingsOpen) return
+      e.preventDefault()
+      onFindOrAsk()
+    }
+
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('mouseup', onMouseBack, true)
     window.addEventListener('auxclick', onMouseBack, true)
+    window.addEventListener(MENU_COMMAND_EVENT, onMenuCommand)
     return () => {
       window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('mouseup', onMouseBack, true)
       window.removeEventListener('auxclick', onMouseBack, true)
+      window.removeEventListener(MENU_COMMAND_EVENT, onMenuCommand)
     }
   }, [
     onNew,

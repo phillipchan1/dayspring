@@ -23,6 +23,7 @@ import { signOut } from '@/lib/auth'
 import { checkBiometry, promptBiometric, type BiometryLabel } from './biometric'
 import { PinField } from './PinField'
 import './AppLock.css'
+import { haptic } from '@/lib/haptics'
 
 /**
  * How long a wrong PIN's dots stay filled while they shake, before clearing for
@@ -95,6 +96,7 @@ export function LockScreen({
     }
     setError(config.kind === 'pin' ? 'That PIN doesn’t match.' : 'That doesn’t match.')
     setShake((n) => n + 1)
+    haptic('error')
     // Let the filled dots shake before they empty for the next try.
     const wait = config.kind === 'pin' && !prefersReducedMotion() ? SHAKE_MS : 0
     clearTimer.current = setTimeout(() => {

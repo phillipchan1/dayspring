@@ -68,6 +68,7 @@ import { WritingFontPicker } from './WritingFontPicker'
 import { ThemePicker } from './ThemePicker'
 import { openFirstLight } from '@/features/firstlight/open'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
+import { haptic } from '@/lib/haptics'
 
 interface Props {
   settings: Settings
@@ -971,7 +972,10 @@ function Toggle({
         disabled={disabled}
         className="switch"
         data-on={checked}
-        onClick={() => onChange(!checked)}
+        onClick={() => {
+          haptic('selection')
+          onChange(!checked)
+        }}
       >
         <span className="switch__thumb" />
       </button>

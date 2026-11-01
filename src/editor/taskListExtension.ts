@@ -17,6 +17,7 @@ import {
   toggledMarker,
   uncheckedTaskPrefix,
 } from '@/lib/taskListMarkdown'
+import { haptic } from '@/lib/haptics'
 
 class TaskCheckboxWidget extends WidgetType {
   constructor(
@@ -74,6 +75,7 @@ export function toggleTaskAt(view: EditorView, markerFrom: number): boolean {
   const hadFocus = view.hasFocus
   view.dispatch({ changes: { from, to, insert } })
   if (hadFocus && !view.hasFocus) view.focus()
+  haptic('light')
   return true
 }
 

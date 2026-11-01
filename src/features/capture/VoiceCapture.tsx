@@ -213,9 +213,17 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
                   <button type="button" className="btn btn--ghost" onClick={handleCancel}>
                     Close
                   </button>
-                  <button type="button" className="btn" onClick={() => void start()}>
-                    Try again
-                  </button>
+                  {/* iOS asks for the microphone once. After a "Don't Allow", trying
+                      again can never work — the only way back is Settings. */}
+                  {dictation.micDenied && dictation.openMicSettings ? (
+                    <button type="button" className="btn" onClick={dictation.openMicSettings}>
+                      Open Settings
+                    </button>
+                  ) : (
+                    <button type="button" className="btn" onClick={() => void start()}>
+                      Try again
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -21,6 +21,7 @@ import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { PinField } from './PinField'
 import './AppLock.css'
+import { haptic } from '@/lib/haptics'
 
 /**
  * Esc cancels the dialog — and only the dialog.
@@ -153,6 +154,7 @@ export function SetPinFlow({
         biometric: biometryLabel ? useBiometry : false,
       })
       await saveAppLock(built)
+      haptic('success')
     })
   }
 

@@ -20,6 +20,7 @@ import { FULL_ACCESS_SENTENCE, SERVICE_BULLETS } from './valueCopy'
 import { RitualLibraryGrowth } from './RitualLibraryGrowth'
 import { untilHandoffSettles } from './handoff'
 import './Paywall.css'
+import { haptic } from '@/lib/haptics'
 
 export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}) {
   const useApple = isAppleIapAvailable()
@@ -61,11 +62,13 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           return
         }
         if (outcome === 'pending') {
+          haptic('warning')
           setError('Purchase is pending approval. You’ll get access once it’s approved.')
           setLoading(null)
           return
         }
         if (warning) setNotice(warning)
+        haptic('success')
         onPurchased?.()
         return
       }
@@ -90,6 +93,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
       // recorded plan, and the server decides what happens next.
       onPurchased?.()
       const message = describeRestore(outcome)
+      haptic(message?.kind === 'error' ? 'error' : 'success')
       if (message?.kind === 'error') setError(message.text)
       else if (message) setNotice(message.text)
     } catch (e) {

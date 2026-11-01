@@ -7,6 +7,7 @@ import { isContextPress, useMenuExit, useMenuKeyboard } from '@/hooks/useMenuKey
 import { deriveTitle } from './deriveTitle'
 import { canShareEntry } from './entryActions'
 import { EntryMenuIcon, type EntryMenuIconName } from './entryMenuIcons'
+import { haptic } from '@/lib/haptics'
 
 export type EntryMenuPhase =
   | { kind: 'closed' }
@@ -152,7 +153,10 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete, sh
       if (!act) return
       e.preventDefault()
       e.stopPropagation()
-      if (act === 'confirm') onAction('delete', phase.entry)
+      if (act === 'confirm') {
+        haptic('warning')
+        onAction('delete', phase.entry)
+      }
       onClose()
     }
 
@@ -286,6 +290,7 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete, sh
                   className="btn btn--danger"
                   aria-keyshortcuts="Meta+Backspace"
                   onClick={() => {
+                    haptic('warning')
                     onAction('delete', phase.entry)
                     onClose()
                   }}

@@ -4,6 +4,7 @@ import { startLiveCaptions, type LiveCaptions } from '@/lib/realtimeDictation'
 import { dictationCheckpoint, dictationDelete } from '@/lib/db'
 import { isIOSTauri } from '@/lib/platform'
 import { useSession } from './useSession'
+import { haptic } from '@/lib/haptics'
 
 export type DictationStatus = 'idle' | 'recording' | 'transcribing' | 'error'
 
@@ -250,6 +251,7 @@ export function useDictation(): Dictation {
       }, 200)
 
       setStatus('recording')
+      haptic('medium')
 
       // Live captions — additive feel on top of the durable recording. Tap the
       // same mic stream + AudioContext to stream the transcript as the user

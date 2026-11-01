@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { haptic } from '@/lib/haptics'
 
 /**
  * The press model a page card needs.
@@ -106,6 +107,7 @@ export function useWallPointer(openMenuAt: (x: number, y: number) => void): Wall
           el.setAttribute('data-lifted', 'true')
           window.clearTimeout(liftRef.current)
           liftRef.current = window.setTimeout(() => el.removeAttribute('data-lifted'), LIFT_MS)
+          haptic('medium')
           openMenuAt(x, y)
         }, LONG_PRESS_MS)
       },

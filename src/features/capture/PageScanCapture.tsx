@@ -8,6 +8,7 @@ import { canScanNatively, scanPagesNatively } from '@/lib/nativeCapture'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { useExit, useMergedRef } from '@/hooks/usePresence'
 import './PageScanCapture.css'
+import { haptic } from '@/lib/haptics'
 
 interface PageScanCaptureProps {
   /** Insert the transcribed text into the entry at the captured caret. */
@@ -114,9 +115,11 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
       )
       setDraft(text)
       setPhase('review')
+      haptic('success')
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Transcription failed')
       setPhase('error')
+      haptic('error')
     }
   }
 

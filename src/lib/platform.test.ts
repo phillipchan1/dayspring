@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   MAC_TRAFFIC_INSET,
-  MAC_TRAFFIC_LIGHTS,
   isAppleTouchDevice,
   platformKind,
   setFullscreenInsets,
@@ -145,11 +144,6 @@ describe('the Mac window config', () => {
       app: { windows: Array<Record<string, unknown>> }
     }
 
-  it('puts the traffic lights where platform.ts says they are', () => {
-    const [window] = read('tauri.macos.conf.json').app.windows
-    expect(window?.trafficLightPosition).toEqual(MAC_TRAFFIC_LIGHTS)
-  })
-
   it('starts the Mac window hidden on the Ink ground, inspector off', () => {
     const [window] = read('tauri.macos.conf.json').app.windows
     expect(window).toMatchObject({ visible: false, backgroundColor: '#14161d', devtools: false })
@@ -161,10 +155,9 @@ describe('the Mac window config', () => {
     // reach the Mac.
     const [shared] = read('tauri.conf.json').app.windows
     const [mac] = read('tauri.macos.conf.json').app.windows
-    const { visible, backgroundColor, trafficLightPosition, devtools, ...rest } = mac ?? {}
+    const { visible, backgroundColor, devtools, ...rest } = mac ?? {}
     void visible
     void backgroundColor
-    void trafficLightPosition
     void devtools
     expect(rest).toEqual(shared)
   })
