@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, type RefObject } from 'react'
+import { prefersReducedMotion } from './usePresence'
 
 /**
  * Menus that behave like NSMenu / UIMenu and look like Dayspring
@@ -136,18 +137,15 @@ export function typeaheadIndex(labels: readonly string[], current: number, buffe
 
 // ── Exit fade ──────────────────────────────────────────────────────────────
 
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  )
-}
-
 /** `--dur-exit` (themes.css). Kept in step with the token by a test. */
 export const MENU_EXIT_MS = 150
 
 /**
  * Keep a closed menu on screen long enough to fade out.
+ *
+ * The menus' own, lighter cousin of usePresence: a menu's exit is one fixed
+ * opacity fade, so a timer on the token is enough and no node has to report
+ * its animation's end.
  *
  * Mac menus appear instantly and fade over ~150ms when they go
  * (DESIGN_PRINCIPLES N3). Pass the menu's open value (null when closed); you

@@ -1,3 +1,5 @@
+import { periodName, writersDay, type Grain } from './period'
+
 /** Snapshot stored on each `history.pushState` / `replaceState` for in-app back/forward. */
 export const APP_HISTORY_TAG = 'dayspring' as const
 
@@ -11,12 +13,31 @@ export type AscentDrill =
   | { kind: 'scripture'; osisRef: string }
   | { kind: 'band'; bandId: string; bandKind: 'rope' | 'thread'; label: string }
 
+/**
+ * Where the reader stood on the Ascent when they left it for an entry — kept on
+ * the Ascent's own frame, so the way back lands on the same spot instead of the
+ * top of the same page, and the thing they opened can be found and marked.
+ */
+export interface AscentSeat {
+  /** The scroller's `scrollTop`. */
+  top: number
+  /** The entry they opened from here. */
+  entryId: string | null
+  /** Which of the controls that open it they pressed — a page can offer the
+   *  same entry twice (a month's highlights, then its list), and the one to find
+   *  again is the one under their hand, not the first in the document. */
+  nth: number
+}
+
 export interface EntryReturnContext {
   surface: EntryReturnSurface
   scriptureBook: string | null
   scriptureVerse: string | null
   /** Ascent altitude (0 = Valley/week … 3 = Summit) when returning from an entry preview. */
   ascentAltitude: number
+  /** Periods back from now at that altitude (0 = this month, 1 = last month …).
+   *  Absent on a ticket from another surface, and on one saved before it existed. */
+  ascentOffset?: number
   ascentDrill: AscentDrill | null
   /** Pages lighting and open reader — so Back lands on the page you left, not the wall. */
   pagesSubject: string | null
@@ -60,6 +81,20 @@ export interface AppHistoryState {
   entryReturn: EntryReturnContext | null
   /** Ascent altitude index (0 = Valley/week … 3 = Summit). */
   ascentAltitude: number
+  /**
+   * How far back through that altitude's periods the reader has stepped (the
+   * When's ‹ ›): 0 = this week / month / season / year, 1 = the one before.
+   *
+   * On the frame, not in the component, because it is part of WHERE the reader
+   * is. As component state it died with the Ascent when an entry took the
+   * canvas, so every way back — Esc, ⌘[, the mouse, a swipe — landed on
+   * "now" instead of on the October they had stepped to. Stepping REPLACES the
+   * frame rather than pushing one: Back leaves a place, it does not retrace
+   * how you moved around inside it.
+   */
+  ascentOffset: number
+  /** Where the reader stood when they left the Ascent for an entry. */
+  ascentSeat: AscentSeat | null
   /** Open Ascent drill-in; its own history frame for mouse / browser Back. */
   ascentDrill: AscentDrill | null
   /** Subject lighting the Pages wall (`word:<text>` or `c:<concordance id>`). */
@@ -89,6 +124,8 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   scriptureVerse: null,
   entryReturn: null,
   ascentAltitude: 0,
+  ascentOffset: 0,
+  ascentSeat: null,
   ascentDrill: null,
   pagesSubject: null,
   pagesSpreadId: null,
@@ -106,9 +143,32 @@ export function isAppHistoryState(value: unknown): value is AppHistoryState {
 
 const ASCENT_ALTITUDE_MAX = 3
 
+/** Altitude index → the grain it stands for, in the shared vocabulary. The tier
+ *  is still called 'quarter' in the rollup schema; out loud it is the season. */
+export const ASCENT_GRAIN: Grain[] = ['week', 'month', 'season', 'year']
+
+/** Further back than any archive goes; a corrupt frame cannot ask for more. */
+const ASCENT_OFFSET_MAX = 1000
+
 function normalizeAscentAltitude(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 0
   return Math.min(ASCENT_ALTITUDE_MAX, Math.max(0, Math.round(value)))
+}
+
+export function normalizeAscentOffset(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return Math.min(ASCENT_OFFSET_MAX, Math.max(0, Math.floor(value)))
+}
+
+function normalizeAscentSeat(value: unknown): AscentSeat | null {
+  if (typeof value !== 'object' || value === null) return null
+  const v = value as AscentSeat
+  if (typeof v.top !== 'number' || !Number.isFinite(v.top) || v.top < 0) return null
+  return {
+    top: Math.round(v.top),
+    entryId: typeof v.entryId === 'string' ? v.entryId : null,
+    nth: Number.isInteger(v.nth) && v.nth >= 0 ? v.nth : 0,
+  }
 }
 
 function normalizeAscentDrill(value: unknown): AscentDrill | null {
@@ -150,6 +210,7 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
     scriptureBook: typeof r.scriptureBook === 'string' ? r.scriptureBook : null,
     scriptureVerse: typeof r.scriptureVerse === 'string' ? r.scriptureVerse : null,
     ascentAltitude: normalizeAscentAltitude(r.ascentAltitude),
+    ...(typeof r.ascentOffset === 'number' ? { ascentOffset: normalizeAscentOffset(r.ascentOffset) } : {}),
     ascentDrill: normalizeAscentDrill(r.ascentDrill),
     pagesSubject: typeof r.pagesSubject === 'string' ? r.pagesSubject : null,
     pagesSpreadId: typeof r.pagesSpreadId === 'string' ? r.pagesSpreadId : null,
@@ -171,6 +232,8 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     surface: normalizeSurface(state.surface),
     entryReturn: normalizeEntryReturn(state.entryReturn),
     ascentAltitude: normalizeAscentAltitude(state.ascentAltitude),
+    ascentOffset: normalizeAscentOffset(state.ascentOffset),
+    ascentSeat: normalizeAscentSeat(state.ascentSeat),
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
     pagesSubject: typeof state.pagesSubject === 'string' ? state.pagesSubject : null,
     pagesSpreadId: typeof state.pagesSpreadId === 'string' ? state.pagesSpreadId : null,
@@ -207,6 +270,8 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.scriptureVerse === b.scriptureVerse &&
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     a.ascentAltitude === b.ascentAltitude &&
+    a.ascentOffset === b.ascentOffset &&
+    JSON.stringify(a.ascentSeat) === JSON.stringify(b.ascentSeat) &&
     a.pagesSubject === b.pagesSubject &&
     a.pagesSpreadId === b.pagesSpreadId &&
     a.pagesVolume === b.pagesVolume &&
@@ -334,6 +399,7 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureBook: null,
       scriptureVerse: null,
       ascentAltitude: state.ascentAltitude,
+      ascentOffset: state.ascentOffset,
       ascentDrill: state.ascentDrill,
       pagesSubject: null,
       pagesSpreadId: null,
@@ -351,6 +417,48 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       ...(state.pagesVolume !== null ? { pagesVolume: state.pagesVolume } : {}),
     }
   }
+  return null
+}
+
+/**
+ * Where Back goes, said as the place you will land: "Ascent", and when the
+ * reader had stepped back through time, "Ascent · October 2026".
+ *
+ * The bare surface name was all the entry's Back control ever said, so someone
+ * who had walked back to October and opened a photo had no way to know that
+ * Back meant October. The period is left off when it is now — a label that
+ * always carried one would stop saying anything.
+ */
+export function entryReturnLabel(ret: EntryReturnContext, now: Date = writersDay()): string {
+  const base = ENTRY_RETURN_LABEL[ret.surface]
+  const offset = ret.ascentOffset ?? 0
+  if (ret.surface !== 'reflections' || offset <= 0) return base
+  const grain = ASCENT_GRAIN[normalizeAscentAltitude(ret.ascentAltitude)]!
+  return `${base} · ${periodName(grain, offset, now)}`
+}
+
+/**
+ * ⌘[ and ⌘] — Back and Forward, the way Safari and Finder say them and the way
+ * most Mac mouse drivers send a side button (as the keystroke, not as button 3
+ * and 4). Dayspring has no browser chrome to catch them, so without this the
+ * mouse's Back was a dead button.
+ *
+ * Only the bare chord: ⇧⌘[ is "previous tab" in every host that has tabs, and
+ * ⌥ is how some layouts reach the bracket at all. Whether the key may be taken
+ * where someone is typing is the caller's to say — in the editor ⌘[ is
+ * "outdent".
+ */
+export function keyboardHistoryAction(e: {
+  key: string
+  code?: string
+  metaKey: boolean
+  ctrlKey: boolean
+  altKey: boolean
+  shiftKey: boolean
+}): 'back' | 'forward' | null {
+  if (!e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return null
+  if (e.key === '[' || e.code === 'BracketLeft') return 'back'
+  if (e.key === ']' || e.code === 'BracketRight') return 'forward'
   return null
 }
 

@@ -90,6 +90,12 @@
   cursor: grab;
   /* A drag on a photo moves the photo, not the sheet. */
   touch-action: none;
+  /* ...and only the photo: no browser drag image trailing it on a Mac, no
+     iOS lift-and-drag of the picture, no callout on a long press. */
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   transition: translate 160ms ease, scale 160ms ease, box-shadow 160ms ease;
 }
 
@@ -119,6 +125,7 @@
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .photo-arrange__caption {

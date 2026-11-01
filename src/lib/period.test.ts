@@ -9,6 +9,7 @@ import {
   onCarriedPeriod,
   periodEyebrow,
   periodName,
+  periodNowLabel,
   periodWindow,
   quarterWindow,
   readCarriedOffset,
@@ -16,6 +17,7 @@ import {
   spanStartMs,
   spanWindow,
   spanWindowAt,
+  writersDay,
 } from './period'
 
 /** A Tuesday, mid-quarter, mid-year — nothing lands on a boundary by accident. */
@@ -162,11 +164,32 @@ describe('periodName', () => {
 })
 
 describe('periodEyebrow', () => {
-  it('says "this" for the current period and the grain for a past one', () => {
+  it('says "this" for the current period, "last" for the one before, the grain beyond', () => {
     expect(periodEyebrow('season', 0, NOW)).toBe('This season · Fall 2026')
-    expect(periodEyebrow('season', 1, NOW)).toBe('Season · Summer 2026')
+    expect(periodEyebrow('season', 1, NOW)).toBe('Last season · Summer 2026')
+    expect(periodEyebrow('season', 2, NOW)).toBe('Season · Spring 2026')
     expect(periodEyebrow('week', 0, NOW)).toBe('This week · Sep 14 – 20')
     expect(periodEyebrow('all', 0, NOW)).toBe('All time')
+  })
+})
+
+describe('the way home', () => {
+  it('names the current period the way the eyebrow does', () => {
+    expect(periodNowLabel('week')).toBe('This week')
+    expect(periodNowLabel('month')).toBe('This month')
+    expect(periodNowLabel('season')).toBe('This season')
+    expect(periodNowLabel('year')).toBe('This year')
+  })
+})
+
+describe('writersDay', () => {
+  it("is noon UTC of the writer's LOCAL date, so a late evening never shows tomorrow", () => {
+    // Local 23:50 on Oct 31 — whatever the host's zone, the month is still October.
+    const lateEvening = new Date(2026, 9, 31, 23, 50)
+    const anchor = writersDay(lateEvening)
+    expect(anchor.toISOString()).toBe('2026-10-31T12:00:00.000Z')
+    expect(periodName('month', 0, anchor)).toBe('October 2026')
+    expect(periodName('month', 1, anchor)).toBe('September 2026')
   })
 })
 

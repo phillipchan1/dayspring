@@ -2466,6 +2466,8 @@ textarea,
 }
 .journal-topbar__back {
   flex-shrink: 0;
+  /* "Ascent · October 2026" is one place, not two words to break between. */
+  white-space: nowrap;
   padding: 0.2rem 0.45rem;
   margin: 0;
   border: none;
@@ -2764,11 +2766,15 @@ textarea,
   }
 }
 
-/* ONE PILL (PillSet.tsx): the bar's sans, and the rail's own chosen tile. */
+/* ONE PILL (PillSet.tsx): the bar's sans, and the rail's own chosen tile —
+   which slides between the pills (see "THE SELECTION PLATE" below). */
 .pill-set {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   gap: 0.1rem;
+  --plate-radius: var(--radius-full);
 }
 .pill {
   display: inline-flex;
@@ -2785,7 +2791,9 @@ textarea,
   color: var(--bar-ink);
   white-space: nowrap;
   cursor: default;
-  transition: color var(--transition), background-color var(--transition);
+  transition:
+    color var(--dur-quick) var(--ease-out),
+    background-color var(--dur-quick) var(--ease-out);
 }
 .pill:hover {
   color: var(--bar-ink-hover);
@@ -2862,6 +2870,23 @@ textarea,
   margin-inline: 0.4rem;
   background: var(--border);
 }
+.when__mid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 0;
+}
+/* The way home. A bordered chip, so it reads as an action beside the pills and
+   never as one more chosen thing; only there when the period is not now. */
+.when__home {
+  margin-inline-end: 0.55rem;
+  border: 1px solid var(--border);
+}
+@media (hover: hover) {
+  .when__home:hover {
+    border-color: var(--bar-ink-hover);
+  }
+}
 /* A narrow window: the period stays, the ladder tightens. */
 @media (max-width: 1099px) {
   .when--bar .pill {
@@ -2894,6 +2919,16 @@ textarea,
 }
 .when--row .when__step {
   justify-content: space-between;
+}
+.when--row .when__mid {
+  flex: 1;
+  gap: 0.5rem;
+}
+.when--row .when__home {
+  min-height: 1.9rem;
+  margin: 0;
+  padding-inline: 0.65rem;
+  font-size: 0.8rem;
 }
 .when--row .when__arrow {
   inline-size: 2.75rem;
@@ -3419,6 +3454,10 @@ html[data-chapter-pane] .focus-controls--docked {
 
 /* ── Settings segmented control (light / dark / auto) ───────────────────── */
 .segmented {
+  position: relative;
+  /* The plate sits under the labels and over the track: a stacking context of
+     its own, so z-index -1 can't fall behind the panel the control is on. */
+  isolation: isolate;
   display: flex;
   gap: 2px;
   padding: 3px;
@@ -3436,11 +3475,62 @@ html[data-chapter-pane] .focus-controls--docked {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   cursor: default;
-  transition: background var(--transition), color var(--transition);
+  transition:
+    background-color var(--dur-quick) var(--ease-out),
+    color var(--dur-quick) var(--ease-out);
 }
 .segmented__btn[data-active='true'] {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/*
+ * THE SELECTION PLATE (hooks/useSelectionPlate.ts), shared with `.pill-set`.
+ *
+ * One tile that slides to the choice, the way a UISegmentedControl's thumb
+ * travels, instead of the chosen tile blinking off one option and on at the
+ * next (DESIGN_PRINCIPLES N3: a state change, 100–200ms, decelerating). Until
+ * the hook has measured, the chosen option keeps drawing its own tile, so
+ * nothing depends on it having run.
+ */
+.segmented::before,
+.pill-set::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: var(--plate-w, 0);
+  height: var(--plate-h, 0);
+  translate: var(--plate-x, 0) var(--plate-y, 0);
+  /* The chosen option's own radius: 5px on a segment, round on a pill. */
+  border-radius: var(--plate-radius, 5px);
+  background: var(--plate-bg, var(--accent-soft));
+  opacity: 0;
+  pointer-events: none;
+}
+.segmented[data-plate]::before,
+.pill-set[data-plate]::before {
+  opacity: 1;
+}
+.segmented[data-plate='none']::before,
+.pill-set[data-plate='none']::before {
+  opacity: 0;
+}
+.segmented[data-plate='on']::before,
+.pill-set[data-plate='on']::before,
+.segmented[data-plate='none']::before,
+.pill-set[data-plate='none']::before {
+  transition:
+    translate var(--dur-base) var(--ease-out),
+    width var(--dur-base) var(--ease-out),
+    height var(--dur-base) var(--ease-out),
+    opacity var(--dur-quick) var(--ease-out);
+}
+/* The plate is the tile now; the choice only takes the ink. */
+.segmented[data-plate] .segmented__btn[data-active='true'],
+.pill-set[data-plate] .pill[aria-pressed='true'] {
+  background-color: transparent;
 }
 .segmented__btn:hover {
   color: var(--text-bright);
@@ -4142,7 +4232,115 @@ html[data-chapter-pane] .focus-controls--docked {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 40;
-  animation: fade-in 140ms ease;
+  /* The dimming comes up, not the layer: the scrim CONTAINS the sheet or
+     dialog in most of these, so fading its opacity faded what it held too —
+     a sheet half see-through as it rose. */
+  animation: ds-scrim-in var(--dur-base) var(--ease-out);
+}
+
+/* ── Presence: how layers leave (hooks/usePresence.ts) ──────────────────────
+ *
+ * A layer that is closing stays mounted with `data-state="closing"` until its
+ * exit animation ends (DESIGN_PRINCIPLES N3: exits are faster than entrances,
+ * not absent). What follows is the shared vocabulary; each layer picks its own
+ * exit next to its entrance.
+ *
+ *   sheets      rise   ds-sheet-rise   --dur-sheet --ease-ios
+ *               leave  ds-sheet-fall   --dur-exit  --ease-exit
+ *   Mac modals  arrive ds-modal-in     --dur-base  --ease-out
+ *               leave  ds-modal-out    --dur-exit  --ease-exit
+ *   scrims      ds-scrim-in / ds-scrim-out
+ *
+ * The leaving keyframes name only their END. Their start is wherever the layer
+ * is — which, for a sheet let go of mid-drag, is where the finger left it
+ * (useSheetDismiss leaves its `translate` in place, and these animate
+ * `transform`, which composes with it).
+ *
+ * A closing layer takes no pointer: the user is already somewhere else, and a
+ * tap meant for what is underneath must not land on what is leaving.
+ */
+[data-state='closing'] {
+  pointer-events: none;
+}
+.scrim[data-state='closing'] {
+  animation: ds-scrim-out var(--dur-exit) var(--ease-exit) forwards;
+}
+/* Let go of mid-flick: the exit starts at the finger's speed, so it can't start
+   from rest the way --ease-exit does. */
+[data-released][data-state='closing'] {
+  animation-timing-function: var(--ease-out) !important;
+}
+@keyframes ds-scrim-in {
+  from {
+    background-color: transparent;
+    -webkit-backdrop-filter: blur(0) saturate(1);
+    backdrop-filter: blur(0) saturate(1);
+  }
+}
+@keyframes ds-scrim-out {
+  to {
+    background-color: transparent;
+    -webkit-backdrop-filter: blur(0) saturate(1);
+    backdrop-filter: blur(0) saturate(1);
+  }
+}
+@keyframes ds-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ds-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ds-sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes ds-sheet-fall {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes ds-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@keyframes ds-modal-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/*
+ * Reduce Motion: nothing travels, but things still arrive (N3 — swap movement
+ * for a crossfade, so the cue that something came and went survives). The
+ * global rule at the top of this file deletes every animation; the layers this
+ * section owns opt back in to a fade, and only a fade. Exits are immediate
+ * there (usePresence doesn't wait), so only the way in needs saying.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .scrim {
+    animation: ds-fade-in var(--dur-base) var(--ease-out) !important;
+  }
+  .settings-modal,
+  .shortcuts-overlay,
+  .concordance-drawer,
+  .command-popover--sheet,
+  .voice-capture,
+  .page-scan,
+  .command-popover__scrim,
+  .ascent-drill__scrim,
+  .ascent-drill__panel,
+  .pg-sheet[data-narrow='true'],
+  .pg-sheet__scrim {
+    animation: ds-fade-in var(--dur-base) var(--ease-out) !important;
+  }
 }
 
 /* ── Mobile entry drawer ────────────────────────────────────────────────── */
@@ -4325,7 +4523,12 @@ html[data-chapter-pane] .focus-controls--docked {
   /* Tall enough that a landscape iPad (~834pt) doesn't cut its list off. */
   height: min(88dvh, 56rem);
   border-radius: 18px;
-  animation: glass-modal-in var(--transition-slow) both;
+  /* A Mac dialog: a short fade and settle in, a quicker fade and shrink out
+     (see "Presence" above). Utility motion, so the platform's pace. */
+  animation: ds-modal-in var(--dur-base) var(--ease-out);
+}
+.settings-modal[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
 }
 @keyframes glass-modal-in {
   from {
@@ -4338,7 +4541,7 @@ html[data-chapter-pane] .focus-controls--docked {
   }
 }
 
-/* Mobile: full-screen bottom sheet */
+/* Mobile: a bottom sheet that rises from the edge and goes back down it. */
 @media (max-width: 767px) {
   .settings-scrim {
     align-items: flex-end;
@@ -4346,27 +4549,22 @@ html[data-chapter-pane] .focus-controls--docked {
   }
   .settings-modal {
     width: 100vw;
-    height: 100dvh;
-    max-height: 100dvh;
+    /* Clear of the status bar by a little, the way an iOS page sheet stops
+       short of the top: the grabber used to sit under the Dynamic Island, and
+       the dimmed strip above is the sheet's own tap-away. */
+    height: calc(100dvh - var(--safe-top) - 10px);
+    max-height: calc(100dvh - var(--safe-top) - 10px);
     border-radius: 12px 12px 0 0;
-    animation: glass-modal-mobile-in var(--transition-slow) both;
+    animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios);
     flex-direction: column;
-    /* Snap-back when a drag is released short of the dismiss threshold. The
-       drag itself sets `transition: none` inline so it tracks the finger. */
-    transition: transform var(--transition) ease-out;
+    /* No transition here: useSheetDismiss draws the drag on `translate` and
+       springs a short pull home itself. */
     /* The sheet owns vertical gestures; the body opts back in via its own
        overflow-y. Without this iOS scrolls the page behind the drag. */
     touch-action: pan-y;
   }
-  @keyframes glass-modal-mobile-in {
-    from {
-      opacity: 0;
-      transform: translateY(100%);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
+  .settings-modal[data-state='closing'] {
+    animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
   }
 }
 
@@ -4382,7 +4580,7 @@ html[data-chapter-pane] .focus-controls--docked {
     justify-content: center;
     width: 100%;
     flex: 0 0 auto;
-    padding: max(0.5rem, env(safe-area-inset-top)) 0 0.45rem;
+    padding: 0.5rem 0 0.45rem;
     border: none;
     /* The sheet's own ground, not a window onto the page under it — the top
        half of the entry's title showed through above the tabs. */
@@ -4451,7 +4649,7 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-dim);
   font-size: 0.88rem;
   text-align: left;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .settings-nav__item:hover {
   background: var(--bg-hover);
@@ -4553,7 +4751,7 @@ html[data-chapter-pane] .focus-controls--docked {
      without this the scroller rubber-bands underneath it at the same time. */
   overscroll-behavior: contain;
   padding: 1.4rem;
-  animation: tab-fade var(--transition-slow) both;
+  animation: tab-fade var(--dur-base) var(--ease-out) both;
 }
 
 @media (max-width: 767px) {
@@ -4654,7 +4852,7 @@ html[data-chapter-pane] .focus-controls--docked {
   background: transparent;
   color: var(--text-dim);
   font-size: 0.82rem;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .settings-back:hover {
   background: var(--bg-hover);
@@ -4683,17 +4881,32 @@ html[data-chapter-pane] .focus-controls--docked {
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: var(--bg-input);
-  transition: background var(--transition), border-color var(--transition);
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
+/*
+ * The thumb behaves like a UISwitch's and looks like ours: it travels on a
+ * spring (a finger let go of it), and while the switch is held it stretches
+ * toward the side it would go to — the "I've got it" a native switch gives
+ * under the finger. The colours stay the voice's (accent, never system green).
+ */
 .switch__thumb {
   display: block;
   width: 1.05rem;
   height: 1.05rem;
   margin-left: 0.1rem;
-  border-radius: 50%;
+  /* Round at rest, a pill when stretched. */
+  border-radius: var(--radius-full);
   background: var(--text-dim);
   box-shadow: var(--shadow-1);
-  transition: transform var(--transition), background var(--transition);
+  transition:
+    transform var(--dur-push) var(--ease-spring),
+    width var(--dur-quick) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
+}
+.switch:active:not(:disabled) .switch__thumb {
+  width: 1.3rem;
 }
 .switch[data-on='true'] {
   background: var(--accent-soft);
@@ -4702,6 +4915,10 @@ html[data-chapter-pane] .focus-controls--docked {
 .switch[data-on='true'] .switch__thumb {
   transform: translateX(1.1rem);
   background: var(--accent);
+}
+/* On, the thumb sits at the right: it stretches leftward, toward off. */
+.switch[data-on='true']:active:not(:disabled) .switch__thumb {
+  transform: translateX(0.85rem);
 }
 
 /* ── About tab ─────────────────────────────────────────────────────────── */
@@ -4802,7 +5019,7 @@ html[data-chapter-pane] .focus-controls--docked {
   padding: 0.4rem 0.75rem;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
-  transition: background var(--transition);
+  transition: background var(--dur-quick) var(--ease-out);
 }
 
 .settings-about__group {
@@ -4845,7 +5062,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .settings-about__row-toggle {
   padding: 0.4rem 0.75rem;
   border-radius: 0;
-  transition: background var(--transition);
+  transition: background var(--dur-quick) var(--ease-out);
 }
 
 .settings-about__row-toggle:hover {
@@ -5062,7 +5279,7 @@ html[data-chapter-pane] .focus-controls--docked {
   border-radius: var(--radius);
   background: var(--bg-input);
   text-align: left;
-  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  transition: border-color var(--dur-quick) var(--ease-out), background var(--dur-quick) var(--ease-out), transform var(--dur-quick) var(--ease-out);
 }
 .import-card:hover {
   border-color: var(--accent);
@@ -5110,7 +5327,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .import-card__go {
   color: var(--text-dim);
   font-size: 1rem;
-  transition: transform var(--transition), color var(--transition);
+  transition: transform var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .import-card:hover .import-card__go {
   color: var(--accent);
@@ -5206,7 +5423,7 @@ html[data-chapter-pane] .focus-controls--docked {
   background: var(--bg-input);
   color: var(--text-dim);
   font-size: 0.82rem;
-  transition: background var(--transition), border-color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
 }
 .dropzone:hover,
 .dropzone--active {
@@ -5320,7 +5537,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .import-progress__bar {
   height: 100%;
   background: var(--accent);
-  transition: width var(--transition);
+  transition: width var(--dur-base) var(--ease-out);
 }
 .import-success {
   color: var(--success);
@@ -5479,7 +5696,10 @@ html[data-chapter-pane] .focus-controls--docked {
   overflow-y: auto;
   padding: 1.3rem 1.5rem 1.5rem;
   border-radius: 18px;
-  animation: glass-modal-in var(--transition-slow) both;
+  animation: ds-modal-in var(--dur-base) var(--ease-out);
+}
+.shortcuts-overlay[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
 }
 .shortcuts-overlay__head {
   display: flex;
@@ -5532,7 +5752,10 @@ html[data-chapter-pane] .focus-controls--docked {
   backdrop-filter: blur(16px) saturate(var(--glass-saturate));
   font-size: 0.8rem;
   color: var(--text);
-  animation: update-toast-in var(--transition-slow) both;
+  animation: update-toast-in var(--dur-push) var(--ease-out) both;
+}
+.update-toast[data-state='closing'] {
+  animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
 }
 @keyframes update-toast-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -5567,7 +5790,7 @@ html[data-chapter-pane] .focus-controls--docked {
   padding: 0.3rem 0.65rem;
   font-size: 0.76rem;
   font-weight: 600;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
 .update-toast__btn:hover {
   background: var(--accent);
@@ -6133,7 +6356,7 @@ html[data-chapter-pane] .focus-controls--docked {
   align-items: center;
   gap: 7px;
   padding: 3px 0;
-  transition: color var(--transition);
+  transition: color var(--dur-quick) var(--ease-out);
 }
 
 .settings-disclosure__summary::-webkit-details-marker {
@@ -6147,7 +6370,7 @@ html[data-chapter-pane] .focus-controls--docked {
   border-left: 4px solid currentColor;
   border-top: 3.5px solid transparent;
   border-bottom: 3.5px solid transparent;
-  transition: transform var(--transition);
+  transition: transform var(--dur-quick) var(--ease-out);
 }
 
 .settings-disclosure[open] > .settings-disclosure__summary::before {

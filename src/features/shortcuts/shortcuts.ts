@@ -78,6 +78,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Alt', '←', '→'], label: 'An earlier or later period', when: 'in Pages, the Ascent, Lamp and Altar' },
       { keys: ['Alt', '↑', '↓'], label: 'A longer or shorter period', when: 'in Pages, the Ascent, Lamp and Altar' },
       { keys: ['↑', '↓'], label: 'Climb or descend', when: 'on the Ascent' },
+      // Back returns you to the place you left, not just the room — the same period,
+      // the same spot on the page. The mouse's side buttons do the same pair.
+      { keys: ['Mod', '['], label: 'Back to where you were', alsoKeys: ['Esc'], when: 'from an entry, not while typing' },
+      { keys: ['Mod', ']'], label: 'Forward again', when: 'not while typing' },
     ],
   },
   {

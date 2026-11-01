@@ -13,9 +13,48 @@
   width: min(26rem, 92vw);
   display: flex;
   flex-direction: column;
-  padding: 1.25rem 1.25rem 1.5rem;
+  /* Edge to edge on a phone, so the insets come back as padding: the title sat
+     under the status bar and the last row under the home indicator. */
+  padding: calc(1.25rem + var(--safe-top)) calc(1.25rem + var(--safe-right))
+    calc(1.5rem + var(--safe-bottom)) 1.25rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 0;
+  /* The browser keeps the vertical axis (the list scrolls); the horizontal one
+     is the swipe that sends the drawer back off its edge (useSwipeToDismiss). */
+  touch-action: pan-y;
+  /* In from the edge it lives on, back out the same way (DESIGN_PRINCIPLES N3). */
+  animation: concordance-in var(--dur-push) var(--ease-ios);
+  /* A swipe released short of dismissing settles home; `translate`, because
+     the entrance owns `transform`. */
+  transition: translate var(--dur-push) var(--ease-spring);
+}
+.concordance-drawer[data-dragging='true'] {
+  transition: none;
+}
+.concordance-drawer[data-state='closing'] {
+  animation: concordance-out var(--dur-exit) var(--ease-exit) forwards;
+}
+@keyframes concordance-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes concordance-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* A finger's 44pt, whatever the glyph. */
+.btn.concordance-drawer__close {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.6rem -0.6rem 0 0;
+  padding: 0;
 }
 
 .concordance-drawer__head {

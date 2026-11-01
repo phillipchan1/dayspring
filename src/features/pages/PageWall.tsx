@@ -27,6 +27,8 @@ import { track } from '@/lib/analytics'
 import { FACET_PHOTO, type FacetIndex } from './facets'
 import { pagePhotos, type PagePhoto } from './pagePhotos'
 import { PhotoPeek, type PeekAnchor } from './PhotoPeek'
+import { useRowSwipe } from './useRowSwipe'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { MARK_KINDS } from '@/lib/markKinds'
 import type { SpiritualItemType } from '@/lib/types'
 import {
@@ -1148,6 +1150,24 @@ export function PageWall({
     [deleteAndRestoreFocus, onMenuAction, closeMenu],
   )
 
+  /*
+   * A narrow row's trailing swipe (useRowSwipe): the long-press menu's verbs,
+   * one drag away. Delete… goes through the same confirmation the menu's does —
+   * a swipe can ask to delete a page, never delete one.
+   */
+  const touch = useMediaQuery('(pointer: coarse)')
+  const rowSwipe = useRowSwipe({
+    enabled: touch && rows,
+    scrollRef,
+    onAction: (entryId, action) => {
+      const entry = entries.find((e) => e.id === entryId)
+      if (!entry) return
+      setBulkPhase({ kind: 'closed' })
+      if (action === 'delete') setPhase({ kind: 'confirm', entry })
+      else handleMenuAction(action, entry)
+    },
+  })
+
   const handleBulkAction = useCallback(
     async (action: EntryBulkAction, bulk: Entry[]) => {
       try {
@@ -1299,7 +1319,11 @@ export function PageWall({
         className="pg__scroll"
         ref={scrollRef}
         onPointerDown={marquee.onPointerDown}
-        onClickCapture={marquee.onClickCapture}
+        onTouchStart={rowSwipe.onTouchStart}
+        onClickCapture={(e) => {
+          rowSwipe.onClickCapture(e)
+          if (!e.isPropagationStopped()) marquee.onClickCapture(e)
+        }}
       >
         <div ref={marqueeRef} className="pg__marquee" hidden aria-hidden />
         <div
@@ -1616,6 +1640,7 @@ export function PageWall({
         onRequestDelete={(bulk) => setBulkPhase({ kind: 'confirm', entries: bulk })}
       />
       {peek && peekOn ? <PhotoPeek key={peek.entryId} photos={peek.photos} anchor={peek.anchor} /> : null}
+      {rowSwipe.tray}
     </div>
   )
 }

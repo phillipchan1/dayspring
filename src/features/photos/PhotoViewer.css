@@ -4,25 +4,92 @@
 .photo-viewer {
   --viewer-ground: #0b0907;
   --viewer-ink: #efe6d6;
+  /* 0–1: how far a pull down has gone (set inline). */
+  --viewer-pull: 0;
   position: fixed;
   inset: 0;
   z-index: 320;
   display: flex;
   flex-direction: column;
-  background: var(--viewer-ground);
   color: var(--viewer-ink);
   font-family: var(--font-ui, system-ui, sans-serif);
   outline: none;
   overscroll-behavior: contain;
-  animation: photo-viewer-in 180ms ease both;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Images here are looked at, never dragged out (no ghost on a Mac drag). */
+.photo-viewer img {
+  -webkit-user-drag: none;
+}
+
+/* The dark ground, as its own layer so a pull can fade it and show the page
+   underneath before the viewer lets go. */
+.photo-viewer__ground {
+  position: absolute;
+  inset: 0;
+  background: var(--viewer-ground);
+  opacity: calc(1 - var(--viewer-pull) * 0.85);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* Fade in: the ground and the chrome, and the photo too unless it is growing
+   out of its thumbnail (data-flip, set before the first paint). `backwards`,
+   not `both`: a finished animation must not pin the opacity a pull fades. */
+.photo-viewer__ground,
+.photo-viewer__top,
+.photo-viewer__stage,
+.photo-viewer__foot {
+  animation: photo-viewer-in 180ms ease backwards;
+}
+.photo-viewer[data-flip] .photo-viewer__stage {
+  animation: none;
 }
 
 @keyframes photo-viewer-in {
   from {
     opacity: 0;
   }
+}
+
+/* The chrome steps aside as the photo is pulled. */
+.photo-viewer__top,
+.photo-viewer__foot {
+  opacity: calc(1 - var(--viewer-pull) * 2.5);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* A finger is on it: everything follows exactly, nothing eases. */
+.photo-viewer[data-tracking] .photo-viewer__ground,
+.photo-viewer[data-tracking] .photo-viewer__top,
+.photo-viewer[data-tracking] .photo-viewer__foot,
+.photo-viewer[data-tracking] .photo-viewer__track,
+.photo-viewer[data-tracking] .photo-viewer__frame {
+  transition: none;
+}
+
+/* Leaving (CLOSE_MS in PhotoViewer.tsx). A pulled photo carries on down from
+   where the finger let go; a closed one fades. */
+.photo-viewer[data-closing] .photo-viewer__ground,
+.photo-viewer[data-closing] .photo-viewer__top,
+.photo-viewer[data-closing] .photo-viewer__foot {
+  opacity: 0;
+  transition: opacity 200ms var(--ease-exit);
+}
+.photo-viewer[data-closing='fade'] .photo-viewer__stage {
+  opacity: 0;
+  transition: opacity 200ms var(--ease-exit);
+}
+.photo-viewer[data-closing='pull'] .photo-viewer__frame {
+  opacity: 0;
+  transition:
+    transform 200ms var(--ease-exit),
+    opacity 200ms var(--ease-exit);
+}
+.photo-viewer[data-closing] {
+  pointer-events: none;
 }
 
 .photo-viewer__wash {
@@ -79,11 +146,43 @@
   position: relative;
   flex: 1;
   min-block-size: 0;
+  overflow: hidden;
+  /* The stage owns every pan and pinch: sideways turns photos, down closes,
+     two fingers zoom. The page itself never zooms (index.html), so the zoom
+     is ours, done with pointers and a transform. */
+  touch-action: none;
+}
+
+/* The set, side by side, translated under the finger. The duration is set
+   inline from how fast the finger let go. */
+.photo-viewer__track {
+  display: flex;
+  block-size: 100%;
+  transition-property: transform;
+  transition-timing-function: var(--ease-spring);
+}
+
+.photo-viewer__slide {
+  flex: 0 0 100%;
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: 0 3.5rem;
+}
+
+/* The opening zoom's layer (styled from script, never by React) and the zoom's
+   own (translate + scale about the centre, set inline). Both fill the slide,
+   so the photo inside can size itself against it. */
+.photo-viewer__flip,
+.photo-viewer__frame {
   display: grid;
   place-items: center;
-  padding: 0 3.5rem;
-  /* The stage owns every pan: sideways turns photos, down closes. */
-  touch-action: none;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+}
+.photo-viewer__frame {
+  transition-property: transform;
+  transition-timing-function: var(--ease-spring);
 }
 
 .photo-viewer__img {
@@ -120,6 +219,11 @@
 
 .photo-viewer__nav--next {
   inset-inline-end: 0.8rem;
+}
+
+/* No wrap: at either end of the set there is nowhere further to go. */
+.photo-viewer__nav:disabled {
+  opacity: 0.25;
 }
 
 .photo-viewer__foot {
@@ -223,7 +327,7 @@
 
 /* A finger turns photos by swiping; the two buttons are for a pointer. */
 @media (hover: none) {
-  .photo-viewer__stage {
+  .photo-viewer__slide {
     padding: 0 0.5rem;
   }
 
@@ -239,7 +343,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .photo-viewer,
+  .photo-viewer__ground,
+  .photo-viewer__top,
+  .photo-viewer__stage,
+  .photo-viewer__foot,
   .photo-viewer__waiting {
     animation: none;
   }

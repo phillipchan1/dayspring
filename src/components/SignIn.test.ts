@@ -127,8 +127,37 @@ describe('SignIn (iPad tap)', () => {
       root.render(createElement(SignIn, { onDismiss, reason: 'account' }))
     })
     expect(host.textContent).toMatch(/sync this journal/i)
-    buttonNamed(host, 'Back to journal').click()
+    const back = host.querySelector<HTMLButtonElement>('[aria-label="Back to journal"]')
+    expect(back?.textContent).toBe('Journal')
+    back!.click()
     expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes the guest overlay on Esc, as a Mac sheet closes', () => {
+    const onDismiss = vi.fn()
+    act(() => {
+      root.render(createElement(SignIn, { onDismiss, reason: 'account' }))
+    })
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    })
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('has no Esc on the hard sign-in screen, where there is nowhere to go back to', () => {
+    mount()
+    const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    act(() => {
+      window.dispatchEvent(ev)
+    })
+    expect(ev.defaultPrevented).toBe(false)
+  })
+
+  // HIG + App Review: Apple's own colours, never the house gold.
+  it('draws Continue with Apple as Apple’s button and leaves Google gold', () => {
+    mount()
+    expect(buttonNamed(host, 'Continue with Apple').classList.contains('signin__btn--apple')).toBe(true)
+    expect(buttonNamed(host, 'Continue with Google').classList.contains('signin__btn--apple')).toBe(false)
   })
 
   it('pins Back to journal and the theme toggle to opposite corners on the overlay', () => {
@@ -297,6 +326,25 @@ describe('SignIn (iPad tap)', () => {
     expect(email.getAttribute('spellcheck')).toBe('false')
     expect(email.inputMode).toBe('email')
     expect(email.classList.contains('signin__input')).toBe(true)
+  })
+
+  it('moves from email to password on Return instead of submitting', () => {
+    const submit = vi.fn()
+    mount()
+    act(() => {
+      tap(buttonNamed(host, 'Sign in with email'))
+    })
+    host.querySelector('form')?.addEventListener('submit', submit)
+    const email = host.querySelector('input[type="email"]') as HTMLInputElement
+    const password = host.querySelector('input[name="password"]') as HTMLInputElement
+    email.focus()
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    act(() => {
+      email.dispatchEvent(enter)
+    })
+    expect(enter.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(password)
+    expect(submit).not.toHaveBeenCalled()
   })
 
   it('reveals and hides the password from the eye control', () => {

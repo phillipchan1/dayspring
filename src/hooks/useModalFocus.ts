@@ -19,13 +19,17 @@ import { useLayoutEffect, type RefObject } from 'react'
  *
  * `layerRef` is the layer's outermost element (its scrim); `focusRef` is what
  * takes focus on open — the dialog itself, with tabIndex -1, so no control is
- * pre-selected and Tab lands on the first one.
+ * pre-selected and Tab lands on the first one. `active` goes false when the
+ * layer starts to leave (usePresence's 'closing'): the app behind comes back
+ * and focus returns at once, not after the exit animation.
  */
 export function useModalFocus(
   layerRef: RefObject<HTMLElement | null>,
   focusRef: RefObject<HTMLElement | null> = layerRef,
+  active = true,
 ): void {
   useLayoutEffect(() => {
+    if (!active) return
     const layer = layerRef.current
     if (!layer) return
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -57,5 +61,5 @@ export function useModalFocus(
     }
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [active])
 }

@@ -1,5 +1,189 @@
-/* App lock dialog — set, change, or turn off the lock. Opened from Settings, so
-   it has to sit above the settings modal (same reason .concordance-scrim does). */
+/* App lock — the lock screen, the PIN field, and the dialog that sets, changes
+   or turns off the lock. */
+
+/* ── The PIN field (PinField.tsx) ─────────────────────────────────────────
+   Gold dots that fill as digits are typed, over an invisible real input that
+   keeps the system number pad, paste and a hardware keyboard. */
+.pin-field {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 260px;
+}
+
+.pin-field__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 44px;
+  padding: 0 8px;
+}
+
+.pin-field__dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  background: transparent;
+  transition: background-color var(--dur-quick) var(--ease-out), border-color var(--dur-quick) var(--ease-out);
+}
+.pin-field__dot[data-filled='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  /* A digit lands at once; only emptying eases. */
+  transition-duration: 0s;
+}
+
+/* Laid exactly over the dots, and invisible: a tap on the dots is a tap here. */
+.pin-field__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  /* 16px is the iOS floor below which focusing zooms the web view. */
+  font-size: 16px;
+  cursor: default;
+}
+
+/* A passphrase stays a masked line of text. */
+.pin-field__text {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright) 4%, transparent);
+  border: 0.5px solid var(--border);
+  color: var(--text-bright);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 16px;
+  text-align: center;
+  -webkit-text-security: disc;
+  outline: none;
+}
+.pin-field__text:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+/* A wrong PIN: a damped shake, as the passcode screen does. SHAKE_MS in
+   LockScreen.tsx waits this out before the dots empty. None under Reduce
+   Motion — the error line says it instead. */
+.pin-field[data-shaking] {
+  animation: pin-field-shake 360ms linear both;
+}
+@keyframes pin-field-shake {
+  0% { transform: translateX(0); }
+  12% { transform: translateX(-11px); }
+  27% { transform: translateX(9px); }
+  42% { transform: translateX(-6px); }
+  57% { transform: translateX(4px); }
+  72% { transform: translateX(-2px); }
+  86% { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+
+/* ── The lock screen (LockScreen.tsx) ────────────────────────────────────
+   `.center-screen` like SignIn, plus the safe-area insets — the iOS shell is
+   100dvh with native scrolling switched off, so anything reaching a screen
+   edge has to add those back itself or it lands under the Dynamic Island. */
+.applock-screen {
+  position: relative;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+.applock-screen__glow {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(196, 145, 60, 0.05) 0%, transparent 70%);
+  transform: translate(-50%, -55%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.applock-screen__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 340px;
+  padding: 0 24px;
+}
+
+.applock-screen__mark {
+  margin-bottom: 18px;
+}
+
+.applock-screen__body {
+  margin: 0 0 22px;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* Always occupies its line, so a wrong attempt doesn't shove the buttons. */
+.applock-screen__error {
+  min-height: 1em;
+  margin: 10px 0 14px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 12px;
+  color: var(--danger);
+  text-align: center;
+  visibility: hidden;
+}
+.applock-screen__error[data-visible='true'] {
+  visibility: visible;
+}
+
+.applock-screen__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+/* The shared .btn, sized for a finger and the field's measure. */
+.applock-screen__primary {
+  justify-content: center;
+  width: 100%;
+  max-width: 260px;
+  min-height: 44px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.applock-screen__quiet {
+  justify-content: center;
+  min-height: 44px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--text-faint);
+}
+.applock-screen__quiet--faint {
+  opacity: 0.7;
+}
+
+/* ── The set / change / turn-off dialog (SetPinFlow.tsx) ─────────────────
+   Opened from Settings, so it has to sit above the settings modal (same
+   reason .concordance-scrim does). */
 
 .applock-scrim {
   z-index: 60;
@@ -11,6 +195,8 @@
 
 .applock-dialog {
   width: min(24rem, 100%);
+  /* In with the app's dialog settle, out with a quick fade (useExit). */
+  animation: ds-modal-in var(--dur-base) var(--ease-out) both;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -58,19 +244,20 @@
 .applock-dialog__opt {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
+  justify-content: space-between;
+  gap: 0.9rem;
+  width: 100%;
+  max-width: 19rem;
   margin-top: 1rem;
   text-align: left;
-  cursor: default;
 }
 
-.applock-dialog__opt input {
-  margin-top: 0.15rem;
-  accent-color: var(--accent);
-  flex-shrink: 0;
+/* The Settings switch, nudged onto the label's first line. */
+.applock-dialog__opt .switch {
+  margin-top: 0.05rem;
 }
 
-.applock-dialog__opt span {
+.applock-dialog__opt-text {
   font-family: 'Inter', -apple-system, sans-serif;
   font-size: 0.78rem;
   color: var(--text);
@@ -104,6 +291,48 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+.applock-dialog[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
+}
+
+/* ── iPhone: a sheet from the bottom edge ──────────────────────────────────
+   Pulled down to cancel: useSheetDismiss draws the drag on `translate` and
+   leaves it where the finger let go, and the fall below animates `transform`,
+   which composes with it — so it leaves from where it was released. Its ground
+   follows the visible viewport, set inline, so with the keyboard up the sheet
+   rests on the keys. */
+.applock-scrim--sheet {
+  align-items: flex-end;
+  padding: 0;
+}
+
+.applock-dialog--sheet {
+  width: 100%;
+  max-height: calc(100% - var(--safe-top, 0px) - 10px);
+  padding: 0.55rem 1.5rem calc(1.25rem + var(--safe-bottom, 0px));
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios) both;
+}
+.applock-dialog--sheet[data-state='closing'] {
+  animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
+}
+
+.applock-dialog__grabber {
+  flex: none;
+  width: 36px;
+  height: 5px;
+  margin: 0 auto 0.9rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-faint) 70%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-field[data-shaking] {
+    animation: none;
+  }
 }
 
 .applock-dialog__note {

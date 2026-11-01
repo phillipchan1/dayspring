@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { periodName, type Grain, type Span } from '@/lib/period'
+import { periodName, periodNowLabel, type Grain, type Span } from '@/lib/period'
 import { PillSet } from './PillSet'
 
 /**
@@ -21,6 +21,11 @@ import { PillSet } from './PillSet'
  * is months; the Ascent has no All — a climb needs a height). The stepper walks
  * whole calendar periods back and forth, and names each one the way a calendar
  * would (`periodName`).
+ *
+ * Away from now, one more thing appears: the way home ("This month"), a single
+ * press back to the current period. Stepping is cheap and the arrows only go one
+ * way at a time, so without it the cost of looking at last spring was eight
+ * presses to be back — and nothing in the control said you were not.
  */
 
 const ORDER: Span[] = ['week', 'month', 'season', 'year', 'all']
@@ -77,6 +82,7 @@ export function WhenControl({
   const laterOff = !grain || offset <= 0
   const period = grain ? periodName(grain, offset, now) : (label ?? 'All time')
   const root = useRef<HTMLDivElement>(null)
+  const earlier = useRef<HTMLButtonElement>(null)
 
   // Latest values for the key handler, so it can be bound once.
   const latest = useRef({ shown, span, offset, earlierOff, laterOff, onSpan, onOffset })
@@ -112,9 +118,29 @@ export function WhenControl({
   }, [keys])
 
   const word = grain ? WORD[grain].toLowerCase() : 'period'
+  // Only when the period is not now. On the bar it stands to the LEFT of ‹, so
+  // the arrow under the pointer never moves as it comes and goes; on a phone
+  // it sits beside the period's name, where the row's height does not change.
+  const home =
+    grain && offset > 0 ? (
+      <button
+        type="button"
+        className="pill when__home"
+        aria-label={`Back to ${periodName(grain, 0, now)}`}
+        title={`Back to ${periodName(grain, 0, now)}`}
+        onClick={() => {
+          onOffset(0)
+          // The chip is leaving; keep the keyboard where the stepping is.
+          earlier.current?.focus()
+        }}
+      >
+        {periodNowLabel(grain)}
+      </button>
+    ) : null
   const stepper = (
     <div className="when__step">
       <button
+        ref={earlier}
         type="button"
         className="when__arrow"
         aria-label={`Earlier ${word}`}
@@ -126,8 +152,11 @@ export function WhenControl({
           <path d="m10 3-5 5 5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      <span className="when__period" aria-live="polite">
-        {period}
+      <span className="when__mid">
+        <span className="when__period" aria-live="polite">
+          {period}
+        </span>
+        {layout === 'row' ? home : null}
       </span>
       <button
         type="button"
@@ -162,6 +191,7 @@ export function WhenControl({
         </>
       ) : (
         <>
+          {home}
           {stepper}
           <span className="when__rule" aria-hidden />
           {grains}

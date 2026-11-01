@@ -13,7 +13,7 @@
 // already scrubbed a previous user's mirror and has to check for itself.
 
 import { requireSupabase } from './supabase'
-import { isAppLockConfig, type AppLockConfig } from './appLock'
+import { autoSubmitLength, isAppLockConfig, type AppLockConfig } from './appLock'
 
 const MIRROR_KEY = 'dayspring.applock'
 const RESET_MARKER_KEY = 'dayspring.applock.reset'
@@ -128,6 +128,35 @@ export async function saveAppLock(config: AppLockConfig): Promise<void> {
     .throwOnError()
   writeMirror(session.user.id, config)
   lockState.set(config)
+}
+
+/**
+ * A PIN lock made before its length was stored, with the length the user just
+ * proved by opening it — or null when there is nothing to add (a passphrase,
+ * or a lock that already knows).
+ *
+ * The salt and hash are carried through untouched, and `updatedAt` too: this
+ * is not a new PIN, only something learned about the one they have.
+ */
+export function withLearnedPinLength(config: AppLockConfig, length: number): AppLockConfig | null {
+  if (config.kind !== 'pin' || autoSubmitLength(config) !== null) return null
+  const learned = { ...config, pinLength: length }
+  return autoSubmitLength(learned) === null ? null : learned
+}
+
+/**
+ * Teach an older lock its PIN length after a successful open, so every later
+ * open can go on the last digit. Best-effort and silent: if the write fails,
+ * the lock simply keeps its Open button until the next time.
+ */
+export async function rememberPinLength(config: AppLockConfig, length: number): Promise<void> {
+  const learned = withLearnedPinLength(config, length)
+  if (!learned) return
+  try {
+    await saveAppLock(learned)
+  } catch {
+    /* offline, or the session went — nothing the person needs to hear about */
+  }
 }
 
 /** Turn the lock off for the account, and clear the mirror. */

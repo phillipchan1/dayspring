@@ -5,6 +5,7 @@ import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { ScanIcon } from '@/editor/spiritualBlockIcons'
 import { transcribePages } from '@/lib/transcribeImageClient'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import { useExit, useMergedRef } from '@/hooks/usePresence'
 import './PageScanCapture.css'
 
 interface PageScanCaptureProps {
@@ -39,6 +40,9 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
   const [draft, setDraft] = useState('')
   const [err, setErr] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  // Every way out plays the exit first (useExit), then tells the parent.
+  const exit = useExit(onClose)
+  const close = exit.close
 
   // Revoke object URLs on unmount so the previews don't leak. A ref mirror keeps
   // the cleanup current without re-subscribing on every page add.
@@ -52,16 +56,17 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
 
   // Esc cancels.
   useEffect(() => {
+    if (exit.closing) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
-        onClose()
+        close()
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  }, [close, exit.closing])
 
   function addFiles(list: FileList | null) {
     if (!list || list.length === 0) return
@@ -101,17 +106,20 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
   function handleInsert() {
     const clean = draft.trim()
     if (clean) onInsert(clean)
-    onClose()
+    close()
   }
 
   const working = phase === 'working'
 
   // The grab pill rendered but did nothing. Not while the model is reading the
   // pages, though — dismissing mid-transcribe would throw the work away.
-  const { handlers: dragHandlers, dragY, dragging } = useSheetDismiss({
-    onDismiss: onClose,
-    enabled: isMobile && !working,
+  // Drawn straight onto the sheet, and let go of where the finger left it so
+  // the exit carries on from there.
+  const drag = useSheetDismiss({
+    onDismiss: close,
+    enabled: isMobile && !working && !exit.closing,
   })
+  const sheetRef = useMergedRef<HTMLDivElement>(exit.ref, drag.ref)
 
   const style: React.CSSProperties = isMobile
     ? {
@@ -120,21 +128,22 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
         right: 0,
         bottom: keyboardInset,
         zIndex: 8500,
-        ...(dragY ? { transform: `translateY(${dragY}px)` } : {}),
-        ...(dragging ? { transition: 'none' } : {}),
       }
     : { position: 'fixed', zIndex: 8500 }
 
   return createPortal(
     <>
-      <div className="command-popover__scrim" onClick={onClose} aria-hidden />
+      <div className="command-popover__scrim" data-state={exit.state} onClick={close} aria-hidden />
       <div
+        ref={sheetRef}
         className={`page-scan glass-surface${isMobile ? ' page-scan--sheet' : ''}`}
         style={style}
         role="dialog"
         aria-label="Scan handwritten page"
+        data-state={exit.state}
+        data-dragging={drag.dragging ? 'true' : undefined}
         onMouseDown={(e) => e.stopPropagation()}
-        {...(isMobile ? dragHandlers : {})}
+        {...(isMobile ? drag.handlers : {})}
       >
         <div className="glass-surface__glow" aria-hidden />
         {isMobile && <div className="command-popover__grab" aria-hidden />}
@@ -234,7 +243,7 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
                 <button
                   type="button"
                   className="btn btn--ghost"
-                  onClick={onClose}
+                  onClick={close}
                   disabled={working}
                 >
                   Cancel
