@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
+import { hasNativeCapture, pickPhotosNatively } from '@/lib/nativeCapture'
 import { extFromImageFile } from '@/lib/attachments'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { beginArrivals } from '@/lib/photoArrival'
@@ -33,6 +34,11 @@ export function InlineImagePopover({
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
   const busyRef = useRef(false)
+  // iOS app: straight to the system photo picker, without the popover's
+  // dropzone and WebKit's "Photo Library / Take Photo / Choose File" sheet in
+  // between. The popover only appears if the picker can't open (then it is
+  // the fallback) or if the chosen photos can't go in (then it says why).
+  const [picking, setPicking] = useState(hasNativeCapture)
 
   async function handleFiles(chosen: File[]) {
     if (busyRef.current || chosen.length === 0) return
@@ -97,6 +103,32 @@ export function InlineImagePopover({
       busyRef.current = false
     }
   }
+
+  useEffect(() => {
+    if (!hasNativeCapture()) return
+    let live = true
+    void pickPhotosNatively().then((files) => {
+      if (!live) return
+      if (files === null) {
+        setPicking(false) // no native picker here: the popover is the way in
+        return
+      }
+      if (files.length === 0) {
+        onClose() // cancelled in the picker
+        return
+      }
+      // handleFiles closes the popover once the uploads are under way; if the
+      // photos can't go in, the popover appears with the reason.
+      setPicking(false)
+      void handleFiles(files)
+    })
+    return () => {
+      live = false
+    }
+    // Once, on open: on iOS the picker is the popover.
+  }, [])
+
+  if (picking) return null
 
   return (
     <CommandPopover

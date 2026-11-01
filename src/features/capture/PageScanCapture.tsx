@@ -4,6 +4,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { ScanIcon } from '@/editor/spiritualBlockIcons'
 import { transcribePages } from '@/lib/transcribeImageClient'
+import { canScanNatively, scanPagesNatively } from '@/lib/nativeCapture'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import './PageScanCapture.css'
 
@@ -63,7 +64,7 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
-  function addFiles(list: FileList | null) {
+  function addFiles(list: FileList | File[] | null) {
     if (!list || list.length === 0) return
     const incoming = Array.from(list).filter((f) => f.type.startsWith('image/'))
     setPages((prev) => {
@@ -71,6 +72,22 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
       const next = incoming.slice(0, room).map((file) => ({ file, url: URL.createObjectURL(file) }))
       return [...prev, ...next]
     })
+  }
+
+  /**
+   * In the iOS app, VisionKit's document camera: several pages in one go,
+   * found, flattened and cropped by the system. Everywhere else — and on a
+   * device without it — the camera through `<input capture>`.
+   */
+  async function addPage() {
+    if (canScanNatively()) {
+      const scanned = await scanPagesNatively()
+      if (scanned) {
+        addFiles(scanned)
+        return
+      }
+    }
+    inputRef.current?.click()
   }
 
   function removePage(idx: number) {
@@ -201,7 +218,7 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
                   <button
                     type="button"
                     className="page-scan__add"
-                    onClick={() => inputRef.current?.click()}
+                    onClick={() => void addPage()}
                   >
                     <ScanIcon />
                     <span>{pages.length === 0 ? 'Add a page' : 'Add page'}</span>

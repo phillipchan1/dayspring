@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { streamTranscribe } from '@/lib/transcribeClient'
 import { startLiveCaptions, type LiveCaptions } from '@/lib/realtimeDictation'
 import { dictationCheckpoint, dictationDelete } from '@/lib/db'
+import { isIOSTauri } from '@/lib/platform'
 import { useSession } from './useSession'
 
 export type DictationStatus = 'idle' | 'recording' | 'transcribing' | 'error'
@@ -22,6 +23,13 @@ export interface Dictation {
   /** True once audio has been captured — the error UI then offers retry/save
    *  instead of forcing a re-record. */
   hasRecording: boolean
+  /** True when the last start() failed because microphone access was refused.
+   *  "Try again" can't succeed then — iOS won't ask twice. */
+  micDenied: boolean
+  /** Opens Dayspring's page in the Settings app, where the microphone can be
+   *  turned back on. Null where there is no such page (web, Mac): offer it
+   *  instead of "Try again" when `micDenied` and this is set. */
+  openMicSettings: (() => void) | null
   /** Request the mic and begin recording. Pass vocab so live captions (if
    *  available) bias toward the writer's proper nouns from the first word. */
   start: (vocab?: string) => Promise<void>
@@ -37,6 +45,16 @@ export interface Dictation {
   cancel: () => void
   /** Return to idle after an error/success. */
   reset: () => void
+}
+
+/** iOS: Settings → Dayspring, where a refused microphone is turned back on
+ *  (src-tauri/src/native_chrome.rs `open_app_settings`). */
+function openAppSettings(): void {
+  void import('@tauri-apps/api/core')
+    .then(({ invoke }) => invoke('open_app_settings'))
+    .catch(() => {
+      /* an older build without the command — nothing to open */
+    })
 }
 
 // How often the growing recording is checkpointed to IndexedDB. MediaRecorder's
@@ -73,6 +91,7 @@ export function useDictation(): Dictation {
   const [partial, setPartial] = useState('')
   const [partialIsLive, setPartialIsLive] = useState(false)
   const [hasRecording, setHasRecording] = useState(false)
+  const [micDenied, setMicDenied] = useState(false)
 
   const levelRef = useRef(0)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -164,6 +183,7 @@ export function useDictation(): Dictation {
 
   const start = useCallback(async (vocab?: string) => {
     setError(null)
+    setMicDenied(false)
     setElapsedMs(0)
     setPartial('')
     setPartialIsLive(false)
@@ -257,6 +277,7 @@ export function useDictation(): Dictation {
       teardownMedia()
       setStatus('error')
       const name = e instanceof DOMException ? e.name : ''
+      setMicDenied(name === 'NotAllowedError')
       setError(
         name === 'NotAllowedError'
           ? 'Microphone access denied'
@@ -375,10 +396,13 @@ export function useDictation(): Dictation {
     discard()
   }, [teardownMedia, discard])
 
+  const openMicSettings = useMemo(() => (isIOSTauri() ? openAppSettings : null), [])
+
   const reset = useCallback(() => {
     liveTextRef.current = ''
     setStatus('idle')
     setError(null)
+    setMicDenied(false)
     setElapsedMs(0)
     setPartial('')
     setPartialIsLive(false)
@@ -392,6 +416,8 @@ export function useDictation(): Dictation {
     partialIsLive,
     levelRef,
     hasRecording,
+    micDenied,
+    openMicSettings,
     start,
     finish,
     retry,
