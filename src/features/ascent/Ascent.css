@@ -193,7 +193,7 @@
 .ascent-lens__x {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   color: color-mix(in srgb, var(--ascent-ink) 45%, transparent);
   font-size: 13px;
   line-height: 1;
@@ -220,7 +220,7 @@
 .ascent-lenses__edit {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.1em;
@@ -263,7 +263,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.06em;
@@ -293,7 +293,7 @@
   border: none;
   padding: 0;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   color: inherit;
   font: inherit;
 }
@@ -332,7 +332,7 @@
 .ascent-oneline {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   color: var(--ascent-ink-bright);
   font-family: var(--font-serif);
   font-size: 27px;
@@ -358,7 +358,7 @@
   flex-direction: column;
   gap: 6px;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   background: linear-gradient(160deg, color-mix(in srgb, var(--ascent-ink) 5%, transparent), color-mix(in srgb, var(--ascent-ink) 1.5%, transparent));
   border: 1px solid color-mix(in srgb, var(--ascent-ink) 9%, transparent);
   border-left: 2px solid color-mix(in srgb, var(--ascent-gold) 55%, transparent);
@@ -370,7 +370,6 @@
 .ascent-theme:hover {
   border-color: color-mix(in srgb, var(--ascent-gold) 50%, transparent);
   border-left-color: var(--ascent-gold-soft);
-  transform: translateY(-1px);
 }
 .ascent-theme__head {
   display: flex;
@@ -409,7 +408,7 @@
 }
 .ascent-inorder__summary {
   list-style: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -448,13 +447,12 @@
   border: 1px solid color-mix(in srgb, var(--ascent-ink) 9%, transparent);
   border-radius: 999px;
   padding: 7px 14px;
-  cursor: pointer;
+  cursor: default;
   animation: ascent-rise 0.5s both;
   transition: border-color 0.2s, transform 0.2s;
 }
 .ascent-scrip:hover {
   border-color: color-mix(in srgb, var(--ascent-gold) 45%, transparent);
-  transform: translateY(-1px);
 }
 .ascent-scrip__ref {
   font-size: 15px;
@@ -472,7 +470,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.05em;
@@ -489,7 +487,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   font-family: var(--font-serif);
   font-size: 18px;
@@ -532,7 +530,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   font-family: var(--font-serif);
   font-size: 19px;
@@ -623,7 +621,7 @@
   position: fixed;
   inset: 0;
   border: none;
-  cursor: pointer;
+  cursor: default;
   background: color-mix(in srgb, var(--ascent-shade) 72%, transparent);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
@@ -659,7 +657,7 @@
   flex: 0 0 auto;
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
@@ -718,7 +716,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 15px;
   font-style: italic;
@@ -1205,7 +1203,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -1239,7 +1237,7 @@
   border: none;
   padding: 0;
   margin-top: 4px;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.08em;
@@ -1284,7 +1282,7 @@
   background: none;
   font: inherit;
   color: inherit;
-  cursor: pointer;
+  cursor: default;
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
@@ -1412,7 +1410,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
@@ -1534,7 +1532,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
 }
 .ascent-hl__quote {
   font-family: var(--font-serif);
@@ -1571,7 +1569,7 @@
   background: none;
   border: none;
   padding: 2px 0 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
@@ -1603,7 +1601,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   animation: ascent-rise 0.55s ease both;
 }
 .ascent-line__text {
@@ -1736,7 +1734,7 @@
   border: none;
   padding: 0;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.55;
@@ -1750,7 +1748,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -1770,7 +1768,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.15em;
@@ -1813,7 +1811,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 21px;
   font-style: italic;
@@ -1825,7 +1823,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.13em;
@@ -1862,7 +1860,7 @@
 
 /* The stones are a button on a drawing — give the keyboard somewhere to land. */
 .ascent-stone-g {
-  cursor: pointer;
+  cursor: default;
 }
 /* A focusable <g> picks up the browser default ring on a plain mouse focus,
    which paints a blue square over the mountain. Keyboard focus keeps its own. */
@@ -1947,7 +1945,7 @@
   background: none;
   border: none;
   padding: 4px 9px;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;

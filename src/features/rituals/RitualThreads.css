@@ -82,7 +82,7 @@
   font-family: var(--font-label, sans-serif);
   font-size: 0.82rem;
   color: var(--pl-muted);
-  cursor: pointer;
+  cursor: default;
 }
 
 .rt__back:hover {
@@ -107,7 +107,7 @@
   border: none;
   border-bottom: 1px solid var(--pl-border);
   padding: 1.05rem 0.4rem;
-  cursor: pointer;
+  cursor: default;
   transition: background 120ms ease;
 }
 
@@ -157,7 +157,7 @@
   font-size: 0.8rem;
   color: var(--pl-muted);
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
 }
 
 .rt__rail-btn:hover {
@@ -207,7 +207,7 @@
   border: none;
   border-left: 1px solid var(--pl-border);
   padding: 1.1rem 0.75rem 1.1rem 1.15rem;
-  cursor: pointer;
+  cursor: default;
   position: relative;
   font-family: var(--pl-body);
 }

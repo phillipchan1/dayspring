@@ -29,7 +29,7 @@
   padding: 0;
   background: color-mix(in srgb, var(--ps-ink) 26%, transparent);
   backdrop-filter: blur(2px);
-  cursor: pointer;
+  cursor: default;
   animation: ps-fade 0.25s ease;
 }
 
@@ -65,7 +65,7 @@
   font-size: 24px;
   line-height: 1;
   color: var(--ps-ghost);
-  cursor: pointer;
+  cursor: default;
   transition: color 0.2s ease;
 }
 .practice-sheet__close:hover {

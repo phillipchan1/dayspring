@@ -15,6 +15,9 @@ Before proposing features, writing user-facing copy, or scoping product work, re
 - **[PRINCIPLES.md](docs/product/PRINCIPLES.md)** — 7 tie-breakers that settle feature arguments
 - **[PERSONAS.md](docs/product/PERSONAS.md)** — who it's for (currently **hypotheses**, not findings)
 - **[BRANDSCRIPT.md](docs/product/BRANDSCRIPT.md)** — how we talk; the words we never use
+- **[DESIGN_PRINCIPLES.md](docs/product/DESIGN_PRINCIPLES.md)** — native feel: *behave like
+  the platform, look like Dayspring*. Read before any UI change (no hand cursor on
+  controls, no selectable chrome, hover guarded, press states, motion tokens, haptics)
 
 The team's Notion teamspace holds the Customer Feedback Backlog and Customer Discovery
 Interviews databases — check both before proposing a feature or citing a persona as

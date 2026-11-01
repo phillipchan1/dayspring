@@ -116,7 +116,7 @@ html[data-platform='desktop'] .ob-theme {
   padding: 0;
   border: none;
   background: none;
-  cursor: pointer;
+  cursor: default;
   border-radius: var(--radius-full, 999px);
   color: rgba(236, 231, 223, 0.45);
   transition: color 0.25s ease;
@@ -243,7 +243,7 @@ html[data-platform='desktop'] .ob-theme {
   font-family: var(--font-serif);
   font-size: 15.5px;
   font-weight: 500;
-  cursor: pointer;
+  cursor: default;
   width: 100%;
   box-shadow: 0 8px 26px -8px rgba(232, 184, 115, 0.7);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -255,11 +255,11 @@ html[data-platform='desktop'] .ob-theme {
   }
 }
 .ob-primary:hover {
-  transform: translateY(-2px);
   box-shadow: 0 12px 34px -8px rgba(232, 184, 115, 0.85);
 }
 .ob-primary:active {
-  transform: translateY(0);
+  filter: brightness(0.92);
+  transition-duration: 0s;
 }
 .ob-primary:disabled {
   opacity: 0.6;
@@ -274,7 +274,7 @@ html[data-platform='desktop'] .ob-theme {
   color: rgba(236, 231, 223, 0.55);
   font-family: var(--font-serif);
   font-size: 14.5px;
-  cursor: pointer;
+  cursor: default;
   padding: 4px 8px;
   transition: color 200ms ease;
 }
@@ -321,16 +321,16 @@ html[data-platform='desktop'] .ob-theme {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
   color: #ece7df;
-  cursor: pointer;
-  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
+  cursor: default;
+  transition: border-color 200ms ease, background 200ms ease;
 }
 .ob-card:hover {
   border-color: rgba(232, 184, 115, 0.55);
   background: rgba(255, 255, 255, 0.09);
-  transform: translateY(-2px);
 }
 .ob-card:active {
-  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.05);
+  transition-duration: 0s;
 }
 .ob-root.is-light .ob-card {
   border-color: rgba(74, 64, 53, 0.16);
@@ -381,7 +381,7 @@ html[data-platform='desktop'] .ob-theme {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.03);
   color: rgba(236, 231, 223, 0.74);
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   transition: border-color 200ms ease, background 200ms ease;
 }
@@ -654,7 +654,7 @@ html[data-platform='desktop'] .ob-theme {
   color: rgba(236, 231, 223, 0.5);
   font-size: 16px;
   line-height: 1;
-  cursor: pointer;
+  cursor: default;
   padding: 0 2px;
 }
 .ob-bg-indicator__dismiss:hover {
@@ -702,7 +702,7 @@ html[data-platform='desktop'] .ob-theme {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.03em;

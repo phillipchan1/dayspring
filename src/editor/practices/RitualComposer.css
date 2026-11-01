@@ -59,7 +59,7 @@
   background: none;
   color: var(--text-dim);
   font-size: 0.85rem;
-  cursor: pointer;
+  cursor: default;
 }
 .rc__name {
   flex: 1;
@@ -87,7 +87,7 @@
   font-family: var(--rc-body);
   font-size: 0.72rem;
   letter-spacing: 0.06em;
-  cursor: pointer;
+  cursor: default;
 }
 .rc__x:hover, .rc__about:hover, .rc__remove:hover { color: var(--accent); }
 .rc__x:focus-visible, .rc__about:focus-visible, .rc__remove:focus-visible,
@@ -257,7 +257,7 @@
   font-family: var(--rc-body);
   font-size: 0.78rem;
   letter-spacing: 0.04em;
-  cursor: pointer;
+  cursor: default;
 }
 .rc__back:disabled { opacity: 0; pointer-events: none; }
 .rc__next {
@@ -272,7 +272,7 @@
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  cursor: pointer;
+  cursor: default;
   transition: background 0.2s ease;
 }
 .rc__next:hover { background: var(--accent-soft); }
@@ -325,7 +325,7 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   color: var(--text-dim);
   font-family: var(--rc-body);
   font-size: 0.9rem;
-  cursor: pointer;
+  cursor: default;
 }
 .rc__home:hover { color: var(--accent); }
 .rc__home .rc__kbd { opacity: 0; transition: opacity 0.2s ease; }
@@ -387,7 +387,7 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   text-align: left;
   font-family: var(--rc-body);
   color: inherit;
-  cursor: pointer;
+  cursor: default;
 }
 .rc__path button::before {
   content: '';
@@ -469,7 +469,7 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   font-family: var(--rc-body);
   font-size: 0.9rem;
   color: var(--text);
-  cursor: pointer;
+  cursor: default;
 }
 .rc__more-menu [data-asking='true'] { color: var(--accent); }
 .rc__x--back {
@@ -530,7 +530,7 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   color: var(--text-dim);
   font-family: var(--rc-body);
   font-size: 0.82rem;
-  cursor: pointer;
+  cursor: default;
 }
 .rc__rail-tools button:hover { color: var(--accent); }
 .rc__saved {

@@ -80,7 +80,7 @@
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.07em;
-  cursor: pointer;
+  cursor: default;
   transition:
     color 200ms ease,
     border-color 200ms ease,
@@ -115,7 +115,7 @@
   background: transparent;
   text-align: left;
   padding: 0.6rem 1.05rem;
-  cursor: pointer;
+  cursor: default;
   color: var(--text);
   font: inherit;
 }
@@ -162,7 +162,7 @@
   border-radius: 9px;
   background: transparent;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   font: inherit;
   color: var(--text);
 }

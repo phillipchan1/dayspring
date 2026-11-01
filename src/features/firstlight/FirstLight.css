@@ -73,7 +73,7 @@
   background: none;
   border: 0;
   padding: 4px 2px;
-  cursor: pointer;
+  cursor: default;
 }
 .firstlight__skip:hover { color: var(--text-bright); }
 
@@ -209,7 +209,7 @@
   border: 0;
   border-radius: 50%;
   background: var(--text-faint);
-  cursor: pointer;
+  cursor: default;
   transition: background 0.2s, transform 0.2s;
 }
 .firstlight__dot[aria-current='true'] {
@@ -226,7 +226,7 @@
   border: 0;
   border-radius: 999px;
   padding: 10px 20px;
-  cursor: pointer;
+  cursor: default;
   transition: opacity 0.15s;
 }
 .firstlight__next:hover { opacity: 0.87; }

@@ -145,7 +145,7 @@
   font-size: 0.75rem;
   letter-spacing: 0.02em;
   color: var(--text);
-  cursor: pointer;
+  cursor: default;
   transition: color 120ms ease;
 }
 
@@ -174,7 +174,7 @@
   font-size: 0.625rem;
   letter-spacing: 0.02em;
   color: var(--text-faint);
-  cursor: pointer;
+  cursor: default;
   transition: color 120ms ease;
 }
 
@@ -312,7 +312,7 @@
   font-size: 0.82rem;
   line-height: 1.35;
   text-align: center;
-  cursor: pointer;
+  cursor: default;
   transition:
     background var(--transition),
     border-color var(--transition),
@@ -523,7 +523,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  cursor: pointer;
+  cursor: default;
 }
 
 .command-popover__result:hover,
@@ -593,7 +593,7 @@
   border: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 
 .command-popover__chip[data-active='true'] {
@@ -622,7 +622,7 @@
   background: transparent;
   font-size: 1.35rem;
   line-height: 1;
-  cursor: pointer;
+  cursor: default;
 }
 
 .command-popover__emoji-btn:hover,
@@ -647,7 +647,7 @@
   border: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 
 .command-popover__pill[data-active='true'] {
@@ -716,7 +716,7 @@
   border-radius: var(--radius);
   background: var(--bg-input);
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
   font-family: var(--font-sans);
   font-size: 0.7rem;
@@ -799,7 +799,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
   background: rgba(var(--hl-hue), 0.85);
-  cursor: pointer;
+  cursor: default;
 }
 .command-toolbar__swatch[data-color='amber'] { --hl-hue: var(--hl-amber); }
 .command-toolbar__swatch[data-color='rose'] { --hl-hue: var(--hl-rose); }

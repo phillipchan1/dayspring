@@ -121,7 +121,7 @@
   font-family: inherit;
   font-size: 0.78rem;
   color: var(--text-faint);
-  cursor: pointer;
+  cursor: default;
 }
 
 .chapter-pane__quiet:hover {

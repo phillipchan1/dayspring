@@ -70,7 +70,7 @@
   z-index: 5;
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   color: rgba(236, 231, 223, 0.5);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -132,7 +132,7 @@
   padding: 0;
   border: none;
   background: none;
-  cursor: pointer;
+  cursor: default;
   border-radius: var(--radius-full);
   color: rgba(236, 231, 223, 0.45);
   transition: color 0.25s ease;
@@ -282,7 +282,7 @@ html[data-platform='desktop'] .welcome-flow__skip {
   color: rgba(236, 231, 223, 0.55);
   font-family: var(--font-serif);
   font-size: 15px;
-  cursor: pointer;
+  cursor: default;
   padding: 8px 4px;
   border-radius: var(--radius-sm);
   transition: color 0.2s ease;
@@ -302,7 +302,7 @@ html[data-platform='desktop'] .welcome-flow__skip {
   border: none;
   border-radius: 50%;
   background: rgba(236, 231, 223, 0.22);
-  cursor: pointer;
+  cursor: default;
   transition: width 0.35s ease, background 0.35s ease, border-radius 0.35s ease;
 }
 .welcome-flow__dot.past {
@@ -318,7 +318,7 @@ html[data-platform='desktop'] .welcome-flow__skip {
 .welcome-flow__next,
 .welcome-flow__begin {
   border: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 15px;
   border-radius: 22px;
@@ -332,7 +332,6 @@ html[data-platform='desktop'] .welcome-flow__skip {
 }
 .welcome-flow__next:hover {
   background: rgba(255, 255, 255, 0.14);
-  transform: translateY(-1px);
 }
 .welcome-flow__begin {
   background: linear-gradient(160deg, #f0c587, #dca35e);
@@ -341,7 +340,6 @@ html[data-platform='desktop'] .welcome-flow__skip {
   box-shadow: 0 8px 26px -8px rgba(232, 184, 115, 0.7);
 }
 .welcome-flow__begin:hover {
-  transform: translateY(-2px);
   box-shadow: 0 12px 34px -8px rgba(232, 184, 115, 0.85);
 }
 

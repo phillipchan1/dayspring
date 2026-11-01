@@ -17,6 +17,7 @@ pass instead of a vibe check.
 | **Constitution** | [VISION.md](./VISION.md) | Scoping anything; questioning direction | ✅ Draft 1 |
 | | [PRINCIPLES.md](./PRINCIPLES.md) | Two good options conflict | ✅ Draft 1 |
 | | [GUARDRAILS.md](./GUARDRAILS.md) | Touching anything the AI *says* | ✅ Draft 1 |
+| | [DESIGN_PRINCIPLES.md](./DESIGN_PRINCIPLES.md) | Building or changing any UI — native feel, Dayspring look | ✅ Draft 1 |
 | **Who & why** | [PERSONAS.md](./PERSONAS.md) | Any feature idea; writing copy | ✅ Draft 1 — **hypotheses** |
 | | [BRANDSCRIPT.md](./BRANDSCRIPT.md) | Writing user-facing words | ✅ Draft 1 |
 | | [POSITIONING.md](./POSITIONING.md) | Competitive or pricing questions | ✅ Draft 1 — best guess |

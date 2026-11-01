@@ -51,7 +51,7 @@
   border-radius: 8px;
   background: none;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 .you__trigger:hover {
   background: var(--bg-hover);
@@ -116,7 +116,7 @@
   border-radius: 6px;
   background: none;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 400;

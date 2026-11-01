@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 import { readFileSync, existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
+import { hoverGuard } from './scripts/postcss-hover-guard.ts'
 
 // Resolve the real app version. Priority:
 //   1. public/changelog.json — written by scripts/assemble-changelog.mjs.
@@ -73,6 +74,11 @@ export default defineConfig({
     __TAURI_IOS__: JSON.stringify(process.env.TAURI_ENV_PLATFORM === 'ios'),
   },
   plugins: [react()],
+  css: {
+    // Every `:hover` lands inside `@media (hover: hover)`, so a tap on iOS
+    // never leaves a hover state stuck on (see the plugin's header).
+    postcss: { plugins: [hoverGuard()] },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

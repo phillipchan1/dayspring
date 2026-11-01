@@ -7,7 +7,7 @@ import {
   TAP_GUARD_MS,
   isOAuthCanceled,
   isPrimaryTapButton,
-  shouldCommitOnPointerDown,
+  isTouchLikePointer,
   useTapAction,
 } from './tapAction'
 
@@ -21,13 +21,20 @@ function Probe() {
 
 function firePointer(
   el: Element,
-  type: 'pointerdown' | 'pointerup',
+  type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
   pointerType: string,
   button = 0,
+  at?: { x: number; y: number },
 ) {
   const ev = new Event(type, { bubbles: true, cancelable: true })
-  Object.assign(ev, { button, pointerType })
+  Object.assign(ev, { button, pointerType }, at ? { clientX: at.x, clientY: at.y } : {})
   el.dispatchEvent(ev)
+}
+
+/** A finger down and up in place. */
+function tap(el: Element, pointerType = 'touch', button = 0) {
+  firePointer(el, 'pointerdown', pointerType, button, { x: 20, y: 20 })
+  firePointer(el, 'pointerup', pointerType, button, { x: 20, y: 20 })
 }
 
 describe('isOAuthCanceled', () => {
@@ -48,25 +55,25 @@ describe('isOAuthCanceled', () => {
   })
 })
 
-describe('isPrimaryTapButton / shouldCommitOnPointerDown', () => {
+describe('isPrimaryTapButton / isTouchLikePointer', () => {
   it('accepts WebKit’s touch button = -1 and an empty pointerType', () => {
     expect(isPrimaryTapButton(0)).toBe(true)
     expect(isPrimaryTapButton(-1)).toBe(true)
     expect(isPrimaryTapButton(undefined)).toBe(true)
     expect(isPrimaryTapButton(2)).toBe(false)
-    expect(shouldCommitOnPointerDown('')).toBe(true)
-    expect(shouldCommitOnPointerDown('touch')).toBe(true)
-    expect(shouldCommitOnPointerDown('pen')).toBe(true)
+    expect(isTouchLikePointer('')).toBe(true)
+    expect(isTouchLikePointer('touch')).toBe(true)
+    expect(isTouchLikePointer('pen')).toBe(true)
   })
 
   it('treats a mouse pointer on a touch device as a tap (iPadOS 26)', () => {
-    expect(shouldCommitOnPointerDown('mouse', { maxTouchPoints: 5 })).toBe(true)
-    expect(shouldCommitOnPointerDown('mouse', { maxTouchPoints: 1 })).toBe(true)
-    expect(shouldCommitOnPointerDown('mouse', { coarse: true })).toBe(true)
+    expect(isTouchLikePointer('mouse', { maxTouchPoints: 5 })).toBe(true)
+    expect(isTouchLikePointer('mouse', { maxTouchPoints: 1 })).toBe(true)
+    expect(isTouchLikePointer('mouse', { coarse: true })).toBe(true)
   })
 
-  it('does not commit pointerdown for a fine desktop mouse', () => {
-    expect(shouldCommitOnPointerDown('mouse', { maxTouchPoints: 0, coarse: false })).toBe(false)
+  it('treats a fine desktop mouse as a mouse', () => {
+    expect(isTouchLikePointer('mouse', { maxTouchPoints: 0, coarse: false })).toBe(false)
   })
 })
 
@@ -88,10 +95,23 @@ describe('useTapAction', () => {
     return { root, btn: host.querySelector('button')! }
   }
 
-  it('fires once for touch pointerdown and ignores the follow-up click', () => {
+  it('waits for the release: touch pointerdown alone commits nothing', () => {
     const { root, btn } = mount()
     act(() => {
-      firePointer(btn, 'pointerdown', 'touch')
+      firePointer(btn, 'pointerdown', 'touch', 0, { x: 20, y: 20 })
+    })
+    expect(btn.textContent).toBe('0')
+    act(() => {
+      firePointer(btn, 'pointerup', 'touch', 0, { x: 20, y: 20 })
+    })
+    expect(btn.textContent).toBe('1')
+    act(() => root.unmount())
+  })
+
+  it('fires once for a touch tap and ignores the follow-up click', () => {
+    const { root, btn } = mount()
+    act(() => {
+      tap(btn)
     })
     expect(btn.textContent).toBe('1')
     act(() => {
@@ -105,7 +125,7 @@ describe('useTapAction', () => {
     vi.spyOn(performance, 'now').mockReturnValue(10)
     const { root, btn } = mount()
     act(() => {
-      firePointer(btn, 'pointerdown', 'touch')
+      tap(btn)
     })
     expect(btn.textContent).toBe('1')
     act(() => root.unmount())
@@ -143,10 +163,10 @@ describe('useTapAction', () => {
     act(() => root.unmount())
   })
 
-  it('accepts WebKit touch pointerdown with button -1', () => {
+  it('accepts a WebKit touch tap with button -1', () => {
     const { root, btn } = mount()
     act(() => {
-      firePointer(btn, 'pointerdown', 'touch', -1)
+      tap(btn, 'touch', -1)
     })
     expect(btn.textContent).toBe('1')
     act(() => root.unmount())
@@ -166,7 +186,7 @@ describe('useTapAction', () => {
     const t0 = 1_000
     vi.spyOn(performance, 'now').mockReturnValue(t0)
     act(() => {
-      firePointer(btn, 'pointerdown', 'touch')
+      tap(btn)
     })
     expect(btn.textContent).toBe('1')
     vi.spyOn(performance, 'now').mockReturnValue(t0 + TAP_GUARD_MS + 1)
@@ -174,6 +194,78 @@ describe('useTapAction', () => {
       firePointer(btn, 'pointerup', 'mouse')
     })
     expect(btn.textContent).toBe('2')
+    act(() => root.unmount())
+  })
+  it('lets go of a press that becomes a scroll (pointercancel, then touchend)', () => {
+    const { root, btn } = mount()
+    act(() => {
+      firePointer(btn, 'pointerdown', 'touch', 0, { x: 20, y: 20 })
+      firePointer(btn, 'pointercancel', 'touch')
+      btn.dispatchEvent(new Event('touchend', { bubbles: true, cancelable: true }))
+    })
+    expect(btn.textContent).toBe('0')
+    act(() => root.unmount())
+  })
+
+  it('lets go of a finger that travels before it lifts', () => {
+    const { root, btn } = mount()
+    act(() => {
+      firePointer(btn, 'pointerdown', 'touch', 0, { x: 20, y: 20 })
+      firePointer(btn, 'pointermove', 'touch', 0, { x: 20, y: 60 })
+      firePointer(btn, 'pointerup', 'touch', 0, { x: 20, y: 60 })
+    })
+    expect(btn.textContent).toBe('0')
+    act(() => root.unmount())
+  })
+
+  it('still acts on a finger that wobbles a few px', () => {
+    const { root, btn } = mount()
+    act(() => {
+      firePointer(btn, 'pointerdown', 'touch', 0, { x: 20, y: 20 })
+      firePointer(btn, 'pointerup', 'touch', 0, { x: 24, y: 26 })
+    })
+    expect(btn.textContent).toBe('1')
+    act(() => root.unmount())
+  })
+
+  it('never cancels a desktop mouse by travel — release over the button acts', () => {
+    const { root, btn } = mount()
+    act(() => {
+      firePointer(btn, 'pointerdown', 'mouse', 0, { x: 0, y: 0 })
+      firePointer(btn, 'pointermove', 'mouse', 0, { x: 0, y: 40 })
+      firePointer(btn, 'pointerup', 'mouse', 0, { x: 0, y: 40 })
+    })
+    expect(btn.textContent).toBe('1')
+    act(() => root.unmount())
+  })
+
+  it('keyboard activation acts even right after a cancelled scroll', () => {
+    const { root, btn } = mount()
+    act(() => {
+      firePointer(btn, 'pointerdown', 'touch', 0, { x: 20, y: 20 })
+      firePointer(btn, 'pointercancel', 'touch')
+      btn.dispatchEvent(new Event('touchend', { bubbles: true, cancelable: true }))
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }))
+    })
+    expect(btn.textContent).toBe('1')
+    act(() => root.unmount())
+  })
+
+  it('a cancelled scroll does not swallow a later press whose down was lost', () => {
+    const { root, btn } = mount()
+    const t0 = 1_000
+    vi.spyOn(performance, 'now').mockReturnValue(t0)
+    act(() => {
+      firePointer(btn, 'pointerdown', 'touch', 0, { x: 20, y: 20 })
+      firePointer(btn, 'pointercancel', 'touch')
+      btn.dispatchEvent(new Event('touchend', { bubbles: true, cancelable: true }))
+    })
+    expect(btn.textContent).toBe('0')
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + TAP_GUARD_MS + 1)
+    act(() => {
+      firePointer(btn, 'pointerup', 'mouse')
+    })
+    expect(btn.textContent).toBe('1')
     act(() => root.unmount())
   })
 })

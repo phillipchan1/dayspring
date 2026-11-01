@@ -230,7 +230,7 @@ const primaryButton: React.CSSProperties = {
   borderRadius: 7,
   background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
   border: '0.5px solid color-mix(in srgb, var(--accent) 38%, transparent)',
-  cursor: 'pointer',
+  cursor: 'default',
   fontFamily: "'Inter', -apple-system, sans-serif",
   fontSize: 13.5,
   fontWeight: 500,
@@ -241,7 +241,7 @@ const primaryButton: React.CSSProperties = {
 const quietButton: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  cursor: 'pointer',
+  cursor: 'default',
   fontFamily: "'Inter', -apple-system, sans-serif",
   fontSize: 12,
   color: 'var(--text-faint)',

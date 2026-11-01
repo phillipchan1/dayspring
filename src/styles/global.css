@@ -116,6 +116,22 @@ body {
   /* App-shell, not a page: no rubber-banding the whole chrome on iOS.
      Inner scrollers (entry list, surfaces) still bounce normally. */
   overscroll-behavior: none;
+  /* App-shell, not a page: chrome is not a document. A stray triple-click on
+     the Mac used to paint the top bar blue, and ⌘A outside the editor selected
+     the whole UI. Nothing is selectable unless it opts back in — the words
+     people copy do, in "Selectable words" below (DESIGN_PRINCIPLES N1). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  /* No grey WebKit flash on tap; pressed states are drawn with `:active`. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Any selection outside the editor takes the voice's tint, never the
+   browser's blue. (The editor sets its own in editor/theme.ts.) */
+::selection {
+  background: var(--selection-bg, color-mix(in srgb, var(--accent) 32%, transparent));
+  color: var(--selection-fg, inherit);
 }
 
 #root {
@@ -123,13 +139,19 @@ body {
   flex-direction: column;
 }
 
+/* Mac controls take the arrow; the pointing hand is for hyperlinks only
+   (DESIGN_PRINCIPLES N1). Link-styled text buttons opt in by name. */
 button {
   font: inherit;
-  cursor: pointer;
+  cursor: default;
 }
 
 a {
   color: var(--md-link);
+}
+
+a[href] {
+  cursor: pointer;
 }
 
 /* Respect users who don't want motion. */
@@ -178,6 +200,38 @@ a {
   border-color: transparent;
 }
 
+/*
+ * PRESSED — the control answers the press, not the release.
+ *
+ * Native buttons darken the instant they go down; ours did nothing until the
+ * click landed, which is what makes a tap feel dead (DESIGN_PRINCIPLES N2).
+ * The wash is the control's own ink at 9%, layered over whatever its
+ * background already is, so it lightens on a night ground and darkens on a
+ * day one without a token per voice. `background-image` rather than
+ * `background`, so it sits on top instead of replacing; `:is()` lifts it above
+ * the hover rules wherever their file lands in the cascade.
+ */
+:is(
+    .btn,
+    .pill,
+    .toggle-pill,
+    .segmented__btn,
+    .settings-nav__item,
+    .settings-back,
+    .settings-about__row,
+    .journal-topbar__back,
+    .when__home,
+    .font-picker__option,
+    .you__trigger,
+    .you__item,
+    .voice-row
+  ):active:not(:disabled) {
+  background-image: linear-gradient(
+    color-mix(in srgb, currentColor 9%, transparent),
+    color-mix(in srgb, currentColor 9%, transparent)
+  );
+}
+
 /* ── Entry list context menu + delete confirm ──────────────────────────── */
 /* ── Entry list rows ─────────────────────────────────────────────────────── */
 .entry-row {
@@ -193,7 +247,7 @@ a {
   background: transparent;
   color: var(--text);
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 
 @media (hover: hover) {
@@ -378,7 +432,7 @@ a {
   font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  cursor: pointer;
+  cursor: default;
   -webkit-appearance: none;
   appearance: none;
   transition:
@@ -421,7 +475,7 @@ a {
   color: var(--entry-list-view-inactive);
   font-family: var(--font-entry-list);
   font-size: 11px;
-  cursor: pointer;
+  cursor: default;
   -webkit-appearance: none;
   appearance: none;
   transition: color 0.1s ease;
@@ -518,7 +572,7 @@ a {
   border: none;
   background: none;
   color: var(--entry-list-section);
-  cursor: pointer;
+  cursor: default;
   border-radius: 4px;
   opacity: 0.75;
   transition:
@@ -541,7 +595,7 @@ a {
   border: none;
   background: none;
   color: var(--entry-list-section);
-  cursor: pointer;
+  cursor: default;
   border-radius: 4px;
   opacity: 0.65;
   transition:
@@ -623,7 +677,7 @@ a {
   border-radius: 5px;
   background: transparent;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   transition: background 0.1s ease;
 }
 .entry-list__year-row {
@@ -679,7 +733,7 @@ a {
   border-radius: 4px;
   background: transparent;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   transition:
     background 0.1s ease,
     color 0.1s ease;
@@ -739,7 +793,7 @@ a {
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 0.7rem;
-  cursor: pointer;
+  cursor: default;
   transition:
     background var(--transition),
     border-color var(--transition),
@@ -822,7 +876,7 @@ a {
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 0.7rem;
-  cursor: pointer;
+  cursor: default;
   transition:
     background var(--transition),
     border-color var(--transition),
@@ -994,7 +1048,7 @@ a {
   background: transparent;
   color: var(--text);
   font-size: 0.86rem;
-  cursor: pointer;
+  cursor: default;
   transition:
     background var(--transition),
     color var(--transition),
@@ -1193,7 +1247,7 @@ a {
   font-size: 0.78rem;
   padding: 0.18rem 0.5rem;
   border-radius: calc(var(--radius) - 2px);
-  cursor: pointer;
+  cursor: default;
   transition: background 120ms ease, color 120ms ease;
 }
 .image-context-menu__size-btn:hover {
@@ -1246,7 +1300,7 @@ a {
   color: var(--text-bright);
   font-size: 0.82rem;
   line-height: 1.3;
-  cursor: pointer;
+  cursor: default;
   animation: format-bar-btn-in 0.12s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
 }
 .format-bar__guess:hover,
@@ -1405,7 +1459,7 @@ a {
   border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
   animation: format-bar-btn-in 0.12s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
   transition:
     background var(--transition),
@@ -1488,7 +1542,7 @@ a {
   color: var(--text-faint);
   font-size: 0.7rem;
   line-height: 1;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 .format-bar__chevron:hover,
@@ -1508,7 +1562,7 @@ a {
   border: none;
   border-radius: var(--radius-full);
   background: rgba(var(--hl-hue), 0.85);
-  cursor: pointer;
+  cursor: default;
   animation: format-bar-btn-in 0.12s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
   transition:
     box-shadow var(--transition),
@@ -1588,7 +1642,7 @@ a {
   border-radius: var(--radius-full);
   font-size: 0.8rem;
   font-weight: 600;
-  cursor: pointer;
+  cursor: default;
   transition:
     background var(--transition),
     color var(--transition),
@@ -1759,7 +1813,7 @@ a {
   border: none;
   background: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
 }
 .status-cluster--action:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
@@ -1976,7 +2030,7 @@ a {
   border-radius: var(--radius-lg);
   background: transparent;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
   -webkit-tap-highlight-color: transparent;
   transition:
     color var(--transition),
@@ -2106,6 +2160,79 @@ a {
   }
 }
 
+/* ── Selectable words ──────────────────────────────────────────────────────
+   `body` turns selection off for the whole shell. iOS needs the controls named
+   as well: it treats everything as selectable text, so a long press in the
+   chrome raised the system `Copy | Look Up | Translate` callout on top of
+   whatever the app meant the gesture to do (an entry row fired its own menu
+   *and* turned the drawer blue; an Altar chip produced handles). The
+   unprefixed `user-select` alone did not hold — WebKit needs
+   `-webkit-touch-callout` for the callout and the prefixed property for the
+   selection. Naming the controls also keeps a button that sits inside an
+   opted-in region (an editor widget, a quote card) from becoming selectable.
+
+   This used to apply on touch only, so on the Mac every label was text. */
+button,
+[role='button'],
+[role='tab'],
+[role='option'],
+[role='menuitem'],
+nav,
+header,
+label,
+.mobile-tab,
+.mobile-bar,
+.mobile-fab,
+.entry-row,
+.drawer,
+.rail,
+.segmented,
+.toggle-pill,
+.status-cluster {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ...but never the words themselves. The editor, the reader, scripture, and
+   the verbatim quotes the Ascent / Altar / Lamp surfaces are built out of are
+   all things people copy — including out of a card that is itself a button,
+   which is why these have to win back what the rules above took. A new
+   surface that shows someone's own words adds its class here, or marks the
+   element `data-selectable`. */
+input,
+textarea,
+[contenteditable],
+.cm-editor,
+.cm-content,
+.markdown-body,
+.pg-read__words,
+.pg-near__text,
+.pg-found__text,
+.chapter-pane__verse,
+.scripture__verses,
+.scripture-book__verses,
+.scripture-book__entry-verse,
+.practice-sheet__passage,
+.practice-threshold__passage,
+.ascent-hl__quote,
+.ascent-word__text,
+.ascent-path__excerpt,
+.ascent-stone-pair__text,
+.story__text,
+.across__text,
+.alive__text,
+.ledger-walk__text,
+.altar-ev__quote,
+.altar-bookend__text,
+.practice-card__quote,
+.practice-sheet__quote,
+[data-selectable] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* ── Touch ergonomics (iPad / touchscreens) ───────────────────────────────
    Bumps the desktop-layout chrome to ≥44px hit targets on coarse pointers
    only. Mouse-desktop and the Tauri app (fine pointer) are untouched; an iPad
@@ -2121,58 +2248,6 @@ a {
   .journal-topbar__back,
   .restrict-banner .btn {
     min-height: 44px;
-  }
-  /* iOS treats everything as selectable text, so a long press anywhere in the
-     app's chrome raises the system `Copy | Look Up | Translate` callout — on
-     top of whatever the app meant the gesture to do. Long-pressing an entry row
-     fired the app's own context menu *and* turned the whole drawer blue;
-     long-pressing an Altar filter chip (a plain `<button>`) produced selection
-     handles. The unprefixed `user-select` alone was not holding — WebKit needs
-     `-webkit-touch-callout` to suppress the callout and the prefixed
-     `-webkit-user-select` to suppress the selection.
-
-     Chrome opts out; prose stays selectable below, because people copy their
-     own words. */
-  button,
-  [role='button'],
-  [role='tab'],
-  [role='option'],
-  nav,
-  header,
-  label,
-  .mobile-tab,
-  .mobile-bar,
-  .mobile-fab,
-  .entry-row,
-  .drawer,
-  .rail,
-  .segmented,
-  .toggle-pill,
-  .status-cluster {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  /* ...but never the words themselves. The editor, scripture text, and the
-     verbatim quotes the Ascent / Altar / Lamp surfaces are built out of are all
-     things people copy — including out of a card that is itself a button, which
-     is why these have to win back what the rule above took. */
-  input,
-  textarea,
-  [contenteditable],
-  .cm-editor,
-  .cm-content,
-  .markdown-body,
-  .ascent-hl__quote,
-  .ascent-word__text,
-  .altar-ev__quote,
-  .practice-card__quote,
-  .practice-sheet__quote,
-  [data-selectable] {
-    -webkit-touch-callout: default;
-    -webkit-user-select: text;
-    user-select: text;
   }
 
   /* No 300ms tap delay and no stray double-tap zoom on the controls a thumb
@@ -2395,7 +2470,7 @@ a {
   color: var(--text-bright);
   font: inherit;
   font-size: 0.8rem;
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition);
 }
 .journal-topbar__back:hover {
@@ -2705,7 +2780,7 @@ a {
   line-height: 1;
   color: var(--bar-ink);
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), background-color var(--transition);
 }
 .pill:hover {
@@ -2757,7 +2832,7 @@ a {
   border-radius: var(--radius-full);
   background: none;
   color: var(--bar-ink);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 .when__arrow:hover:not(:disabled) {
@@ -2878,7 +2953,7 @@ a {
   border-radius: var(--radius);
   color: var(--text-bright);
   font-size: 0.9rem;
-  cursor: pointer;
+  cursor: default;
 }
 .settings-select:focus {
   outline: 2px solid var(--accent-soft);
@@ -2903,7 +2978,7 @@ a {
   border-radius: var(--radius);
   color: var(--text-bright);
   font-size: 0.9rem;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
 }
 .font-picker__trigger:hover {
@@ -2959,7 +3034,7 @@ a {
   background: transparent;
   color: var(--text);
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 .font-picker__option:hover {
   background: var(--bg-hover);
@@ -3339,7 +3414,7 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-dim);
   font-family: var(--font-mono);
   font-size: 0.78rem;
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition), color var(--transition);
 }
 .segmented__btn[data-active='true'] {
@@ -3387,7 +3462,7 @@ html[data-chapter-pane] .focus-controls--docked {
   border-radius: 6px;
   background: transparent;
   color: var(--text-faint);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 .focus-controls__handle:hover {
@@ -3451,7 +3526,7 @@ html[data-chapter-pane] .focus-controls--docked {
   border-radius: 6px;
   background: transparent;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
   transition:
     color var(--transition),
     background var(--transition);
@@ -4291,7 +4366,7 @@ html[data-chapter-pane] .focus-controls--docked {
     /* The sheet's own ground, not a window onto the page under it — the top
        half of the entry's title showed through above the tabs. */
     background: var(--bg);
-    cursor: pointer;
+    cursor: default;
     touch-action: none;
   }
   .settings-grabber__bar {
@@ -4571,7 +4646,7 @@ html[data-chapter-pane] .focus-controls--docked {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  cursor: pointer;
+  cursor: default;
 }
 .settings-toggle__hint {
   display: block;
@@ -4971,7 +5046,6 @@ html[data-chapter-pane] .focus-controls--docked {
 .import-card:hover {
   border-color: var(--accent);
   background: var(--bg-hover);
-  transform: translateY(-1px);
 }
 .import-card:disabled {
   opacity: 0.72;
@@ -5238,7 +5312,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .import-skipped > summary {
   color: var(--text-dim);
   font-size: 0.78rem;
-  cursor: pointer;
+  cursor: default;
 }
 .import-skipped ul {
   margin: 0.5rem 0 0;
@@ -5295,7 +5369,7 @@ html[data-chapter-pane] .focus-controls--docked {
 }
 .btn:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
+  cursor: default;
 }
 
 /* ════════════════════════════════════════════════════════════════════════ */
@@ -5488,7 +5562,7 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-faint);
 }
 .update-toast__notes > summary {
-  cursor: pointer;
+  cursor: default;
   color: var(--text);
   list-style-position: inside;
 }
@@ -5506,7 +5580,7 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-faint);
 }
 .settings-update__notes > summary {
-  cursor: pointer;
+  cursor: default;
   color: var(--accent);
 }
 
@@ -5550,7 +5624,7 @@ html[data-chapter-pane] .focus-controls--docked {
   font-size: 0.8rem;
 }
 .settings-changelog__summary {
-  cursor: pointer;
+  cursor: default;
   color: var(--text);
   font-weight: 600;
 }
@@ -5625,7 +5699,7 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-dim);
   font-size: 0.74rem;
   font-family: var(--font-mono);
-  cursor: pointer;
+  cursor: default;
   opacity: 0.45;
   transition: opacity var(--transition);
 }
@@ -5664,7 +5738,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .feedback-popover__close {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   color: var(--text-faint);
   font-size: 0.7rem;
   padding: 0 0.15rem;
@@ -5686,8 +5760,8 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-dim);
   font-size: 0.72rem;
   font-family: var(--font-mono);
-  cursor: pointer;
-  transition: all var(--transition);
+  cursor: default;
+  transition: color var(--transition), border-color var(--transition), background-color var(--transition);
   text-align: center;
 }
 .feedback-type-btn[data-active='true'] {
@@ -5736,14 +5810,14 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--accent);
   font-size: 0.76rem;
   font-family: var(--font-mono);
-  cursor: pointer;
-  transition: all var(--transition);
+  cursor: default;
+  transition: color var(--transition), border-color var(--transition), background-color var(--transition);
 }
 .feedback-popover__submit:hover:not(:disabled) {
   background: var(--accent);
   color: var(--bg);
 }
-.feedback-popover__submit:disabled { opacity: 0.4; cursor: not-allowed; }
+.feedback-popover__submit:disabled { opacity: 0.4; cursor: default; }
 
 .feedback-popover__done {
   text-align: center;
@@ -5890,7 +5964,7 @@ html[data-chapter-pane] .focus-controls--docked {
   border: none;
   background: transparent;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition);
 }
 
@@ -6014,7 +6088,7 @@ html[data-chapter-pane] .focus-controls--docked {
   opacity: 0.45;
 }
 .settings-toggle--disabled .switch {
-  cursor: not-allowed;
+  cursor: default;
 }
 
 /*
@@ -6032,7 +6106,7 @@ html[data-chapter-pane] .focus-controls--docked {
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
   list-style: none;
   display: flex;
   align-items: center;

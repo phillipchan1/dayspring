@@ -934,7 +934,7 @@ const attachmentTheme = EditorView.theme({
     lineHeight: '1',
   },
   '.cm-attachment--interactive': {
-    cursor: 'pointer',
+    cursor: 'default',
   },
   // The frame hugs the image (fit-content) and centers it, so a portrait that
   // renders narrow leaves balanced whitespace and the chrome/caption align to
@@ -966,10 +966,6 @@ const attachmentTheme = EditorView.theme({
     boxShadow:
       '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 40%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07)',
     transition: 'box-shadow 160ms ease',
-  },
-  '.cm-attachment--interactive:hover .cm-attachment__media': {
-    boxShadow:
-      '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 48%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07), 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent)',
   },
   '.cm-attachment__img': {
     display: 'block',
@@ -1055,9 +1051,6 @@ const attachmentTheme = EditorView.theme({
     transition: 'opacity 160ms ease',
     pointerEvents: 'none',
   },
-  '.cm-attachment--interactive:hover .cm-attachment__chrome': {
-    opacity: '1',
-  },
   '.cm-attachment__chrome-label': {
     fontFamily: 'var(--font-editor)',
     fontSize: '0.66em',
@@ -1122,10 +1115,6 @@ const attachmentTheme = EditorView.theme({
     background: 'var(--bg-input)',
     boxShadow: 'inset 0 0 0 1px rgba(20, 12, 4, 0.07)',
   },
-  '.cm-photoset__tile.cm-attachment--interactive:hover': {
-    // Inset: the rows clip at the set's edge, and an outer ring would be cut there.
-    boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent)',
-  },
   '.cm-photoset__img': {
     display: 'block',
     width: '100%',
@@ -1168,12 +1157,35 @@ const attachmentTheme = EditorView.theme({
     transition: 'opacity 160ms ease',
     pointerEvents: 'none',
   },
-  '.cm-photoset:hover .cm-photoset__tools, .cm-photoset__tools:focus-within': {
+  '.cm-photoset__tools:focus-within': {
     opacity: '1',
     pointerEvents: 'auto',
   },
   '@media (hover: none)': {
     '.cm-photoset__tools': { display: 'none' },
+  },
+  // Every hover on a photo, pointer only: on touch `:hover` latches on the
+  // last tap, which left the "photo · options" gradient and the accent ring
+  // painted on a photo after it was tapped (DESIGN_PRINCIPLES N2).
+  '@media (hover: hover)': {
+    '.cm-attachment--interactive:hover .cm-attachment__media': {
+      boxShadow:
+        '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 48%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07), 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent)',
+    },
+    '.cm-attachment--interactive:hover .cm-attachment__chrome': {
+      opacity: '1',
+    },
+    // Inset: the rows clip at the set's edge, and an outer ring would be cut there.
+    '.cm-photoset__tile.cm-attachment--interactive:hover': {
+      boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent)',
+    },
+    '.cm-photoset:hover .cm-photoset__tools': {
+      opacity: '1',
+      pointerEvents: 'auto',
+    },
+    '.cm-photoset__tool:hover': {
+      background: 'rgba(20, 12, 4, 0.8)',
+    },
   },
   '.cm-photoset__tool': {
     border: '0',
@@ -1187,10 +1199,7 @@ const attachmentTheme = EditorView.theme({
     fontSize: '12px',
     lineHeight: '1.2',
     letterSpacing: '0.01em',
-    cursor: 'pointer',
-  },
-  '.cm-photoset__tool:hover': {
-    background: 'rgba(20, 12, 4, 0.8)',
+    cursor: 'default',
   },
   '.cm-photoset__tool:focus-visible': {
     outline: '2px solid var(--accent)',

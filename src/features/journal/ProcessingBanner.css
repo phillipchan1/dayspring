@@ -32,15 +32,11 @@
 
 /* Collapsed pill — a small clickable "still preparing · N%" dot. */
 .processing-banner--mini {
-  cursor: pointer;
+  cursor: default;
   gap: 0.5rem;
   padding: 0.4rem 0.7rem 0.4rem 0.6rem;
   max-width: none;
   width: auto;
-  transition: transform 0.15s ease;
-}
-.processing-banner--mini:hover {
-  transform: translateX(-50%) translateY(-1px);
 }
 .processing-banner--mini .processing-banner__pct {
   font-family: var(--font-mono, monospace);
@@ -121,7 +117,7 @@
   border: none;
   background: transparent;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 0.88rem;
   font-style: italic;
@@ -139,7 +135,7 @@
   color: var(--text-dim);
   font-size: 1.2rem;
   line-height: 1;
-  cursor: pointer;
+  cursor: default;
   padding: 0.1rem 0.35rem;
   border-radius: 0.4rem;
 }

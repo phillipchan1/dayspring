@@ -140,7 +140,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -230,7 +230,7 @@ button.pg__sense-q:hover {
   color: var(--text-dim);
   background: var(--bg);
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), background-color var(--transition),
     border-color var(--transition);
 }
@@ -310,7 +310,7 @@ button.pg__sense-q:hover {
   border-radius: 50%;
   border: 1px solid transparent;
   background: rgba(var(--swatch-hue), 0.55);
-  cursor: pointer;
+  cursor: default;
   transition: transform var(--transition), box-shadow var(--transition);
 }
 
@@ -357,7 +357,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   transition: color var(--transition);
 }
@@ -386,7 +386,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -606,7 +606,7 @@ button.pg__sense-q:hover {
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 0.8rem;
-  cursor: pointer;
+  cursor: default;
   white-space: nowrap;
 }
 .pg__volume-rule button:hover {
@@ -798,7 +798,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   /* The rail owns the gesture; a stop must not swallow the pointer. */
   pointer-events: none;
   transition: color var(--transition);
@@ -875,7 +875,7 @@ button.pg__sense-q:hover {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-1);
-  cursor: pointer;
+  cursor: default;
   /* Colour and opacity only — a page must never move under the cursor. */
   transition: border-color var(--transition), background-color var(--transition),
     opacity var(--transition-slow);
@@ -1330,7 +1330,7 @@ button.pg__sense-q:hover {
   border: 1px solid transparent;
   border-inline-start: 2px solid color-mix(in srgb, var(--tone, var(--accent)) 55%, transparent);
   border-radius: var(--radius-sm);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition), border-color var(--transition);
 }
 
@@ -1627,7 +1627,7 @@ button.pg__sense-q:hover {
   font-family: var(--font-sans);
   font-size: 0.68rem;
   letter-spacing: -0.004em;
-  cursor: pointer;
+  cursor: default;
   transition:
     color var(--transition),
     background var(--transition),
@@ -1718,7 +1718,7 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--accent) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
 }
 
 .pg-stretch__on:hover {
@@ -1961,7 +1961,7 @@ button.pg__sense-q:hover {
   color: var(--bar-ink);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -2011,7 +2011,7 @@ button.pg__sense-q:hover {
   color: var(--bar-ink);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
   animation: pg-aside-in 260ms ease both;
 }
@@ -2090,7 +2090,7 @@ button.pg__sense-q:hover {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), background-color var(--transition),
     border-color var(--transition);
 }
@@ -2167,7 +2167,7 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--accent) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition);
 }
 
@@ -2202,7 +2202,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
@@ -2498,7 +2498,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -2600,7 +2600,7 @@ button.pg__sense-q:hover {
   border-inline-start: 1px solid transparent;
   border-radius: 0 var(--radius-full) var(--radius-full) 0;
   opacity: 0;
-  cursor: pointer;
+  cursor: default;
   transition: opacity var(--transition), color var(--transition),
     border-color var(--transition);
 }
@@ -2698,7 +2698,7 @@ button.pg__sense-q:hover {
   color: var(--text-dim);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -2734,7 +2734,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition), opacity var(--transition);
   /* The hold is the menu here too — see `.pgc`. */
   -webkit-touch-callout: none;
@@ -3195,7 +3195,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: 10px;
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition);
 }
 
@@ -3261,7 +3261,7 @@ button.pg__sense-q:hover {
   color: var(--text-dim);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
 }
 
 .pg-found__more:hover,
@@ -3283,7 +3283,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition), border-color var(--transition);
 }
 
@@ -3392,7 +3392,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition);
 }
 
@@ -3462,7 +3462,7 @@ button.pg__sense-q:hover {
   border-radius: var(--radius-sm);
   background: var(--bg);
   text-align: start;
-  cursor: pointer;
+  cursor: default;
   transition:
     border-color var(--transition),
     background var(--transition);
@@ -3539,7 +3539,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition);
 }
 
@@ -3695,7 +3695,7 @@ button.pg__sense-q:hover {
   border: 0;
   border-radius: inherit;
   background: transparent;
-  cursor: pointer;
+  cursor: default;
 }
 
 .pg-band__cell:has(.pg-band__jump) {
@@ -3800,7 +3800,7 @@ button.pg__sense-q:hover {
   block-size: 11px;
   background: var(--text-faint);
   border-radius: 50%;
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition), box-shadow var(--transition);
 }
 
@@ -3812,22 +3812,18 @@ button.pg__sense-q:hover {
 /*
  * THE LIFT.
  *
- * A page picked up off the table, not a button pressed — so it rises, and casts
- * a shadow that is mostly transparent and warm rather than black. A neutral
- * drop shadow reads as a hole, and a page is not a hole.
+ * A page picked up off the table, not a button pressed — so it casts a shadow
+ * that is mostly transparent and warm rather than black. A neutral drop shadow
+ * reads as a hole, and a page is not a hole.
  *
- * This reverses the wall's earlier rule ("a page must never move under the
- * cursor"). The prototype settled the other way and it is right: colour alone
- * does not read as picking something up, and the movement is 3px, which is a
- * page lifting rather than a card jumping.
- *
- * `will-change` is deliberate — hundreds of cards, and the hover fires while
- * the wall is scrolling, which is exactly when a main-thread paint is felt.
+ * The lift is the shadow alone. For a while the page also rose 3px; that is the
+ * one hover in software that says "website" before anything else does, and a
+ * Mac grid (Finder, Photos) never moves an item under the cursor — so the wall's
+ * first rule is back: a page must never move under the cursor
+ * (DESIGN_PRINCIPLES N2). The warm shadow keeps the picking-up.
  */
 .pgc {
-  will-change: transform;
   transition:
-    transform var(--transition),
     border-color var(--transition),
     background-color var(--transition),
     box-shadow var(--transition),
@@ -3835,7 +3831,6 @@ button.pg__sense-q:hover {
 }
 
 .pgc:hover {
-  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--accent) 22%, transparent);
   box-shadow:
     0 18px 34px -20px color-mix(in srgb, var(--text) 32%, transparent),
@@ -3847,17 +3842,10 @@ button.pg__sense-q:hover {
   color: var(--accent);
 }
 
+/* Pressed: the page goes down under the finger, at once — never up. */
 .pgc:active {
-  transform: translateY(-1px);
-  transition-duration: 90ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pgc,
-  .pgc:hover,
-  .pgc:active {
-    transform: none;
-  }
+  background: color-mix(in srgb, var(--text) 5%, var(--bg-elevated));
+  transition-duration: 0s;
 }
 
 /* The year numeral was a watermark the size of a headline. The prototype marks
@@ -3877,7 +3865,7 @@ button.pg__sense-q:hover {
   color: var(--text-faint);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -4001,7 +3989,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
@@ -4084,7 +4072,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
@@ -4146,7 +4134,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition);
 }
 
@@ -4695,7 +4683,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-inline: 1px solid transparent;
-  cursor: pointer;
+  cursor: default;
   /* Quieter than it was: the chevrons carry the navigation, so this only has
      to say "there is a page over here", never "press me". */
   opacity: 0.14;
@@ -4850,7 +4838,7 @@ button.pg__sense-q:hover {
   color: inherit;
   line-height: inherit;
   text-align: start;
-  cursor: pointer;
+  cursor: default;
 }
 
 /* The door's rule shows when it is reached for, not at rest — at rest the
@@ -5853,7 +5841,7 @@ button.pg__sense-q:hover {
     background: none;
     border: none;
     border-block-start: 1px solid var(--border-subtle);
-    cursor: pointer;
+    cursor: default;
   }
 
   .pg-sheet__somewhere:active {
@@ -6319,7 +6307,7 @@ button.pg__sense-q:hover {
   font-size: 0.9rem;
   font-style: italic;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 .pg-read1__thread:hover { color: var(--accent); }
 .pg-read1__thread:focus-visible {
@@ -6345,7 +6333,7 @@ button.pg__sense-q:hover {
   font-family: var(--bar-font);
   font-size: var(--bar-size);
   color: var(--bar-ink);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), background-color var(--transition);
 }
 .pg-volumes button:hover { color: var(--bar-ink-hover); }

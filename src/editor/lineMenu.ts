@@ -112,7 +112,7 @@ const gutterTheme = EditorView.theme({
     // Invisible until wanted. `opacity` and not `display`, so there is no
     // layout to redo when it appears and nothing shifts beside the text.
     opacity: '0',
-    cursor: 'pointer',
+    cursor: 'default',
     transition: 'opacity 120ms ease, color 120ms ease',
   },
   /*

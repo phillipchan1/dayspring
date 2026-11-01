@@ -183,7 +183,7 @@ const taskListTheme = EditorView.theme({
     border: '1.5px solid var(--text-dim)',
     borderRadius: '0.2em',
     background: 'color-mix(in srgb, var(--bg-input) 70%, transparent)',
-    cursor: 'pointer',
+    cursor: 'default',
     boxSizing: 'border-box',
     position: 'relative',
   },
