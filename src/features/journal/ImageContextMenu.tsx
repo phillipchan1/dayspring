@@ -194,11 +194,28 @@ export function ImageContextMenu({
   const fileRef = useRef<HTMLInputElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
 
-  const open = phase.kind !== 'closed'
+  /*
+   * A plain click or tap on a photo arrives here as a request to LOOK
+   * (ImageMenuPoint `intent`), not for options: open the viewer and show no
+   * menu at all. Options are the right-click and the long-press.
+   */
+  const look = phase.kind === 'menu' && phase.point.intent === 'look'
+  const onLookRef = useRef(onLook)
+  onLookRef.current = onLook
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  useLayoutEffect(() => {
+    if (phase.kind !== 'menu' || phase.point.intent !== 'look') return
+    // Exactly what the menu's own Look row does.
+    onLookRef.current(phase.target)
+    onCloseRef.current()
+  }, [phase])
+
+  const open = phase.kind !== 'closed' && !look
   const drag = useSheetDismiss({ onDismiss: onClose, enabled: sheet && open })
   // The desktop menu appears at once and fades out (N3); the sheet's exit is
   // the sheets' own business.
-  const exit = useMenuExit(phase.kind === 'menu' && !sheet ? phase : null)
+  const exit = useMenuExit(open && !sheet ? phase : null)
   const keys = useMenuKeyboard({
     open,
     menuRef,
@@ -234,7 +251,7 @@ export function ImageContextMenu({
 
   useLayoutEffect(() => {
     if (backdropRef.current) backdropRef.current.style.pointerEvents = ''
-    if (phase.kind !== 'menu' || !menuRef.current) return
+    if (phase.kind !== 'menu' || look || !menuRef.current) return
     // The sheet has no position to find.
     if (sheet) return
     const pad = 8
@@ -242,11 +259,11 @@ export function ImageContextMenu({
     const x = Math.min(phase.point.x, window.innerWidth - rect.width - pad)
     const y = Math.min(phase.point.y, window.innerHeight - rect.height - pad)
     setPos({ x: Math.max(pad, x), y: Math.max(pad, y) })
-  }, [phase, sheet])
+  }, [phase, sheet, look])
 
-  const live = phase.kind === 'menu' ? phase : sheet ? null : exit.shown
+  const live = open && phase.kind === 'menu' ? phase : sheet ? null : exit.shown
   if (!live) return null
-  const leaving = phase.kind !== 'menu'
+  const leaving = !open
 
   const target = live.target
   const arrange = (how: PhotoArrangement) => () => {
