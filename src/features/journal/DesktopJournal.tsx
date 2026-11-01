@@ -3,7 +3,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Rail } from './Rail'
 import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
-import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
+import { entryReturnLabel } from '@/lib/appHistory'
 import { BackChevron } from '@/components/BackChevron'
 import type { JournalViewProps } from './journalViewProps'
 
@@ -106,10 +106,13 @@ export function DesktopJournal(props: JournalViewProps) {
                 <button
                   type="button"
                   className="journal-topbar__back"
+                  // Says where it goes — "Ascent · October 2026", not just "Ascent" —
+                  // and what else does the same thing.
+                  title={`Back to ${entryReturnLabel(entryReturn)} (Esc · ⌘[)`}
                   onClick={() => onReturnFromEntry()}
                 >
                   <BackChevron />
-                  {ENTRY_RETURN_LABEL[entryReturn.surface]}
+                  {entryReturnLabel(entryReturn)}
                 </button>
               ) : null}
               <span className="journal-topbar__label">{topbarLabel}</span>

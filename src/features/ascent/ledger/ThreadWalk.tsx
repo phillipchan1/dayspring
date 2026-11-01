@@ -180,6 +180,7 @@ export function ThreadWalk({ thread, throughMonth, labels, onOpenThread, onOpenE
                   key={`${l.entryId}${i}`}
                   type="button"
                   className="ledger-walk__line"
+                  data-entry-id={l.entryId}
                   onClick={() => onOpenEntry?.(l.entryId)}
                 >
                   <span className="ledger__date">{MONTH_SHORT[l.month]} {Number(l.date.slice(8, 10))}</span>

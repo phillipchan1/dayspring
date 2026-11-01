@@ -475,6 +475,8 @@ function SurfaceErrorBoundary({ children }: { children: React.ReactNode }) {
         scriptureVerse: null,
         entryReturn: null,
         ascentAltitude: 0,
+        ascentOffset: 0,
+        ascentSeat: null,
         ascentDrill: null,
       },
       { replace: true },

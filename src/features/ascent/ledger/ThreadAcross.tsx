@@ -130,7 +130,7 @@ export function ThreadAcross({
             <ol className="across__lines">
               {focus.lines.map((l, j) => (
                 <li key={`${l.entryId}${j}`}>
-                  <button type="button" onClick={() => onOpenEntry?.(l.entryId)}>
+                  <button type="button" data-entry-id={l.entryId} onClick={() => onOpenEntry?.(l.entryId)}>
                     <span className="across__when">{fmtDay(l.date)}</span>
                     <span className="across__text">{l.text}</span>
                     {l.kind !== 'story' ? <span className="across__kind">{KIND_COPY[l.kind]}</span> : null}
@@ -173,7 +173,7 @@ export function ThreadAcross({
               <ol className="across__lines">
                 {(p.lines.length > PER_CHAPTER ? [...p.lines.slice(0, 2), ...p.lines.slice(-(PER_CHAPTER - 2))] : p.lines).map((l, j) => (
                   <li key={`${l.entryId}${j}`}>
-                    <button type="button" onClick={() => onOpenEntry?.(l.entryId)}>
+                    <button type="button" data-entry-id={l.entryId} onClick={() => onOpenEntry?.(l.entryId)}>
                       <span className="across__when">
                         {fmtDay(l.date)} {l.date.slice(0, 4)}
                       </span>

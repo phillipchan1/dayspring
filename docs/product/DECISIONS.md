@@ -23,6 +23,38 @@ agenda.
 
 ---
 
+## D-036 — Time is a place, not a trip: Back returns to the period, and says so
+**2026-11-01** · **Status:** Open (built on alpha; Phil to confirm)
+
+**Decision:** Moving *through* time (‹ ›, the grains) moves you around inside a place
+and never pushes history; *opening* something is the only trip. Back — the on-screen
+control, Esc, ⌘[, the mouse's side button, the iOS swipe — undoes exactly one trip and
+lands on the same grain, the same period and the same spot on the page, with the thing
+you opened found again. The period is part of the Ascent's history frame
+(`ascentOffset`), not component state. The entry's Back control names where it goes
+("Ascent · October 2026"; the period only when it isn't now); away from now the eyebrow
+says "Last month" and **This month** returns in one press. Spec: `ORIENTATION.md`.
+**Why:** Reported 2026-11-01 — Ascent → October → a photo → the mouse's Back did nothing
+→ Esc landed on *November*. Three faults, not one: the period died with the Ascent when an
+entry took the canvas; the Back control only said "Ascent"; and ⌘[ — how most Mac mouse
+drivers send Back — was bound nowhere. The frame already held altitude and drill-ins
+(`AscentView` even says a history frame must win over stored state or "a back button
+starts lying about where it came from"); the period was simply left out.
+**What would change our mind:** People step through months to *find* something and expect
+Back to retrace it (browser-style): reaching for ⌘[ right after ‹ and expecting the
+previous month. Then Along becomes history, capped, with the way home always visible.
+Or: `history replace refused` breadcrumbs in crash reports — the coalesced write is
+meant to make them impossible.
+**Cost accepted:** Back can't undo a step through time — eight months back and one wrong
+tap, and Back returns to month eight, not month one. ⌘[ isn't Back while the caret is in
+the text (it outdents; Esc and the side button still work). `data-entry-id` on every
+control that opens an entry. The Ascent's When grows a chip.
+**Settled with it (Phil, 2026-11-01):** the Ascent does *not* carry in the period another
+room had — a fresh arrival from the rail opens at now, as before (D-035 carries it out,
+not in). Back is unaffected: it returns to the frame, which holds the period.
+
+---
+
 ## D-035 — One frame, four lights: every room shares its edge, its bar and its When
 **2026-10-10** · **Status:** Decided (Phil)
 

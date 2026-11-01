@@ -2462,6 +2462,8 @@ textarea,
 }
 .journal-topbar__back {
   flex-shrink: 0;
+  /* "Ascent · October 2026" is one place, not two words to break between. */
+  white-space: nowrap;
   padding: 0.2rem 0.45rem;
   margin: 0;
   border: none;
@@ -2864,6 +2866,23 @@ textarea,
   margin-inline: 0.4rem;
   background: var(--border);
 }
+.when__mid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 0;
+}
+/* The way home. A bordered chip, so it reads as an action beside the pills and
+   never as one more chosen thing; only there when the period is not now. */
+.when__home {
+  margin-inline-end: 0.55rem;
+  border: 1px solid var(--border);
+}
+@media (hover: hover) {
+  .when__home:hover {
+    border-color: var(--bar-ink-hover);
+  }
+}
 /* A narrow window: the period stays, the ladder tightens. */
 @media (max-width: 1099px) {
   .when--bar .pill {
@@ -2896,6 +2915,16 @@ textarea,
 }
 .when--row .when__step {
   justify-content: space-between;
+}
+.when--row .when__mid {
+  flex: 1;
+  gap: 0.5rem;
+}
+.when--row .when__home {
+  min-height: 1.9rem;
+  margin: 0;
+  padding-inline: 0.65rem;
+  font-size: 0.8rem;
 }
 .when--row .when__arrow {
   inline-size: 2.75rem;

@@ -1799,6 +1799,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       entryId: null,
       entryReturn: null,
       ascentDrill: null,
+      // A fresh arrival starts at now. The period you had stepped to belongs to
+      // the frame you are leaving — Back returns to that frame, and finds it there.
+      ascentOffset: 0,
+      ascentSeat: null,
       settings: null,
       help: false,
       // Leaving a surface closes the page you had open on Pages.
