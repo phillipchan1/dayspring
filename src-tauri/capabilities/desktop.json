@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop",
-  "description": "desktop-only permissions (updater)",
+  "description": "desktop-only permissions (updater, window state)",
   "platforms": [
     "macOS",
     "windows",
@@ -13,6 +13,7 @@
   "permissions": [
     "updater:default",
     "updater:allow-check",
-    "updater:allow-download-and-install"
+    "updater:allow-download-and-install",
+    "window-state:default"
   ]
 }

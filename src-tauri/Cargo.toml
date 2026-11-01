@@ -24,6 +24,12 @@ log = "0.4"
 # `devtools` feature: makes WebviewWindow::open_devtools() available in RELEASE
 # builds too (it's otherwise debug-only), so the dev-mode ⌘⌥I Web Inspector
 # compiles in `tauri build`. Without it the release build fails to compile.
+#
+# The feature only makes the API exist. Whether the Mac window is INSPECTABLE
+# is decided at runtime: tauri.macos.conf.json turns it off, and
+# `enable_web_inspector` (src/lib.rs) turns it back on in debug builds and when
+# dev mode asks for the inspector. A release build no longer offers "Inspect
+# Element" in every right-click menu.
 tauri = { version = "2.11.2", features = ["devtools"] }
 tauri-plugin-log = "2"
 tauri-plugin-process = "2"
@@ -33,6 +39,11 @@ tauri-plugin-opener = "2"
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-updater = "2"
+# Size, position, maximised and full-screen come back on relaunch. Pinned below
+# 2.5 on purpose: 2.5 requires tauri 2.12, and the Tauri CLI refuses to build
+# when the tauri crate's minor differs from @tauri-apps/api's (2.11). Move this
+# with the tauri bump, not before it.
+tauri-plugin-window-state = "~2.4.1"
 
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
 tauri-plugin-purchases = "0.2"
@@ -46,6 +57,10 @@ tauri-plugin-biometric = "2"
 # Info.ios.plist, instead of WebKit asking on behalf of an origin called
 # "localhost". See `readPosition` in src/lib/circumstancesSnap.ts.
 tauri-plugin-geolocation = "2"
+# Haptics (DESIGN_PRINCIPLES N6) behind `haptic()` in src/lib/haptics.ts.
+# Mobile-only: the plugin's desktop half is a stub. Pinned below 2.4 for the
+# same tauri-2.12 reason as window-state above.
+tauri-plugin-haptics = "~2.3.3"
 
 # Same objc2 major as iOS / wry — used to turn on WKWebView inline predictions
 # before the view is created (see `native_typing.rs`).
@@ -74,6 +89,10 @@ objc2-core-location = { version = "0.3", default-features = false, features = [
 objc2 = "0.6"
 objc2-ui-kit = { version = "0.3", default-features = false, features = [
   "std",
+  # For `UIColor::colorWithRed_green_blue_alpha` (it takes CGFloat). wry already
+  # turns this on in the same graph; named here so the theme sync in
+  # native_chrome.rs doesn't depend on wry's feature list.
+  "objc2-core-foundation",
   "UIApplication",
   "UICommand",
   "UIColor",

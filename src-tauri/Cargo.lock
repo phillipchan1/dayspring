@@ -94,12 +94,14 @@ dependencies = [
  "tauri-plugin-biometric",
  "tauri-plugin-deep-link",
  "tauri-plugin-geolocation",
+ "tauri-plugin-haptics",
  "tauri-plugin-log",
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-purchases",
  "tauri-plugin-store",
  "tauri-plugin-updater",
+ "tauri-plugin-window-state",
 ]
 
 [[package]]
@@ -4139,6 +4141,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-haptics"
+version = "2.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67ab59e8202362fb5fec1158bdb497466983ddac2483e606e4d5c1bf9b118c6c"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "tauri-plugin-log"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4251,6 +4267,21 @@ dependencies = [
  "url",
  "windows-sys 0.60.2",
  "zip",
+]
+
+[[package]]
+name = "tauri-plugin-window-state"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73736611e14142408d15353e21e3cca2f12a3cfb523ad0ce85999b6d2ef1a704"
+dependencies = [
+ "bitflags 2.12.1",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
