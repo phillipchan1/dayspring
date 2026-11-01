@@ -340,6 +340,32 @@ describe('useSheetDismiss — drawn on the element (ref)', () => {
     expect(q('.sheet').style.transition).toBe('')
   })
 
+  it('catches a sheet still settling home where it is, and carries on from there', () => {
+    mount({ onDismiss: vi.fn(), dom: true })
+    slow(q('.grab'), 100, 100 + NEAR)
+    expect(q('.sheet').style.translate).toBe('0 0') // on its way home…
+    // …and caught 30px short of it.
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({ translate: '0px 30px' } as CSSStyleDeclaration)
+    touch('touchstart', q('.grab'), 100, 100)
+    expect(q('.sheet').style.translate).toBe('0 30px')
+    expect(q('.sheet').style.transition).toBe('none')
+    clock += 16
+    touch('touchmove', window, 100, 110)
+    clock += 16
+    touch('touchmove', window, 100, 160)
+    expect(q('.sheet').style.translate).toBe('0 80px')
+  })
+
+  it('lets a caught sheet finish settling if the touch was only a tap', () => {
+    mount({ onDismiss: vi.fn(), dom: true })
+    slow(q('.grab'), 100, 100 + NEAR)
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({ translate: '0px 30px' } as CSSStyleDeclaration)
+    touch('touchstart', q('.grab'), 100, 100)
+    touch('touchend', window, 100, 100)
+    expect(q('.sheet').style.translate).toBe('0 0')
+    expect(q('.sheet').style.transition).toContain('translate')
+  })
+
   it('with `exit`, carries itself off before saying so', () => {
     const onDismiss = vi.fn()
     mount({ onDismiss, dom: true, exit: true })

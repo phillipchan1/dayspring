@@ -160,6 +160,12 @@ export function useSheetDismiss({
    * zero.
    */
   const live = useRef(0)
+  /**
+   * Where the sheet already was when the finger landed: caught mid-settle, a
+   * gesture takes over from where the sheet IS (N3: interruptible), not from
+   * where it was going.
+   */
+  const base = useRef(0)
   const speed = useRef(0)
   const last = useRef<{ y: number; t: number } | null>(null)
   const height = useRef(0)
@@ -202,7 +208,24 @@ export function useSheetDismiss({
     inScroller.current = false
     last.current = null
     live.current = 0
+    base.current = 0
     speed.current = 0
+  }
+
+  /**
+   * A finger landed on a sheet still settling home: stop it where it is and
+   * hand back that offset, so the new drag carries on from there.
+   */
+  function catchSettle(): number {
+    const el = node.current
+    if (!el || !settling.current) return 0
+    settling.current()
+    settling.current = null
+    const raw = getComputedStyle(el).translate
+    const y = raw && raw !== 'none' ? parseFloat(raw.split(/\s+/)[1] ?? '0') || 0 : 0
+    el.style.transition = 'none'
+    el.style.translate = y ? `0 ${y}px` : ''
+    return y
   }
 
   /** Back home: sprung on the element, or by the caller's own CSS transition. */
@@ -282,8 +305,6 @@ export function useSheetDismiss({
     // not a touch on this sheet.
     const target = e.target as Node | null
     if (target && !(e.currentTarget as Node).contains(target)) return
-    settling.current?.()
-    settling.current = null
     start.current = { x: t.clientX, y: t.clientY }
     axis.current = null
     speed.current = 0
@@ -295,7 +316,10 @@ export function useSheetDismiss({
     const scroller = (e.target as Element | null)?.closest?.('[data-sheet-scroll]')
     inScroller.current = scroller !== null && scroller !== undefined
     blocked.current = inScroller.current && scroller!.scrollTop > 0
+    // A scroll: a sheet still settling home is left to finish doing so.
     if (blocked.current) return
+    base.current = catchSettle()
+    live.current = base.current
     height.current = (node.current ?? (e.currentTarget as HTMLElement)).getBoundingClientRect().height
     follow()
   }
@@ -330,12 +354,14 @@ export function useSheetDismiss({
       axis.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
       if (axis.current === 'h') {
         bound.current?.()
+        if (base.current !== 0) settle()
         return
       }
       // Upward from inside a scroller is that scroller's.
       if (dy < 0 && inScroller.current) {
         blocked.current = true
         bound.current?.()
+        if (base.current !== 0) settle()
         return
       }
       // Measure from HERE, not from touchdown: the slop is not travel, and
@@ -358,15 +384,19 @@ export function useSheetDismiss({
         last.current = { y: t.clientY, t: now }
       }
     }
-    live.current = dy
-    draw(rubberBand(dy))
+    live.current = base.current + dy
+    draw(rubberBand(live.current))
   }
 
   function release() {
     bound.current?.()
     if (axis.current !== 'v' || blocked.current) {
-      forget()
-      setDragging(false)
+      // Caught mid-settle and then let go without a drag: finish settling.
+      if (base.current !== 0) settle()
+      else {
+        forget()
+        setDragging(false)
+      }
       return
     }
     const idle = last.current ? performance.now() - last.current.t : Infinity
