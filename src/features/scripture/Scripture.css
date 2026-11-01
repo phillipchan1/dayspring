@@ -77,7 +77,7 @@
   cursor: default;
   transition:
     border-color var(--transition),
-    transform var(--transition);
+    background-color var(--dur-exit) var(--ease-exit);
   min-width: 0;
 }
 
@@ -98,19 +98,28 @@
   border-color: rgb(var(--scripture-gold));
 }
 
-/* Books that gained a verse since the last visit — a gentle gold breath that
-   ties the arrival line to the map, then settles to the normal tile. */
+/* Books that gained a verse since the last visit — the tile arrives lit and
+   settles, once, which ties the arrival line to the map. It used to breathe
+   three times over eight seconds: an entrance replaying on a surface visited
+   daily, and a pulse on a page that is meant to be read (N3). */
 .scripture__book--new {
   border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 55%, var(--border));
-  animation: scriptureBookNew 2.6s ease-in-out 3;
+  animation: scriptureBookNew 1.2s var(--ease-out) 1 both;
 }
 @keyframes scriptureBookNew {
-  0%, 100% {
-    box-shadow: none;
-  }
-  50% {
+  from {
     box-shadow: 0 0 16px -2px rgba(var(--scripture-gold), 0.5);
   }
+  to {
+    box-shadow: none;
+  }
+}
+
+/* Pressed: the tile washes the instant a finger lands, and lets go over
+   --dur-exit (N2). */
+.scripture__book:active {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 10%, var(--bg-elevated));
+  transition-duration: 0s;
 }
 @media (prefers-reduced-motion: reduce) {
   .scripture__book--new {
@@ -323,7 +332,7 @@
   background: var(--glass-scrim);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-slow);
+  transition: opacity var(--dur-push) var(--ease-ios);
 }
 
 .scripture-book__scrim--open {
@@ -342,9 +351,12 @@
   border-left: 1px solid var(--border);
   box-shadow: var(--shadow-3);
   transform: translateX(102%);
-  transition: transform var(--transition-slow);
+  /* A navigation push, timed as one: the same --dur-push / --ease-ios as the
+     reader and every other pushed view, in and out and on a swipe's settle. */
+  transition: transform var(--dur-push) var(--ease-ios);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .scripture-book--open {
@@ -474,8 +486,36 @@
   cursor: default;
 }
 
+/* A ring, not a grow: a cell that swells under the cursor shoves the picture
+   around it, and nothing on a reading surface moves under the pointer (N2). */
 .scripture-book__ch--lit:hover {
-  transform: scale(1.3);
+  outline: 1px solid color-mix(in srgb, rgb(var(--scripture-gold)) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.scripture-book__ch--lit:active {
+  filter: brightness(1.25);
+  transition-duration: 0s;
+}
+
+/* Strip placeholder while a book is first read: the real grid, unlit, so the
+   panel never jumps when the light arrives. */
+.scripture-book__pending {
+  opacity: 0.6;
+}
+
+/* On touch the grid takes the tap and gives it to the nearest lit cell within
+   44pt (`nearestLit`), so an unlit cell stands out of the way of hit-testing,
+   and the grid's own box reaches a little past its edge cells. */
+@media (pointer: coarse) {
+  .scripture-book__ch:disabled {
+    pointer-events: none;
+  }
+
+  .scripture-book__chapters {
+    padding: 9px;
+    margin: -9px;
+  }
 }
 
 .scripture-book__ch--sel {
@@ -539,11 +579,13 @@
   padding: 0;
   transform: translate(-50%, 50%);
   cursor: default;
-  transition: transform var(--transition);
+  transition: outline-color var(--transition);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
 
 .scripture-book__tl-dot:hover {
-  transform: translate(-50%, 50%) scale(1.5);
+  outline-color: color-mix(in srgb, rgb(var(--scripture-gold)) 60%, transparent);
   z-index: 4;
 }
 
@@ -632,15 +674,26 @@
   border-top: 1px solid var(--border-subtle);
   padding: 1.4rem 0;
   cursor: default;
-  transition: padding-left var(--transition);
+  transition:
+    box-shadow var(--transition),
+    background-color var(--dur-exit) var(--ease-exit);
 }
 
-.scripture-book__entry:hover {
-  padding-left: 8px;
-}
-
+/* An inset rule in the gutter, not a nudge: the row used to gain 8px of
+   padding on hover, which re-wrapped the excerpt under the cursor. */
+.scripture-book__entry:hover,
 .scripture-book__entry--flash {
-  padding-left: 8px;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, rgb(var(--scripture-gold)) 70%, transparent);
+}
+
+.scripture-book__entry:active {
+  background-color: color-mix(in srgb, rgb(var(--scripture-gold)) 7%, transparent);
+  transition-duration: 0s;
+}
+
+.scripture-book__vchip:not([data-on='true']):active {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 16%, transparent);
+  transition-duration: 0s;
 }
 
 .scripture-book__entry-top {
