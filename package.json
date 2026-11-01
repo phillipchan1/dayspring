@@ -125,6 +125,6 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
     "vitest": "^4.1.8",
-    "wrangler": "^4.45.0"
+    "wrangler": "^4.156.0"
   }
 }
