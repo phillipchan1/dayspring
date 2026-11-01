@@ -80,16 +80,62 @@ export function applyPlatformClass(): void {
     return
   }
   root.dataset.platform = 'desktop'
-  const style = root.style
-  style.setProperty('--mac-traffic-x', MAC_TRAFFIC_INSET.sidebarX)
-  style.setProperty('--mac-traffic-main-top', MAC_TRAFFIC_INSET.mainTop)
-  style.setProperty('--mac-traffic-main-left-collapsed', MAC_TRAFFIC_INSET.mainLeftCollapsed)
+  setFullscreenInsets(false)
 }
+
+/**
+ * The traffic-light clearances are only owed while the lights are drawn. In
+ * full screen macOS hides them (they slide in with the menu bar), so the frame
+ * bar and the rail take the web's spacing instead of keeping an empty band
+ * where three buttons used to be. Called by windowChrome.ts on every resize.
+ */
+export function setFullscreenInsets(fullscreen: boolean): void {
+  if (typeof document === 'undefined') return
+  const style = document.documentElement.style
+  const vars: Array<[string, string]> = [
+    ['--mac-traffic-x', MAC_TRAFFIC_INSET.sidebarX],
+    ['--mac-traffic-main-top', MAC_TRAFFIC_INSET.mainTop],
+    ['--mac-traffic-main-left-collapsed', MAC_TRAFFIC_INSET.mainLeftCollapsed],
+    ['--mac-traffic-rail-top', MAC_TRAFFIC_INSET.railClearance],
+  ]
+  for (const [name, value] of vars) {
+    if (fullscreen) style.removeProperty(name)
+    else style.setProperty(name, value)
+  }
+}
+
+/**
+ * Where the native traffic lights sit — `trafficLightPosition` in
+ * src-tauri/tauri.macos.conf.json, in points (src/lib/platform.test.ts holds
+ * the two together).
+ *
+ * They are centred on the frame bar's first row, the way a unified toolbar
+ * holds them in Notes and Mail: the row runs from `--frame-bar-top` (1.7rem)
+ * for `--frame-bar-row` (2rem), so its middle is 2.7rem = 43.2pt down. Tao
+ * keeps each button's own vertical offset inside the title-bar view it
+ * resizes to `button height + y`, which puts a button's centre within a
+ * point or two of `y`; 42 lands it on the row. Horizontally the three
+ * buttons (54pt across) are centred over the collapsed rail's icon column
+ * (`--rail-width` 4.5rem = 72pt): (72 − 54) / 2 = 9.
+ *
+ * Verify on a Mac after changing either number: the lights' centre should
+ * line up with "← Pages" in the bar.
+ */
+export const MAC_TRAFFIC_LIGHTS = { x: 9, y: 42 } as const
 
 /** Room for macOS traffic lights under Tauri’s overlay title bar. */
 export const MAC_TRAFFIC_INSET = {
-  /** Navigation rail top — push the Mark/nav below the traffic lights */
-  railTop: '2.85rem',
+  /**
+   * Navigation rail top — push the Mark/nav below the traffic lights. A CSS
+   * reference rather than a length, so it lets go in full screen (see
+   * setFullscreenInsets); 0.5rem is the rail's own padding on the web.
+   */
+  railTop: 'var(--mac-traffic-rail-top, 0.5rem)',
+  /**
+   * With the lights on the frame bar's row, the rail's first item starts
+   * where the bar ends: its top clearance, its row and its floor.
+   */
+  railClearance: 'calc(var(--frame-bar-top) + var(--frame-bar-row) + var(--frame-bar-floor))',
   sidebarX: '1rem',
   /** Main toolbar when the entry list is visible */
   mainTop: '1.7rem',

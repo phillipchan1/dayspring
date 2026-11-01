@@ -39,6 +39,7 @@ import { maybeBackfillOnLoad } from './lib/processingClient'
 import { SurfaceLoader } from './components/SurfaceLoader'
 import { initApplePurchases, isAppleIapAvailable } from './lib/appleIap'
 import { isMobileTauri } from './lib/platform'
+import { syncNativeAppearance } from './lib/windowChrome'
 import { track } from './lib/analytics'
 import { setLocalOnlySync } from './lib/repo'
 import { leftAccount, restartClaimed } from './lib/accountLeave'
@@ -88,6 +89,9 @@ export function App() {
     // Mobile status-bar / PWA chrome tracks the resolved surface color.
     const themeColor = getComputedStyle(root).getPropertyValue('--bg-elevated').trim()
     if (themeColor) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor)
+    // The OS's own chrome in the same voice: the Mac window's appearance; on
+    // iOS the status bar, keyboard, selection handles and pre-paint ground.
+    syncNativeAppearance(isLightTheme(resolvedTheme) ? 'light' : 'dark')
     // The reader's own numbers go into the *base* vars; themes.css multiplies
     // them by the voice's --font-scale / --line-height-scale. A voice adjusts
     // the slider's value rather than overruling it, so 24px stays 24px in Dawn

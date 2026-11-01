@@ -72,6 +72,32 @@
   --bar-ink-hover: var(--text-bright);
 }
 
+/*
+ * THE WINDOW, from outside (Mac app; set by src/lib/windowChrome.ts).
+ *
+ * Inactive — another app has the keyboard. A Mac window says so by greying
+ * its selection and its tint; ours mutes them toward --text-dim but keeps a
+ * share of the accent, so a dark voice goes dusky rather than grey. Only
+ * tokens derived FROM the accent change: redefining --accent here would be a
+ * cycle.
+ *
+ * Full screen — the traffic lights are hidden, so their clearances go
+ * (platform.ts `setFullscreenInsets` drops the --mac-traffic-* insets), and
+ * there is no window left to drag.
+ */
+html[data-window-inactive][data-theme] {
+  --selection-bg: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--accent) 30%, var(--text-dim)) 32%,
+    var(--bg-elevated)
+  );
+  --accent-soft: color-mix(in srgb, color-mix(in srgb, var(--accent) 35%, var(--text-dim)) 14%, transparent);
+  --journal-horizon: color-mix(in srgb, var(--accent) 40%, var(--text-dim));
+}
+html[data-fullscreen] .window-drag-strip {
+  display: none;
+}
+
 *,
 *::before,
 *::after {
