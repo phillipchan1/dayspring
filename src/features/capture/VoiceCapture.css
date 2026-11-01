@@ -12,7 +12,12 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  animation: voice-card-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: voice-card-in var(--dur-base) var(--ease-out);
+}
+/* Out the way a Mac dialog goes: a quick fade and settle. The centring lives in
+   `transform`, so both keyframes carry it. (PageScanCapture.css shares these.) */
+.voice-capture:not(.voice-capture--sheet)[data-state='closing'] {
+  animation: voice-card-out var(--dur-exit) var(--ease-exit) forwards;
 }
 @keyframes voice-card-in {
   from {
@@ -24,12 +29,23 @@
     transform: translate(-50%, -50%);
   }
 }
+@keyframes voice-card-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.97);
+  }
+}
 
+/* A sheet: up from the bottom edge, and back down it (useExit). A drag is
+   drawn on `translate` (useSheetDismiss), which composes with these. */
 .voice-capture--sheet {
   width: 100%;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding-bottom: env(safe-area-inset-bottom);
-  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios);
+}
+.voice-capture--sheet[data-state='closing'] {
+  animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
 }
 
 .voice-capture__body {
@@ -83,8 +99,8 @@
   opacity: calc(0.25 + var(--level, 0) * 0.55);
   transform: scale(calc(1.18 + var(--level, 0) * 0.5));
   transition:
-    transform 120ms ease-out,
-    opacity 120ms ease-out;
+    transform var(--dur-quick) var(--ease-out),
+    opacity var(--dur-quick) var(--ease-out);
 }
 
 /* Resting/recording breath when audio is quiet, so the orb is never lifeless. */
@@ -199,7 +215,9 @@
   font-size: 0.95rem;
   line-height: 1.55;
   color: var(--text-bright);
-  animation: voice-card-in 200ms ease;
+  /* A fade, not voice-card-in: that one carries the card's own centring, and
+     on the caption it threw the text half its size up and left for a frame. */
+  animation: ds-fade-in var(--dur-base) var(--ease-out);
 }
 
 .voice-capture__actions {
@@ -267,7 +285,7 @@
   mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
   user-select: none;
   pointer-events: none;
-  transition: filter 200ms ease;
+  transition: filter var(--dur-base) var(--ease-out);
 }
 
 /* The salvageable partial transcript shown in the error state. */
@@ -298,7 +316,7 @@
   width: min(380px, calc(100vw - 32px));
   border-radius: var(--radius-lg);
   z-index: 8400;
-  animation: dictation-recovery-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: dictation-recovery-in var(--dur-push) var(--ease-out);
 }
 @keyframes dictation-recovery-in {
   from {
@@ -331,13 +349,13 @@
   color: var(--text-dim);
 }
 
+/* The orb and the waveform hold still. The card and the sheet are left to
+   global.css ("Presence"), which swaps their movement for a fade. */
 @media (prefers-reduced-motion: reduce) {
   .voice-orb,
   .voice-orb__core,
   .voice-orb__halo,
-  .voice-capture__bar,
-  .voice-capture,
-  .voice-capture--sheet {
+  .voice-capture__bar {
     animation: none !important;
     transition: none !important;
   }

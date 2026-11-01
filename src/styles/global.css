@@ -4121,7 +4121,115 @@ html[data-chapter-pane] .focus-controls--docked {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 40;
-  animation: fade-in 140ms ease;
+  /* The dimming comes up, not the layer: the scrim CONTAINS the sheet or
+     dialog in most of these, so fading its opacity faded what it held too —
+     a sheet half see-through as it rose. */
+  animation: ds-scrim-in var(--dur-base) var(--ease-out);
+}
+
+/* ── Presence: how layers leave (hooks/usePresence.ts) ──────────────────────
+ *
+ * A layer that is closing stays mounted with `data-state="closing"` until its
+ * exit animation ends (DESIGN_PRINCIPLES N3: exits are faster than entrances,
+ * not absent). What follows is the shared vocabulary; each layer picks its own
+ * exit next to its entrance.
+ *
+ *   sheets      rise   ds-sheet-rise   --dur-sheet --ease-ios
+ *               leave  ds-sheet-fall   --dur-exit  --ease-exit
+ *   Mac modals  arrive ds-modal-in     --dur-base  --ease-out
+ *               leave  ds-modal-out    --dur-exit  --ease-exit
+ *   scrims      ds-scrim-in / ds-scrim-out
+ *
+ * The leaving keyframes name only their END. Their start is wherever the layer
+ * is — which, for a sheet let go of mid-drag, is where the finger left it
+ * (useSheetDismiss leaves its `translate` in place, and these animate
+ * `transform`, which composes with it).
+ *
+ * A closing layer takes no pointer: the user is already somewhere else, and a
+ * tap meant for what is underneath must not land on what is leaving.
+ */
+[data-state='closing'] {
+  pointer-events: none;
+}
+.scrim[data-state='closing'] {
+  animation: ds-scrim-out var(--dur-exit) var(--ease-exit) forwards;
+}
+/* Let go of mid-flick: the exit starts at the finger's speed, so it can't start
+   from rest the way --ease-exit does. */
+[data-released][data-state='closing'] {
+  animation-timing-function: var(--ease-out) !important;
+}
+@keyframes ds-scrim-in {
+  from {
+    background-color: transparent;
+    -webkit-backdrop-filter: blur(0) saturate(1);
+    backdrop-filter: blur(0) saturate(1);
+  }
+}
+@keyframes ds-scrim-out {
+  to {
+    background-color: transparent;
+    -webkit-backdrop-filter: blur(0) saturate(1);
+    backdrop-filter: blur(0) saturate(1);
+  }
+}
+@keyframes ds-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ds-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ds-sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes ds-sheet-fall {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes ds-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@keyframes ds-modal-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/*
+ * Reduce Motion: nothing travels, but things still arrive (N3 — swap movement
+ * for a crossfade, so the cue that something came and went survives). The
+ * global rule at the top of this file deletes every animation; the layers this
+ * section owns opt back in to a fade, and only a fade. Exits are immediate
+ * there (usePresence doesn't wait), so only the way in needs saying.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .scrim {
+    animation: ds-fade-in var(--dur-base) var(--ease-out) !important;
+  }
+  .settings-modal,
+  .shortcuts-overlay,
+  .concordance-drawer,
+  .command-popover--sheet,
+  .voice-capture,
+  .page-scan,
+  .command-popover__scrim,
+  .ascent-drill__scrim,
+  .ascent-drill__panel,
+  .pg-sheet[data-narrow='true'],
+  .pg-sheet__scrim {
+    animation: ds-fade-in var(--dur-base) var(--ease-out) !important;
+  }
 }
 
 /* ── Mobile entry drawer ────────────────────────────────────────────────── */
@@ -4304,7 +4412,12 @@ html[data-chapter-pane] .focus-controls--docked {
   /* Tall enough that a landscape iPad (~834pt) doesn't cut its list off. */
   height: min(88dvh, 56rem);
   border-radius: 18px;
-  animation: glass-modal-in var(--transition-slow) both;
+  /* A Mac dialog: a short fade and settle in, a quicker fade and shrink out
+     (see "Presence" above). Utility motion, so the platform's pace. */
+  animation: ds-modal-in var(--dur-base) var(--ease-out);
+}
+.settings-modal[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
 }
 @keyframes glass-modal-in {
   from {
@@ -4317,7 +4430,7 @@ html[data-chapter-pane] .focus-controls--docked {
   }
 }
 
-/* Mobile: full-screen bottom sheet */
+/* Mobile: a bottom sheet that rises from the edge and goes back down it. */
 @media (max-width: 767px) {
   .settings-scrim {
     align-items: flex-end;
@@ -4325,27 +4438,22 @@ html[data-chapter-pane] .focus-controls--docked {
   }
   .settings-modal {
     width: 100vw;
-    height: 100dvh;
-    max-height: 100dvh;
+    /* Clear of the status bar by a little, the way an iOS page sheet stops
+       short of the top: the grabber used to sit under the Dynamic Island, and
+       the dimmed strip above is the sheet's own tap-away. */
+    height: calc(100dvh - var(--safe-top) - 10px);
+    max-height: calc(100dvh - var(--safe-top) - 10px);
     border-radius: 12px 12px 0 0;
-    animation: glass-modal-mobile-in var(--transition-slow) both;
+    animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios);
     flex-direction: column;
-    /* Snap-back when a drag is released short of the dismiss threshold. The
-       drag itself sets `transition: none` inline so it tracks the finger. */
-    transition: transform var(--transition) ease-out;
+    /* No transition here: useSheetDismiss draws the drag on `translate` and
+       springs a short pull home itself. */
     /* The sheet owns vertical gestures; the body opts back in via its own
        overflow-y. Without this iOS scrolls the page behind the drag. */
     touch-action: pan-y;
   }
-  @keyframes glass-modal-mobile-in {
-    from {
-      opacity: 0;
-      transform: translateY(100%);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
+  .settings-modal[data-state='closing'] {
+    animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
   }
 }
 
@@ -4361,7 +4469,7 @@ html[data-chapter-pane] .focus-controls--docked {
     justify-content: center;
     width: 100%;
     flex: 0 0 auto;
-    padding: max(0.5rem, env(safe-area-inset-top)) 0 0.45rem;
+    padding: 0.5rem 0 0.45rem;
     border: none;
     /* The sheet's own ground, not a window onto the page under it — the top
        half of the entry's title showed through above the tabs. */
@@ -4532,7 +4640,7 @@ html[data-chapter-pane] .focus-controls--docked {
      without this the scroller rubber-bands underneath it at the same time. */
   overscroll-behavior: contain;
   padding: 1.4rem;
-  animation: tab-fade var(--transition-slow) both;
+  animation: tab-fade var(--dur-base) var(--ease-out) both;
 }
 
 @media (max-width: 767px) {
@@ -5458,7 +5566,10 @@ html[data-chapter-pane] .focus-controls--docked {
   overflow-y: auto;
   padding: 1.3rem 1.5rem 1.5rem;
   border-radius: 18px;
-  animation: glass-modal-in var(--transition-slow) both;
+  animation: ds-modal-in var(--dur-base) var(--ease-out);
+}
+.shortcuts-overlay[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
 }
 .shortcuts-overlay__head {
   display: flex;

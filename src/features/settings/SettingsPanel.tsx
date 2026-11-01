@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { voiceCaretSupported } from '@/editor/voiceCaret'
 import { track } from '@/lib/analytics'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import type { PresenceState } from '@/hooks/usePresence'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
@@ -79,6 +80,12 @@ interface Props {
   /** Signed-in account, shown alongside Sign out in the About tab. */
   userEmail: string
   featureFlags: string[]
+  /**
+   * From the mount point's usePresence: 'closing' while the sheet slides away
+   * (phone) or the dialog fades out (Mac), and the node whose exit decides
+   * when it is gone. Absent, it simply mounts and unmounts.
+   */
+  presence?: { state: PresenceState; ref: (node: Element | null) => void }
 }
 
 const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
@@ -101,10 +108,15 @@ export function SettingsPanel({
   onImportSourceBack,
   userEmail,
   featureFlags,
+  presence,
 }: Props) {
   const isMobile = useIsMobile()
+  const closing = presence?.state === 'closing'
 
   useEffect(() => {
+    // Already on its way out: the next Esc belongs to whatever is underneath,
+    // and answering it here would pop a second history frame.
+    if (closing) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       // Capture + preventDefault: with fullscreen keyboard lock, Esc closes modal first.
@@ -115,7 +127,7 @@ export function SettingsPanel({
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [importSourceId, onClose, onImportSourceBack])
+  }, [importSourceId, onClose, onImportSourceBack, closing])
 
   // Keyboard shortcuts are irrelevant on a touch phone (no hardware keys); the
   // tab only earns its place on desktop and keyboard-equipped tablets. The 767px
@@ -128,30 +140,40 @@ export function SettingsPanel({
   // grabber, which was a target most thumbs never found. useSheetDismiss yields
   // the gesture back to the body whenever that body still has somewhere to
   // scroll, so the two never fight.
-  const { handlers: sheetDrag, dragY, dragging } = useSheetDismiss({
+  //
+  // The drag is drawn straight onto the sheet (`ref`), and a dismissal leaves
+  // it where the finger let go: the closing animation carries it down from
+  // there rather than snapping it home first.
+  const sheetDrag = useSheetDismiss({
     onDismiss: onClose,
-    enabled: isMobile,
+    enabled: isMobile && !closing,
   })
+  const presenceRef = presence?.ref
+  const dragRef = sheetDrag.ref
+  const sheetRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      presenceRef?.(el)
+      dragRef(el)
+    },
+    [presenceRef, dragRef],
+  )
 
   return (
-    <div className="scrim settings-scrim glass-scrim" onClick={onClose}>
+    <div
+      className="scrim settings-scrim glass-scrim"
+      data-state={presence?.state}
+      onClick={onClose}
+    >
       <div
+        ref={sheetRef}
         className="settings-modal glass-surface"
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
+        data-state={presence?.state}
+        data-dragging={sheetDrag.dragging ? 'true' : undefined}
         onClick={(e) => e.stopPropagation()}
-        {...sheetDrag}
-        style={
-          dragging || dragY
-            ? {
-                transform: `translateY(${dragY}px)`,
-                // Suppressed only while the finger is down; on release the
-                // class's transition returns and snaps the sheet home.
-                ...(dragging ? { transition: 'none' } : {}),
-              }
-            : undefined
-        }
+        {...sheetDrag.handlers}
       >
         <div className="glass-surface__glow" aria-hidden />
         {isMobile && (

@@ -259,3 +259,14 @@ export function useExit(onClose: () => void, options: PresenceOptions = {}): Exi
 
   return { state: closing ? 'closing' : 'open', closing, close, ref }
 }
+
+/**
+ * One callback ref that feeds several — the presence hook and a drag hook both
+ * want the same sheet. Pass the same number of refs on every render.
+ */
+export function useMergedRef<T extends Element>(
+  ...refs: Array<((node: T | null) => void) | undefined>
+): (node: T | null) => void {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useCallback((node: T | null) => refs.forEach((r) => r?.(node)), refs)
+}
