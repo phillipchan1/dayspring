@@ -64,3 +64,68 @@ describe('useJournalShortcuts ⌘F', () => {
     unmount()
   })
 })
+
+describe('useJournalShortcuts Back', () => {
+  const escapes = () => {
+    const seen: KeyboardEvent[] = []
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') seen.push(e)
+    }
+    window.addEventListener('keydown', listener)
+    return { seen, stop: () => window.removeEventListener('keydown', listener) }
+  }
+
+  it('⌘[ goes up one layer by the road Esc takes', () => {
+    const { unmount } = mount()
+    const esc = escapes()
+    const event = press({ key: '[', metaKey: true })
+    expect(event.defaultPrevented).toBe(true)
+    expect(esc.seen).toHaveLength(1)
+    esc.stop()
+    unmount()
+  })
+
+  it('leaves ⌘[ to the editor, where it is Outdent', () => {
+    const { unmount } = mount()
+    const editor = document.createElement('div')
+    editor.className = 'cm-editor'
+    const content = document.createElement('div')
+    content.tabIndex = 0
+    editor.append(content)
+    document.body.append(editor)
+    const esc = escapes()
+    const event = new KeyboardEvent('keydown', { key: '[', metaKey: true, bubbles: true, cancelable: true })
+    act(() => {
+      content.dispatchEvent(event)
+    })
+    expect(event.defaultPrevented).toBe(false)
+    expect(esc.seen).toHaveLength(0)
+    esc.stop()
+    editor.remove()
+    unmount()
+  })
+
+  it("the mouse's back button goes up one layer", () => {
+    const { unmount } = mount()
+    const esc = escapes()
+    const up = new MouseEvent('mouseup', { button: 3, bubbles: true, cancelable: true })
+    act(() => {
+      window.dispatchEvent(up)
+    })
+    expect(up.defaultPrevented).toBe(true)
+    expect(esc.seen).toHaveLength(1)
+    esc.stop()
+    unmount()
+  })
+})
+
+describe('useJournalShortcuts ⌘P', () => {
+  it('prints the entry, and never lets the browser print the app', () => {
+    const onPrint = vi.fn()
+    const { unmount } = mount({ onPrint })
+    const event = press({ key: 'p', metaKey: true })
+    expect(event.defaultPrevented).toBe(true)
+    expect(onPrint).toHaveBeenCalledOnce()
+    unmount()
+  })
+})

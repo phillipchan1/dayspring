@@ -8,6 +8,10 @@ import {
 } from './keyboard'
 import { RAIL_EXPAND_KEY } from './railHints'
 import { isTauri } from '@/lib/platform'
+import { EditorView } from '@codemirror/view'
+import { settingsStore } from '@/lib/settings'
+import { deriveTitle } from './deriveTitle'
+import { printMarkdown } from './entryActions'
 
 export interface JournalShortcutActions {
   onNew: () => void
@@ -37,6 +41,11 @@ export interface JournalShortcutActions {
   onZoomIn: () => void
   onZoomOut: () => void
   onZoomReset: () => void
+  /**
+   * ⌘P — print what is in front of you. Optional: without it, ⌘P prints the
+   * entry in the editor that has focus (or the one on screen).
+   */
+  onPrint?: () => void
   /** Focus mode consumes Esc first (handled in useFocusMode). */
   focusActive: boolean
   /** When true, only Esc (handled elsewhere) should run. */
@@ -44,10 +53,27 @@ export interface JournalShortcutActions {
 }
 
 /**
+ * Back: one layer up, by exactly the road Esc takes.
+ *
+ * ⌘[ and a mouse's back button are the Mac's Back (Safari, Finder, Books;
+ * DESIGN_PRINCIPLES N4). Esc already knows what "up one layer" means on every
+ * surface — a pane off the entry, the entry back to its reader or the wall,
+ * the reader back to the wall, a sheet or Settings closed — and which layers
+ * claim it first. Rather than a second copy of that knowledge to drift out of
+ * step, Back hands the same key to the same handlers, from where focus is.
+ */
+export function goUpOneLayer(): void {
+  const from = document.activeElement instanceof HTMLElement ? document.activeElement : document.body
+  from.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }),
+  )
+}
+
+/**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
  * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–5 rail · ⌘, settings
- * ⌘S save · ⌘K search · ⌘⏎ focus
+ * ⌘S save · ⌘K search · ⌘⏎ focus · ⌘[ and the mouse's back button: back
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
@@ -64,6 +90,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onZoomIn,
     onZoomOut,
     onZoomReset,
+    onPrint,
     focusActive,
     settingsOpen,
   } = actions
@@ -101,6 +128,16 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
       }
 
       if (!hasMod(e) || e.altKey) return
+
+      // ⌘[ is Back — except in the writing, where it is Outdent, as in Notes
+      // and Pages, and a writer reaching to un-indent a list must not be
+      // thrown out of the entry. The mouse's back button works everywhere.
+      if (e.key === '[' && !e.shiftKey) {
+        if (isInEditor(e.target)) return
+        e.preventDefault()
+        goUpOneLayer()
+        return
+      }
 
       // ⌘K works INSIDE the editor on purpose — "wait, have I been here before?"
       // is a mid-sentence thought, and making you leave the entry to ask it is
@@ -156,6 +193,16 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
+      // ⌘P prints the entry, never the app's own window (N1: the browser's
+      // Print of the whole UI is a web tell).
+      if (key === 'p' && !e.shiftKey) {
+        e.preventDefault()
+        if (settingsOpen) return
+        if (onPrint) onPrint()
+        else printEntryInFront()
+        return
+      }
+
       /*
        * The rail, numbered as it reads: one item under Write, four under
        * Return. Write holding a single item looks thin and is the correct
@@ -183,8 +230,22 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
       }
     }
 
+    // The mouse's back button (button 3). On release, as the platform acts;
+    // the browser's own history Back is kept out of it in a web build.
+    const onMouseBack = (e: MouseEvent) => {
+      if (e.button !== 3) return
+      e.preventDefault()
+      if (e.type === 'mouseup') goUpOneLayer()
+    }
+
     window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    window.addEventListener('mouseup', onMouseBack, true)
+    window.addEventListener('auxclick', onMouseBack, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('mouseup', onMouseBack, true)
+      window.removeEventListener('auxclick', onMouseBack, true)
+    }
   }, [
     onNew,
     onSave,
@@ -199,9 +260,28 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onZoomIn,
     onZoomOut,
     onZoomReset,
+    onPrint,
     focusActive,
     settingsOpen,
   ])
+}
+
+/**
+ * The entry being written, printed: the editor that has focus, or failing
+ * that the one on screen. Nothing on a surface with no entry open.
+ */
+function printEntryInFront(): void {
+  const focused = document.activeElement?.closest?.('.cm-editor')
+  const shown = Array.from(document.querySelectorAll<HTMLElement>('.cm-editor')).find(
+    (el) => el.getClientRects().length > 0,
+  )
+  const el = (focused as HTMLElement | null | undefined) ?? shown
+  if (!el) return
+  const view = EditorView.findFromDOM(el)
+  if (!view) return
+  const body = view.state.doc.toString()
+  if (!body.trim()) return
+  printMarkdown(body, deriveTitle(body) || 'Untitled', settingsStore.get().firstLineTitle)
 }
 
 /**
