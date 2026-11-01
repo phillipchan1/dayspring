@@ -284,11 +284,18 @@ export function useMenuKeyboard({
       if (!restoreFocus) return
       // Only hand focus back if it is still ours to give: a row's action may
       // have moved it on purpose (a dialog, an input).
-      const now = document.activeElement
-      const stillOurs = !now || now === document.body || (menu.contains(now) && menu.isConnected) || !now.isConnected
-      if (stillOurs && opener && opener.isConnected && opener !== document.body) {
-        opener.focus({ preventScroll: true })
+      const restore = () => {
+        const now = document.activeElement
+        const stillOurs = !now || now === document.body || menu.contains(now) || !now.isConnected
+        if (stillOurs && opener && opener.isConnected && opener !== document.body && !menu.contains(opener)) {
+          opener.focus({ preventScroll: true })
+        }
       }
+      restore()
+      // A menu fading out is still mounted, and React puts focus back on its
+      // row at the end of the commit (it restores what was focused before
+      // one). Hand it over again once the commit is done.
+      queueMicrotask(restore)
     }
     // openKey re-runs this for a menu re-opened elsewhere while mounted.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -70,4 +70,33 @@ describe('useModalFocus', () => {
     host.remove()
     already.remove()
   })
+
+  it('lets go the moment the layer starts closing, while it is still on screen', async () => {
+    let setActive: (v: boolean) => void = () => {}
+    function Closing() {
+      const [active, set] = useState(true)
+      setActive = set
+      const layer = useRef<HTMLDivElement>(null)
+      useModalFocus(layer, layer, active)
+      return createElement('div', { ref: layer, id: 'closing-layer', tabIndex: -1 })
+    }
+    const host = document.createElement('div')
+    const shell = document.createElement('main')
+    const opener = document.createElement('button')
+    shell.append(opener)
+    document.body.append(shell, host)
+    opener.focus()
+    const root = createRoot(host)
+    act(() => root.render(createElement(Closing)))
+    expect(shell.hasAttribute('inert')).toBe(true)
+    // Async: focus is handed back after React's commit (see the hook).
+    await act(async () => setActive(false))
+    expect(document.getElementById('closing-layer')).toBeTruthy()
+    expect(shell.hasAttribute('inert')).toBe(false)
+    expect(document.activeElement).toBe(opener)
+    act(() => root.unmount())
+    host.remove()
+    shell.remove()
+  })
 })
+

@@ -278,6 +278,38 @@ describe('useMenuKeyboard', () => {
   })
 })
 
+describe('useMenuKeyboard focus', () => {
+  it('hands focus back to the opener while the menu is still fading out', async () => {
+    __resetMenuInputForTests('keyboard')
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    opener.focus()
+    let setOpen: (v: boolean) => void = () => {}
+    const Probe = () => {
+      const [open, set] = useState(true)
+      setOpen = set
+      const ref = useRef<HTMLDivElement>(null)
+      useMenuKeyboard({ open, menuRef: ref, onClose: () => {} })
+      // Still mounted when closed — as a menu is while it fades.
+      return createElement(
+        'div',
+        { ref, role: 'menu' },
+        createElement('button', { role: 'menuitem' }, 'Copy'),
+      )
+    }
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+    act(() => root.render(createElement(Probe)))
+    expect(document.activeElement?.textContent).toBe('Copy')
+    await act(async () => setOpen(false))
+    expect(document.activeElement).toBe(opener)
+    act(() => root.unmount())
+    host.remove()
+    opener.remove()
+  })
+})
+
 describe('useMenuExit', () => {
   it('keeps the last open value while it fades, then lets go', () => {
     vi.useFakeTimers()

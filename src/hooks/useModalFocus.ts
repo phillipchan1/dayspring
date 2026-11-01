@@ -53,11 +53,18 @@ export function useModalFocus(
       for (const el of made) el.removeAttribute('inert')
       // Only if focus is still ours to hand back — something the layer did on
       // its way out (opening another layer) keeps what it chose.
-      const now = document.activeElement
-      const ours = !now || now === document.body || layer.contains(now) || !now.isConnected
-      if (ours && opener && opener.isConnected && opener !== document.body) {
-        opener.focus({ preventScroll: true })
+      const restore = () => {
+        const now = document.activeElement
+        const ours = !now || now === document.body || layer.contains(now) || !now.isConnected
+        if (ours && opener && opener.isConnected && opener !== document.body) {
+          opener.focus({ preventScroll: true })
+        }
       }
+      restore()
+      // A layer that is closing but still mounted (its exit playing) gets
+      // focus put back on it by React at the end of the commit — React
+      // restores whatever was focused before one. Hand it over again after.
+      queueMicrotask(restore)
     }
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
