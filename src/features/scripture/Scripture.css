@@ -104,7 +104,7 @@
    daily, and a pulse on a page that is meant to be read (N3). */
 .scripture__book--new {
   border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 55%, var(--border));
-  animation: scriptureBookNew 1.2s var(--ease-out) 1 both;
+  animation: scriptureBookNew 1.2s var(--ease-out) 1;
 }
 @keyframes scriptureBookNew {
   from {
