@@ -4,9 +4,9 @@
 // what Dayspring found is amber. See docs/LIFE_MAP.md, and
 // docs/prototypes/life-map.html for the design this is built from.
 
-import { useState } from 'react'
-import { useLifeMap, addTyped, removeItem, type LifeMap } from './useLifeMap'
-import type { LifeMapItem, LifeMapSection } from './lifeMap'
+import { useEffect, useRef, useState } from 'react'
+import { useLifeMap, type LifeMap, type LifeMapNotice } from './useLifeMap'
+import type { LifeMapItem, LifeMapSection, SectionId } from './lifeMap'
 import { tallies } from './lifeMap'
 import { LifeMapCanvas } from './LifeMapCanvas'
 import { Glyph } from './Glyph'
@@ -50,30 +50,79 @@ function Chip({
   )
 }
 
+/**
+ * The line under a section after something changed in it: a removal that can
+ * still be taken back, or a write that did not land (and has been undone on
+ * screen). In the room's own voice — plain, and never an alarm.
+ */
+function Notice({ notice, onUndo }: { notice: LifeMapNotice; onUndo?: (() => void) | undefined }) {
+  return (
+    <p className="lifemap__notice" role="status" data-kind={notice.kind}>
+      {notice.kind === 'removed' ? (
+        <>
+          <span>{notice.label} is off your map.</span>
+          {onUndo ? (
+            <button type="button" className="lifemap__undo" onClick={onUndo}>
+              Undo
+            </button>
+          ) : null}
+        </>
+      ) : (
+        <span>{notice.text}</span>
+      )}
+    </p>
+  )
+}
+
+/**
+ * The ⓘ's explainer, pinned open by a tap, lets go the way an iOS popover
+ * does: a tap anywhere outside it, or the page moving under it.
+ */
+function useLetGoOutside(open: boolean, ref: React.RefObject<HTMLElement | null>, close: () => void) {
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) close()
+    }
+    const onScroll = () => close()
+    document.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true })
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('scroll', onScroll, { capture: true })
+    }
+  }, [open, ref, close])
+}
+
 function Section({
   section,
-  onChanged,
+  notice,
+  onAdd,
+  onRemove,
+  onUndo,
   onOpenSubject,
 }: {
   section: LifeMapSection
-  onChanged: () => void
+  notice: LifeMapNotice | null
+  onAdd: (label: string, section: SectionId) => void
+  onRemove: (item: LifeMapItem) => void
+  onUndo?: (() => void) | undefined
   onOpenSubject: (key: string) => void
 }) {
   const [draft, setDraft] = useState('')
   const [open, setOpen] = useState(false)
   const [pinned, setPinned] = useState(false)
+  const infoRef = useRef<HTMLSpanElement>(null)
+  const unpin = useRef(() => setPinned(false)).current
+  useLetGoOutside(pinned, infoRef, unpin)
 
-  const submit = async (e: React.FormEvent) => {
+  // Shown at once; the hook writes it behind and takes it back if that fails.
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const label = draft.trim()
     if (label.length < 2) return
     setDraft('')
-    await addTyped(label, section.id)
-    onChanged()
-  }
-
-  const act = (fn: () => Promise<void>) => () => {
-    void fn().then(onChanged)
+    onAdd(label, section.id)
   }
 
   return (
@@ -81,11 +130,12 @@ function Section({
       <div className="lifemap__sec-head">
         <Glyph kind={section.id} found={false} />
         <span className="lifemap__sec-name">{section.label}</span>
-        <span className="lifemap__info-wrap" data-open={pinned}>
+        <span ref={infoRef} className="lifemap__info-wrap" data-open={pinned}>
           <button
             type="button"
             className="lifemap__info"
             aria-label={`What are ${section.label}?`}
+            aria-expanded={pinned}
             onClick={() => setPinned((p) => !p)}
           >
             i
@@ -114,7 +164,7 @@ function Section({
           <Chip
             key={item.key}
             item={item}
-            onDrop={act(() => removeItem(item))}
+            onDrop={() => onRemove(item)}
             onOpen={() => onOpenSubject(item.key)}
           />
         ))}
@@ -129,6 +179,8 @@ function Section({
           />
         </form>
       </div>
+
+      {notice ? <Notice notice={notice} onUndo={notice.kind === 'removed' ? onUndo : undefined} /> : null}
 
       {/*
         Earlier: filed, not hidden. One expander, and it says WHY the list is
@@ -153,7 +205,7 @@ function Section({
                 <Chip
                   key={item.key}
                   item={item}
-                  onDrop={act(() => removeItem(item))}
+                  onDrop={() => onRemove(item)}
                   onOpen={() => onOpenSubject(item.key)}
                 />
               ))}
@@ -166,12 +218,21 @@ function Section({
 }
 
 export function LifeMapView({ onOpenSubject }: { onOpenSubject: (key: string) => void }) {
-  const { map, error, refresh } = useLifeMap()
+  const { map, error, notice, add, remove, undo } = useLifeMap()
 
-  if (error) return <div className="lifemap__state">{error}</div>
+  if (!map && error) return <div className="lifemap__state">{error}</div>
   if (!map) return <div className="lifemap__state">Reading your journal…</div>
 
-  return <LifeMapBody map={map} onChanged={refresh} onOpenSubject={onOpenSubject} />
+  return (
+    <LifeMapBody
+      map={map}
+      notice={notice}
+      onAdd={add}
+      onRemove={remove}
+      onUndo={undo}
+      onOpenSubject={onOpenSubject}
+    />
+  )
 }
 
 /**
@@ -183,11 +244,17 @@ export function LifeMapView({ onOpenSubject }: { onOpenSubject: (key: string) =>
  */
 export function LifeMapBody({
   map,
-  onChanged,
+  notice = null,
+  onAdd,
+  onRemove,
+  onUndo,
   onOpenSubject,
 }: {
   map: LifeMap
-  onChanged: () => void
+  notice?: LifeMapNotice | null
+  onAdd: (label: string, section: SectionId) => void
+  onRemove: (item: LifeMapItem) => void
+  onUndo?: () => void
   onOpenSubject: (key: string) => void
 }) {
   const t = tallies(map.sections)
@@ -222,7 +289,10 @@ export function LifeMapBody({
           <Section
             key={section.id}
             section={section}
-            onChanged={onChanged}
+            notice={notice && notice.section === section.id ? notice : null}
+            onAdd={onAdd}
+            onRemove={onRemove}
+            onUndo={onUndo}
             onOpenSubject={onOpenSubject}
           />
         ))}

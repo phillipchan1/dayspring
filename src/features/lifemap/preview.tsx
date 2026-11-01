@@ -97,5 +97,5 @@ export function renderLifeMapPreview(): void {
   // `overflow: hidden`. It used to be a flex column here, which is exactly why
   // a scroll bug that only appears in the app got past this preview once.
   host.style.cssText = 'height:100vh;overflow:hidden'
-  createRoot(host).render(<LifeMapBody map={map} onChanged={() => {}} onOpenSubject={() => {}} />)
+  createRoot(host).render(<LifeMapBody map={map} onAdd={() => {}} onRemove={() => {}} onOpenSubject={() => {}} />)
 }
