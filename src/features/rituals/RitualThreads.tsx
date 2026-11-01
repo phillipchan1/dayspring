@@ -33,6 +33,7 @@ import { createPortal } from 'react-dom'
 import { skyFor } from '@/editor/practices/ritualSky'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { PUSH_MS, useEdgeSwipeBack } from '@/features/pages/edgeSwipe'
+import { useArrowList } from '@/hooks/useArrowList'
 import type { Entry } from '@/lib/types'
 import { track } from '@/lib/analytics'
 import {
@@ -292,6 +293,8 @@ function ShelfView({
   threads: RitualThread[]
   onOpen: (practice: string) => void
 }) {
+  // ↑/↓ through the practices, one Tab stop for the lot; Return opens one.
+  const rowKeys = useArrowList('.rt__row')
   return (
     <div className="rt__pane">
       <header className="rt__head">
@@ -309,7 +312,7 @@ function ShelfView({
           movement will gather here.
         </p>
       ) : (
-        <div className="rt__shelf">
+        <div className="rt__shelf" ref={rowKeys.ref} onKeyDown={rowKeys.onKeyDown} onFocus={rowKeys.onFocus}>
           {threads.map((t) => (
             <button
               key={t.practice}

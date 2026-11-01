@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useArrowList } from '@/hooks/useArrowList'
 import { LEDGER_COPY, MONTH_SHORT } from './copy'
 import type { LedgerStone, LedgerThread, YearLedger } from './build'
 import { ThreadWalk } from './ThreadWalk'
@@ -31,15 +32,34 @@ export function YearThreads({ ledger, onOpenEntry }: Props) {
   const rows = all ? ledger.threads : ledger.threads.slice(0, SHOWN)
   const openThread = ledger.threads.find((t) => t.id === open) ?? null
   const labels = useMemo(() => new Map(ledger.threads.map((t) => [t.id, t.label])), [ledger])
+  // ↑/↓ through the threads, one Tab stop for the lot; Return opens one.
+  const rowKeys = useArrowList('.ledger__row')
 
   if (ledger.threads.length === 0) return null
 
   return (
-    <section className="ledger">
+    <section
+      className="ledger"
+      // Esc folds an open thread back into its row — "back", in a list whose
+      // rows open in place — and puts the focus on the row it came from.
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' || e.defaultPrevented || open === null) return
+        e.preventDefault()
+        const row = rowKeys.ref.current?.querySelector<HTMLElement>('.ledger__row[aria-expanded="true"]')
+        setOpen(null)
+        row?.focus()
+      }}
+    >
       <span className="ascent-dim__eyebrow">{LEDGER_COPY.eyebrow}</span>
       <p className="ledger__cap">{LEDGER_COPY.caption}</p>
 
-      <div className="ledger__weave" role="list">
+      <div
+        className="ledger__weave"
+        role="list"
+        ref={rowKeys.ref}
+        onKeyDown={rowKeys.onKeyDown}
+        onFocus={rowKeys.onFocus}
+      >
         <div className="ledger__months" aria-hidden>
           <span />
           {MONTH_SHORT.map((m, i) => (
