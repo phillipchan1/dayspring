@@ -122,6 +122,56 @@
   --transition: 140ms ease;
   --transition-slow: 420ms cubic-bezier(0.2, 0.7, 0.2, 1);
 
+  /*
+   * MOTION — one vocabulary (DESIGN_PRINCIPLES N3).
+   *
+   * The app had ~25 different durations and ~57 hand-written curves, so two
+   * sheets in the same app moved like two apps. New motion takes its timing
+   * from here. Utility motion (menus, sheets, navigation, state changes) runs
+   * at the platform's speed; the ceremonial moments (welcome, rituals, What's
+   * new) may be slower, but still borrow these curves.
+   *
+   *   --dur-quick   highlights, press release, a value changing      120ms
+   *   --dur-base    toggles, fades, small reveals                    200ms
+   *   --dur-exit    anything leaving: menus, popovers, a sheet's
+   *                 scrim — exits run ~2/3 of an entrance            150ms
+   *   --dur-push    navigation push / pop, swipe-back settle          300ms
+   *   --dur-sheet   a sheet rising from the bottom edge               380ms
+   *
+   *   --ease-out    decelerate into place — most state changes
+   *   --ease-exit   accelerate away — anything leaving
+   *   --ease-ios    UIKit's push and sheet curve: fast start, long settle
+   *   --ease-spring a gentle spring (small overshoot) for things a finger
+   *                 let go of: a sheet snapping back, a toggle's thumb
+   *
+   * Mac menus and popovers do not animate in at all; they appear, and fade
+   * out over --dur-exit.
+   */
+  --dur-quick: 120ms;
+  --dur-base: 200ms;
+  --dur-exit: 150ms;
+  --dur-push: 300ms;
+  --dur-sheet: 380ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: linear(
+    0,
+    0.06 2%,
+    0.23 5%,
+    0.5 9%,
+    0.73 13%,
+    0.88 17%,
+    0.97 21%,
+    1.02 25%,
+    1.035 29%,
+    1.03 34%,
+    1.012 42%,
+    1 55%,
+    0.998 70%,
+    1
+  );
+
   /* Elevation — warm-tinted shadows, never pure black. */
   --shadow-1: 0 1px 2px rgba(40, 24, 8, 0.16);
   --shadow-2: 0 6px 20px -10px rgba(40, 24, 8, 0.28);
