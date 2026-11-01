@@ -995,6 +995,40 @@ button.pg__sense-q:hover {
   border-color: var(--accent);
 }
 
+/*
+ * The hold, under a finger (useWallPointer).
+ *
+ * The one place a page moves under you, and only under a finger — a pointer
+ * never sets these, so the wall's rule that nothing moves under the cursor
+ * stands. iOS says what a long-press is doing while it does it: the page gives
+ * a little as the press deepens (after a beat, so a tap never flinches), and
+ * when the menu comes it lifts toward you with the wall dimmed behind it, then
+ * settles. Without motion none of it happens; the menu simply arrives.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .pgc {
+    --pg-hold-rest: border-color var(--transition), background-color var(--transition),
+      opacity var(--transition-slow), box-shadow var(--dur-base) var(--ease-out);
+    transition: var(--pg-hold-rest), transform var(--dur-quick) var(--ease-out);
+  }
+
+  /* 500ms is `LONG_PRESS_MS`: the give is complete the moment the menu fires.
+     (The row's twins of these rules sit after `.pgr`'s own declarations.) */
+  .pgc[data-pressing='true'] {
+    transform: scale(0.97);
+    transition: var(--pg-hold-rest), transform 380ms linear 120ms;
+  }
+
+  .pgc[data-lifted='true'] {
+    z-index: 3;
+    transform: scale(1.02);
+    /* The wall behind dims for the beat the page is lifted — a ring of shade as
+       wide as the screen, clipped by the scroller to the wall itself. */
+    box-shadow: var(--shadow-2), 0 0 0 100vmax color-mix(in srgb, var(--text) 10%, transparent);
+    transition: var(--pg-hold-rest), transform var(--dur-base) var(--ease-spring);
+  }
+}
+
 /* Selection wins over subject dimming — you can only select what you can see,
    so a selected page has to stay legible even when the wall is dimmed. */
 .pgc[data-dim='true'][data-selected='true'] {
@@ -2787,6 +2821,115 @@ button.pg__sense-q:hover {
 
 .pgr[data-context='true'] {
   background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/*
+ * A row's trailing actions (useRowSwipe).
+ *
+ * Drawn over the strip the row has vacated rather than behind the row — the
+ * tray is one portal for the whole wall, not an element under every row — so
+ * it reads as lying behind the row without the row carrying anything. The
+ * verbs are the long-press menu's own, in its own tints: the accent for
+ * Change date…, the theme's danger for Delete…, which sits at the trailing
+ * edge and is what a full swipe asks for. Past that point it takes the whole
+ * strip, which is how iOS says "let go and this happens".
+ */
+.pgr-actions {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pgr-actions__reveal {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  inline-size: 0;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.pgr-actions__btn {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0 0.4rem;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--bg);
+  cursor: default;
+  transition: flex-grow var(--dur-base) var(--ease-out), filter var(--dur-exit) var(--ease-exit);
+}
+
+.pgr-actions__btn[data-action='edit-date'] {
+  background: var(--accent);
+}
+
+.pgr-actions__btn[data-action='delete'] {
+  background: var(--danger);
+}
+
+.pgr-actions__btn:active {
+  filter: brightness(0.88);
+  transition-duration: 0s;
+}
+
+.pgr-actions__reveal[data-full] .pgr-actions__btn[data-action='edit-date'] {
+  flex-grow: 0.0001;
+}
+
+.pgr-actions__reveal[data-full] .pgr-actions__btn[data-action='delete'] {
+  flex-grow: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pgr-actions__btn {
+    transition: none;
+  }
+}
+
+/* The browser never had a horizontal pan here (the wall scrolls one way), so
+   saying so makes every sideways move on a row arrive, cancelable, at the
+   swipe — and leaves the vertical axis entirely to the scroller. */
+@media (pointer: coarse) {
+  .pgr {
+    touch-action: pan-y;
+  }
+}
+
+/* The hold, under a finger — the row's twin of the card's rules (see "The hold,
+   under a finger" by `.pgc`). Here, after `.pgr`'s own transition, so the
+   release eases home instead of snapping. A row is wide, so it gives less. */
+@media (prefers-reduced-motion: no-preference) {
+  .pgr {
+    --pg-hold-rest: background-color var(--transition), opacity var(--transition),
+      box-shadow var(--dur-base) var(--ease-out);
+    transition: var(--pg-hold-rest), transform var(--dur-quick) var(--ease-out);
+  }
+
+  .pgr[data-pressing='true'] {
+    transform: scale(0.985);
+    transition: var(--pg-hold-rest), transform 380ms linear 120ms;
+  }
+
+  .pgr[data-lifted='true'] {
+    position: relative;
+    z-index: 3;
+    transform: scale(1.01);
+    background: var(--bg);
+    box-shadow: var(--shadow-2), 0 0 0 100vmax color-mix(in srgb, var(--text) 10%, transparent);
+    transition: var(--pg-hold-rest), transform var(--dur-base) var(--ease-spring);
+  }
 }
 
 /*
