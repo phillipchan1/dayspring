@@ -38,6 +38,8 @@ export const onboardingCopy = {
     title: 'Bring in your journal.',
     body: 'Upload a Dayspring backup, a Day One (JSON) export, or a Diarly export — as a .zip or its unzipped folder. Your entries are parsed on your device and written straight to your private journal — they never pass through anyone else.',
     dropzone: 'Drop your export (.zip or folder) here, or click to choose',
+    // A finger taps; on an iPad a file can still be dropped from Files.
+    dropzoneTouch: 'Drop your export (.zip or folder) here, or tap to choose',
     reading: 'Reading your export…',
     chooseDifferent: 'Choose a different file',
     sourceHint: 'Dayspring backup, Day One, or Diarly exports — .zip or folder',
