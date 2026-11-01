@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { useModalFocus } from '@/hooks/useModalFocus'
 import { ShortcutsGuide } from './ShortcutsGuide'
 
 interface Props {
@@ -7,6 +8,11 @@ interface Props {
 
 /** The global “?” cheat-sheet — a light, dismissible overlay over anything. */
 export function ShortcutsOverlay({ onClose }: Props) {
+  // The app behind is inert while this is up; focus in, and back out on close.
+  const layerRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModalFocus(layerRef, dialogRef)
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -20,12 +26,14 @@ export function ShortcutsOverlay({ onClose }: Props) {
   }, [onClose])
 
   return (
-    <div className="scrim shortcuts-scrim glass-scrim" onClick={onClose}>
+    <div ref={layerRef} className="scrim shortcuts-scrim glass-scrim" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="shortcuts-overlay glass-surface"
         role="dialog"
         aria-modal="true"
         aria-label="Keyboard shortcuts"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="glass-surface__glow" aria-hidden />

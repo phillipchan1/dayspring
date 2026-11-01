@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { voiceCaretSupported } from '@/editor/voiceCaret'
 import { track } from '@/lib/analytics'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import { useModalFocus } from '@/hooks/useModalFocus'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
@@ -103,6 +104,11 @@ export function SettingsPanel({
   featureFlags,
 }: Props) {
   const isMobile = useIsMobile()
+  // While Settings is open the app behind it is inert; focus moves in, and
+  // goes back to whatever had it when Settings closes (N7).
+  const layerRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModalFocus(layerRef, dialogRef)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -134,12 +140,14 @@ export function SettingsPanel({
   })
 
   return (
-    <div className="scrim settings-scrim glass-scrim" onClick={onClose}>
+    <div ref={layerRef} className="scrim settings-scrim glass-scrim" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="settings-modal glass-surface"
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         {...sheetDrag}
         style={

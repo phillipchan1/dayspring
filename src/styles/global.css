@@ -2958,6 +2958,14 @@ textarea,
   outline-offset: 1px;
 }
 
+/* Settings and the shortcuts sheet take focus themselves when they open
+   (useModalFocus), so Tab lands on their first control. The panel is not a
+   control: no ring around the whole of it. */
+.settings-modal:focus,
+.shortcuts-overlay:focus {
+  outline: none;
+}
+
 /* Custom writing-font picker (native <select> can't preview faces on macOS). */
 .font-picker {
   position: relative;
