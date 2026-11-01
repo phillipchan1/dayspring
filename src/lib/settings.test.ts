@@ -3,7 +3,15 @@
 // not apply twice, and the density steps that became a continuous zoom.
 
 import { describe, expect, it } from 'vitest'
-import { FONT_SIZE_DEFAULT, migrateSettings, normalizeLegacyFace } from './settings'
+import {
+  DEFAULT_SETTINGS,
+  FONT_SIZE_DEFAULT,
+  migrateSettings,
+  normalizeLegacyFace,
+  reconcileVoice,
+  resolveWritingFace,
+  writingFacePatch,
+} from './settings'
 
 describe('migrateSettings', () => {
   it('gives a blob with nothing in it the defaults', () => {
@@ -88,5 +96,27 @@ describe('normalizeLegacyFace', () => {
 
   it('applies to a blob arriving from an older client too', () => {
     expect(normalizeLegacyFace({ editorFont: 'serif', editorFontAuto: false }).editorFontAuto).toBe(true)
+  })
+})
+
+describe('an extra writing face crossing release channels', () => {
+  // The older client throws on an editorFont it has no metrics for, so the id
+  // that lands in the shared row must always be one of its six.
+  it('keeps editorFont a real legacy id through reconcile and a remote apply', () => {
+    const picked = reconcileVoice({ ...DEFAULT_SETTINGS, ...writingFacePatch('literata') })
+    expect(picked.editorFont).toBe('serif')
+    expect(picked.editorFontExtra).toBe('literata')
+    expect(resolveWritingFace(picked)).toBe('literata')
+  })
+
+  it('retires the extra face when the writer goes back to following the theme', () => {
+    const picked = reconcileVoice({ ...DEFAULT_SETTINGS, ...writingFacePatch('lora') })
+    const back = reconcileVoice({ ...picked, ...writingFacePatch('auto') })
+    expect(back.editorFontAuto).toBe(true)
+    expect(back.editorFontExtra).toBeNull()
+  })
+
+  it('leaves a blob that never used one without the key', () => {
+    expect('editorFontExtra' in migrateSettings({ v: 4 })).toBe(false)
   })
 })

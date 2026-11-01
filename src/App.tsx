@@ -105,6 +105,7 @@ export function App() {
     settings.maxWidth,
     settings.editorFont,
     settings.editorFontAuto,
+    settings.editorFontExtra,
     settings.voice,
   ])
 

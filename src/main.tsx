@@ -70,6 +70,19 @@ import '@fontsource-variable/archivo' // Cloister
 import '@fontsource-variable/archivo/wght-italic.css'
 import '@fontsource-variable/crimson-pro' // Sabbath
 import '@fontsource-variable/crimson-pro/wght-italic.css'
+// Advanced typography's later faces: Lora, Merriweather, Literata, Lato. Each is
+// a face you WRITE in, so each needs its italic and its bold (the variable ones
+// carry the whole weight range in one file; Lato is static, so 400 and 700).
+import '@fontsource-variable/lora'
+import '@fontsource-variable/lora/wght-italic.css'
+import '@fontsource-variable/merriweather'
+import '@fontsource-variable/merriweather/wght-italic.css'
+import '@fontsource-variable/literata'
+import '@fontsource-variable/literata/wght-italic.css'
+import '@fontsource/lato/400.css'
+import '@fontsource/lato/400-italic.css'
+import '@fontsource/lato/700.css'
+import '@fontsource/lato/700-italic.css'
 import './styles/global.css'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'

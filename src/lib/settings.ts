@@ -25,6 +25,85 @@ export const EDITOR_FONT_VARS: Record<EditorFont, string> = {
 }
 
 /**
+ * Faces added after stable shipped. They are NOT `EditorFont` members, for the
+ * same reason `'auto'` is not: `editorFont` is written into the synced
+ * `profiles.settings` row that a client on the other release channel reads, and
+ * that client does `EDITOR_FACE_METRICS[s.editorFont].scale` — an id it has
+ * never heard of is a TypeError in `applyEditorFace`, on every launch.
+ *
+ * So the choice is carried twice. `editorFont` holds `fallback`, a real id the
+ * older client renders sensibly (a serif stays a serif); `editorFontExtra`
+ * holds the face itself, which only this client reads. See `resolveWritingFace`.
+ *
+ * The `scale` / `leading` are measured the way EDITOR_FACE_METRICS is below:
+ * √(x-height × cap height), set to the mean of where the six faces above land.
+ * Merriweather is the biggest face in the picker per em, hence the smallest
+ * scale; its tall x-height also wants a little more air between lines.
+ */
+export type ExtraEditorFont = 'lora' | 'merriweather' | 'literata' | 'lato'
+
+/** Every face the picker can name; `'auto'` (follow the voice) is a separate flag. */
+export type WritingFace = EditorFont | ExtraEditorFont
+
+export const EXTRA_EDITOR_FONTS: Record<
+  ExtraEditorFont,
+  { var: string; fallback: EditorFont; scale: number; leading: number }
+> = {
+  lora: { var: 'var(--face-lora)', fallback: 'serif', scale: 0.93, leading: 1 },
+  merriweather: { var: 'var(--face-merriweather)', fallback: 'serif', scale: 0.85, leading: 1.04 },
+  literata: { var: 'var(--face-literata)', fallback: 'serif', scale: 0.92, leading: 1 },
+  lato: { var: 'var(--face-lato)', fallback: 'sans', scale: 0.91, leading: 1 },
+}
+
+export function isExtraEditorFont(face: string | null | undefined): face is ExtraEditorFont {
+  return !!face && Object.prototype.hasOwnProperty.call(EXTRA_EDITOR_FONTS, face)
+}
+
+/** Every face's CSS family token, for anything that needs to render a sample. */
+export const WRITING_FACE_VARS: Record<WritingFace, string> = {
+  ...EDITOR_FONT_VARS,
+  lora: EXTRA_EDITOR_FONTS.lora.var,
+  merriweather: EXTRA_EDITOR_FONTS.merriweather.var,
+  literata: EXTRA_EDITOR_FONTS.literata.var,
+  lato: EXTRA_EDITOR_FONTS.lato.var,
+}
+
+/**
+ * The face the writing surface is actually set in.
+ *
+ * `editorFontExtra` is honoured only while `editorFont` still equals its
+ * fallback. An older client changing the font writes a different `editorFont`
+ * and leaves our key untouched, so a mismatch means someone chose again
+ * elsewhere and this key is stale. An id this client doesn't know (a face added
+ * later still) falls through to its `editorFont` fallback the same way.
+ */
+export function resolveWritingFace(
+  s: Pick<Settings, 'editorFont' | 'editorFontAuto' | 'editorFontExtra'>,
+): WritingFace {
+  const extra = s.editorFontExtra
+  if (!s.editorFontAuto && isExtraEditorFont(extra) && EXTRA_EDITOR_FONTS[extra].fallback === s.editorFont) {
+    return extra
+  }
+  return s.editorFont
+}
+
+/** The settings patch for a picker choice. */
+export function writingFacePatch(choice: WritingFace | 'auto'): Partial<Settings> {
+  // Auto needs no more: reconcileVoice drops a stale editorFontExtra with it.
+  if (choice === 'auto') return { editorFontAuto: true }
+  if (isExtraEditorFont(choice)) {
+    return {
+      editorFontAuto: false,
+      editorFont: EXTRA_EDITOR_FONTS[choice].fallback,
+      editorFontExtra: choice,
+    }
+  }
+  // null, not undefined: remote apply merges over local state, and a missing key
+  // would leave the previous extra face standing on the other device.
+  return { editorFontAuto: false, editorFont: choice, editorFontExtra: null }
+}
+
+/**
  * How big, and how loosely led, each face has to be set to read at the same
  * size as Newsreader at the reader's own number.
  *
@@ -61,16 +140,17 @@ export const EDITOR_FACE_METRICS: Record<EditorFont, { scale: number; leading: n
  */
 export function applyEditorFace(
   root: HTMLElement,
-  s: Pick<Settings, 'editorFont' | 'editorFontAuto' | 'voice'>,
+  s: Pick<Settings, 'editorFont' | 'editorFontAuto' | 'editorFontExtra' | 'voice'>,
 ): void {
-  const own = s.editorFontAuto || s.editorFont === getVoice(s.voice).face
+  const face = resolveWritingFace(s)
+  const own = s.editorFontAuto || face === getVoice(s.voice).face
   if (s.editorFontAuto) root.style.removeProperty('--font-editor')
-  else root.style.setProperty('--font-editor', EDITOR_FONT_VARS[s.editorFont])
+  else root.style.setProperty('--font-editor', WRITING_FACE_VARS[face])
   if (own) {
     root.style.removeProperty('--font-scale')
     root.style.removeProperty('--line-height-scale')
   } else {
-    const m = EDITOR_FACE_METRICS[s.editorFont]
+    const m = isExtraEditorFont(face) ? EXTRA_EDITOR_FONTS[face] : EDITOR_FACE_METRICS[face]
     root.style.setProperty('--font-scale', String(m.scale))
     root.style.setProperty('--line-height-scale', String(m.leading))
   }
@@ -152,6 +232,14 @@ export interface Settings {
    * An older client ignores this key and reads the resolved face instead.
    */
   editorFontAuto: boolean
+
+  /**
+   * A hand-picked face that postdates stable (`ExtraEditorFont`), alongside an
+   * `editorFont` holding its fallback. Absent / null: the face is `editorFont`.
+   * Optional so a blob from a client that has never heard of it still parses;
+   * such a client round-trips the key untouched. See `resolveWritingFace`.
+   */
+  editorFontExtra?: ExtraEditorFont | null
 
   /**
    * Marks a blob written by a client where `editorFont` names a FACE ('serif'
@@ -427,6 +515,8 @@ export function reconcileVoice(next: Settings): Settings {
     lightTheme: voice.light ?? next.lightTheme,
     darkTheme: voice.dark,
     editorFont: next.editorFontAuto ? voice.face : next.editorFont,
+    // Following the voice again retires a hand-picked extra face.
+    ...(next.editorFontAuto && next.editorFontExtra ? { editorFontExtra: null } : {}),
   }
 }
 

@@ -27,7 +27,13 @@ import { useTypewriterAvailable } from '@/hooks/useTypewriterAvailable'
 import { TYPEWRITER_MODES, typewriterMode, typewriterPatch, type TypewriterMode } from '@/lib/typewriterMode'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
-import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
+import {
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  resolveWritingFace,
+  settingsStore,
+  writingFacePatch,
+} from '@/lib/settings'
 import {
   billingDestination,
   fetchPortalUrl,
@@ -233,12 +239,8 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
             hint="Overrides the face your theme sets. Everything else about the theme stays."
           >
             <WritingFontPicker
-              value={settings.editorFontAuto ? 'auto' : settings.editorFont}
-              onChange={(choice) =>
-                choice === 'auto'
-                  ? update({ editorFontAuto: true })
-                  : update({ editorFontAuto: false, editorFont: choice })
-              }
+              value={settings.editorFontAuto ? 'auto' : resolveWritingFace(settings)}
+              onChange={(choice) => update(writingFacePatch(choice))}
             />
           </Field>
         </div>
