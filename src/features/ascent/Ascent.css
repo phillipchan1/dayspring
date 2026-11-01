@@ -625,8 +625,13 @@
   background: color-mix(in srgb, var(--ascent-shade) 72%, transparent);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
-  animation: ascent-fade 0.25s both;
+  animation: ds-fade-in var(--dur-base) var(--ease-out);
 }
+.ascent-drill__scrim[data-state='closing'] {
+  animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
+}
+/* A card in the room: in with the app's dialog settle, out with a quick fade
+   (DrillSheet → useExit). The phone's sheet is under "responsive" below. */
 .ascent-drill__panel {
   position: relative;
   z-index: 1;
@@ -637,7 +642,10 @@
   border-radius: 18px;
   padding: 22px 24px 26px;
   box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7);
-  animation: ascent-rise 0.4s both;
+  animation: ds-modal-in var(--dur-base) var(--ease-out);
+}
+.ascent-drill__panel[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
 }
 .ascent-drill__head {
   display: flex;
@@ -1109,11 +1117,58 @@
   .ascent-oneline {
     font-size: 21px;
   }
+  /*
+   * A bottom sheet, like the ledger's WriteSheet: it rises from the edge the
+   * thumb is at, carries a grabber, follows a downward drag, and goes back down
+   * the way it came. Fixed to the screen rather than the room so it covers the
+   * tab bar the way an iOS sheet does; the New-entry disc steps aside below.
+   */
   .ascent-drill {
-    padding: 20px 12px;
+    position: fixed;
+    z-index: 95;
+    align-items: flex-end;
+    padding: 0;
+    overflow: hidden;
   }
   .ascent-drill__panel {
-    padding: 18px 16px 22px;
+    max-width: none;
+    max-height: calc(100dvh - 56px - var(--safe-top));
+    overflow-y: auto;
+    /* A flick inside the sheet doesn't scroll the Ascent underneath it. */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    padding: 26px 16px calc(22px + var(--safe-bottom));
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios);
+  }
+  .ascent-drill__panel[data-state='closing'] {
+    animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
+  }
+  /* The grabber: says it can be pulled down. */
+  .ascent-drill__panel::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 38px;
+    height: 4px;
+    margin-left: -19px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--ascent-ink) 22%, transparent);
+  }
+  /* A 44pt way out, whatever the size of the word on it. */
+  .ascent-drill__close {
+    min-height: 44px;
+    padding: 0 0 0 12px;
+  }
+  /* The disc floats above the canvas's stacking context; over a sheet it is a
+     second, unrelated action on top of the one in hand. Same move Pages makes
+     for an open page. */
+  .journal-canvas:has(.ascent-drill[data-sheet='true']) ~ .mobile-fab {
+    opacity: 0;
+    pointer-events: none;
   }
 }
 
@@ -2080,6 +2135,39 @@
 }
 .ascent-rise {
   animation: ascent-rise 0.7s both;
+}
+
+/*
+ * Settled: the second Ascent of the session, and every one after it.
+ *
+ * The room rises once per app session (firstRise.ts). After that it is a place
+ * someone comes back to daily, and a stagger that holds the words back by up
+ * to a second is a wait, not a welcome (DESIGN_PRINCIPLES N3). So every rise
+ * and staggered fade in the room is simply off, and the content is there.
+ * The ceremonial pace is kept for the visit it was written for — the first.
+ */
+.ascent[data-settled='true']
+  :is(
+    .ascent-rise,
+    .ascent-lenses,
+    .ascent-dim,
+    .ascent-word,
+    .ascent-theme,
+    .ascent-scrip,
+    .ascent-summit,
+    .ascent-band,
+    .ascent-howto__key,
+    .ascent-tended__entry,
+    .ascent-arc,
+    .ascent-hl,
+    .ascent-hl__more,
+    .ascent-line,
+    .ascent-stone-pair,
+    .ascent-stone-g,
+    .ledger,
+    .ledger-walk
+  ) {
+  animation: none;
 }
 .ascent .room-head__eyebrow {
   color: var(--ascent-gold);

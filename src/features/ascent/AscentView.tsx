@@ -27,6 +27,7 @@ import { ScriptureDrillIn } from './drilldowns/ScriptureDrillIn'
 import { SurfaceBar } from '@/components/SurfaceBar'
 import { RoomHead } from '@/components/RoomHead'
 import { WhenControl } from '@/components/WhenControl'
+import { useFirstRise } from './firstRise'
 import './Ascent.css'
 
 interface Props {
@@ -80,6 +81,7 @@ export function AscentView({ onOpenEntry }: Props) {
   const idx = clampAltitude(state.ascentAltitude)
   const drill = state.ascentDrill
   const light = useIsLightTheme()
+  const firstRise = useFirstRise()
   // Paint the last climb the moment the surface mounts — the Ascent is a place
   // you step in and out of, and it shouldn't make you wait for the same reads
   // twice. Whatever is on screen is then revalidated behind (below), so a return
@@ -308,6 +310,8 @@ export function AscentView({ onOpenEntry }: Props) {
       // The sky's colours come from the palette (Ascent.css); this only says how
       // far up it is.
       data-altitude={L.key}
+      // Risen once this session already: shown settled, no stagger (firstRise.ts).
+      data-settled={firstRise ? undefined : 'true'}
     >
       <div className="ascent-air" key={L.key} aria-hidden />
       <div className="ascent-stars" style={{ opacity: 1 - idx / LAST }} aria-hidden />
