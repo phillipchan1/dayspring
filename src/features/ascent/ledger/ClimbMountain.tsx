@@ -375,7 +375,7 @@ export function ClimbMountain({
             <span className="ascent-oneline__date">
               {fmt(openStone.ask.date)} · {SUMMIT_COPY.stoneAsk}
             </span>
-            <button type="button" className="ascent-stone-pair__text" onClick={() => onOpenEntry?.(openStone.ask.entryId)}>
+            <button type="button" className="ascent-stone-pair__text" data-entry-id={openStone.ask.entryId} onClick={() => onOpenEntry?.(openStone.ask.entryId)}>
               “{openStone.ask.text}”
             </button>
           </div>
@@ -383,7 +383,7 @@ export function ClimbMountain({
             <span className="ascent-oneline__date">
               {fmt(openStone.later.date)} · {SUMMIT_COPY.stoneLater}
             </span>
-            <button type="button" className="ascent-stone-pair__text" onClick={() => onOpenEntry?.(openStone.later.entryId)}>
+            <button type="button" className="ascent-stone-pair__text" data-entry-id={openStone.later.entryId} onClick={() => onOpenEntry?.(openStone.later.entryId)}>
               “{openStone.later.text}”
             </button>
           </div>

@@ -36,7 +36,7 @@ export function SpanPhotoTile({
     }
   }, [photo.hash, photo.ext])
   return (
-    <button type="button" className={className} onClick={() => onOpenEntry?.(photo.entryId)} title={fmtDay(photo.date)}>
+    <button type="button" className={className} data-entry-id={photo.entryId} onClick={() => onOpenEntry?.(photo.entryId)} title={fmtDay(photo.date)}>
       {url ? <img src={url} alt={photo.alt} loading="lazy" /> : null}
       <span className="span-photo__date">{fmtDay(photo.date)}</span>
     </button>

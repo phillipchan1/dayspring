@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
-import { ENTRY_RETURN_LABEL, type AscentDrill } from '@/lib/appHistory'
+import { ASCENT_GRAIN, ENTRY_RETURN_LABEL, type AscentDrill } from '@/lib/appHistory'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { useCarriedPeriod } from '@/hooks/useCarriedPeriod'
-import { carryPeriod, periodEyebrow, periodName, periodWindow, type Grain } from '@/lib/period'
+import { carryPeriod, periodEyebrow, periodName, periodWindow, writersDay, type Grain } from '@/lib/period'
 import { ALTITUDES, EMPTY_COPY, LEDGER_ALTITUDES } from './ascent.config'
 import { useFeatureFlag } from '@/features/flags'
 import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
@@ -22,6 +22,7 @@ import { loadAscent, loadWeekAt, readCachedAscent, type AltitudeData, type Loade
 import { AltitudeBands } from './AltitudeBands'
 import { LensRow } from './LensRow'
 import { Summit } from './Summit'
+import { useSeatArrival } from './useSeatArrival'
 import { BandDrillIn } from './drilldowns/BandDrillIn'
 import { ScriptureDrillIn } from './drilldowns/ScriptureDrillIn'
 import { SurfaceBar } from '@/components/SurfaceBar'
@@ -38,9 +39,7 @@ type Loaded<T> = T | null | undefined
 
 const LAST = ALTITUDES.length - 1
 
-/** Altitude index → the grain it stands for, in the shared vocabulary. The tier
- *  is still called 'quarter' in the rollup schema; out loud it is the season. */
-const ALTITUDE_GRAIN: Grain[] = ['week', 'month', 'season', 'year']
+const ALTITUDE_GRAIN: Grain[] = ASCENT_GRAIN
 
 function clampAltitude(n: number | undefined): number {
   if (typeof n !== 'number' || !Number.isFinite(n)) return 0
@@ -78,6 +77,12 @@ function useIsLightTheme(): boolean {
 export function AscentView({ onOpenEntry }: Props) {
   const { state, go, back } = useAppNavigation()
   const idx = clampAltitude(state.ascentAltitude)
+  // How far back through this altitude's periods the reader has stepped — the
+  // When's ‹ ›. It lives on the history frame, with the altitude, because it is
+  // part of WHERE the reader is: as state in here it died when an entry took the
+  // canvas, and every way back landed on now instead of on the October they
+  // had stepped to.
+  const offset = state.ascentOffset
   const drill = state.ascentDrill
   const light = useIsLightTheme()
   // Paint the last climb the moment the surface mounts — the Ascent is a place
@@ -114,15 +119,14 @@ export function AscentView({ onOpenEntry }: Props) {
   // button starts lying about where it came from.
   const [, carry] = useCarriedPeriod('year')
   const grain = ALTITUDE_GRAIN[idx]!
-  // How far back through this altitude's periods the reader has stepped — the
-  // When's ‹ ›. A climb starts every height at now.
-  const [offset, setOffsetState] = useState(0)
-  useEffect(() => setOffsetState(0), [idx])
+  // Both REPLACE the frame: Back leaves a place, it does not retrace how you
+  // moved around inside it (eight months on, eight presses to leave). A climb
+  // starts every height at now. Stepping is coalesced — a held ⌥← is thirty
+  // writes a second, and WebKit refuses a page more than a hundred in thirty.
   const setAltitude = useCallback(
     (next: number) => {
       const clamped = clampAltitude(next)
-      go({ ascentAltitude: clamped }, { replace: true })
-      setOffsetState(0)
+      go({ ascentAltitude: clamped, ascentOffset: 0, ascentSeat: null }, { replace: true })
       carry(ALTITUDE_GRAIN[clamped]!)
     },
     [go, carry],
@@ -130,10 +134,10 @@ export function AscentView({ onOpenEntry }: Props) {
   const setOffset = useCallback(
     (next: number) => {
       const n = Math.max(0, Math.floor(next))
-      setOffsetState(n)
+      go({ ascentOffset: n, ascentSeat: null }, { replace: true, coalesce: true })
       carryPeriod(grain, n)
     },
-    [grain],
+    [go, grain],
   )
   const up = useCallback(() => setAltitude(idx + 1), [idx, setAltitude])
   const down = useCallback(() => setAltitude(idx - 1), [idx, setAltitude])
@@ -169,8 +173,10 @@ export function AscentView({ onOpenEntry }: Props) {
   const told = ledgerOn && idx > 0
 
   // The period on show, from the one calendar — anchored on the writer's own
-  // day (noon UTC of it), so a late evening never shows tomorrow's month.
-  const anchor = useMemo(() => new Date(`${today}T12:00:00Z`), [today])
+  // day, so a late evening never shows tomorrow's month. (`today` is the key:
+  // the anchor is only rebuilt when the day turns over.)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const anchor = useMemo(() => writersDay(), [today])
   const win = periodWindow(grain, offset, anchor)
   const fromIso = win.from.toISOString().slice(0, 10)
   const toIso = win.to.toISOString().slice(0, 10)
@@ -228,6 +234,29 @@ export function AscentView({ onOpenEntry }: Props) {
   const L = ALTITUDES[idx]!
   const head = ledgerOn ? LEDGER_ALTITUDES[L.key] : { title: L.title, line: L.line }
   const loading = ascent === undefined
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // The control last pressed, caught on the way down: the opener below is handed
+  // an id, and a page can offer the same entry in two places.
+  const pressed = useRef<Element | null>(null)
+  // Where the reader stood when they last left for an entry. Read once: it is
+  // what THIS arrival comes back with, and a mount is the only arrival.
+  const arrival = useRef(state.ascentSeat)
+  useSeatArrival(scrollRef, arrival.current)
+
+  // Every way into an entry from here goes through this. Back is a pop, and
+  // lands on whatever the frame beneath holds — so where the reader stands is
+  // written onto THIS frame before the entry pushes its own.
+  const openEntry = useCallback(
+    (entryId: string) => {
+      const box = scrollRef.current
+      const same = box ? [...box.querySelectorAll(`[data-entry-id="${CSS.escape(entryId)}"]`)] : []
+      const nth = Math.max(0, pressed.current ? same.indexOf(pressed.current) : 0)
+      go({ ascentSeat: { top: box?.scrollTop ?? 0, entryId, nth } }, { replace: true })
+      onOpenEntry?.(entryId)
+    },
+    [go, onOpenEntry],
+  )
 
   const pushDrill = useCallback((next: AscentDrill) => go({ ascentDrill: next }), [go])
   const openScripture = useCallback(
@@ -317,7 +346,13 @@ export function AscentView({ onOpenEntry }: Props) {
         {L.alt} — {periodName(grain, offset, anchor)}
       </div>
 
-      <div className="ascent-scroll">
+      <div
+        className="ascent-scroll"
+        ref={scrollRef}
+        onClickCapture={(e) => {
+          pressed.current = (e.target as Element).closest('[data-entry-id]')
+        }}
+      >
         <main className={`room-frame ascent-frame${ledgerOn ? ' is-wide' : ''}`}>
           <div className="ascent-rise" key={`${L.key}-h`}>
             <RoomHead
@@ -331,7 +366,7 @@ export function AscentView({ onOpenEntry }: Props) {
 
           <div className="room-stage">
             {ledgerOn ? (
-              <ClimbMountain level={level} from={mFrom} to={mTo} today={today} stones={mountainStones} onOpenEntry={onOpenEntry} />
+              <ClimbMountain level={level} from={mFrom} to={mTo} today={today} stones={mountainStones} onOpenEntry={openEntry} />
             ) : null}
             {ledgerOn && idx === 0 ? (
               // The week gets what the month and season have: its name, then
@@ -350,9 +385,9 @@ export function AscentView({ onOpenEntry }: Props) {
 
             <div className="ascent-terrain" key={`${L.key}-t`}>
               {told && idx === 1 ? (
-                <MonthView onOpenEntry={onOpenEntry} ym={ym} />
+                <MonthView onOpenEntry={openEntry} ym={ym} />
               ) : told && idx === 2 ? (
-                <SeasonView onOpenEntry={onOpenEntry} season={season} />
+                <SeasonView onOpenEntry={openEntry} season={season} />
               ) : loading || weekReading ? (
                 <SurfaceLoader label="Reading the land…" />
               ) : backfilling ? (
@@ -365,14 +400,14 @@ export function AscentView({ onOpenEntry }: Props) {
                   words={altitude?.words ?? null}
                   scripture={altitude?.scripture ?? null}
                   onScriptureDrill={openScripture}
-                  onOpenEntry={onOpenEntry}
+                  onOpenEntry={openEntry}
                 />
               ) : ascent ? (
                 <Summit
                   view={ascent.year}
                   scripture={ascent.year.scripture}
                   onScriptureDrill={openScripture}
-                  onOpenEntry={onOpenEntry}
+                  onOpenEntry={openEntry}
                   year={shownYear}
                   onYears={setSummitYears}
                 />
@@ -397,7 +432,7 @@ export function AscentView({ onOpenEntry }: Props) {
           osisRef={drill.osisRef}
           windows={ascent.windows}
           onClose={closeDrill}
-          onOpenEntry={onOpenEntry}
+          onOpenEntry={openEntry}
         />
       ) : null}
     </div>

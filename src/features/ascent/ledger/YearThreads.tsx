@@ -156,10 +156,10 @@ function Stones({
       {stones.map((s) => (
         <div key={s.id} className="ledger__stone">
           <span className="ledger__stone-of">{labels.get(s.threadId)}</span>
-          <button type="button" className="ledger__stone-line is-ask" onClick={() => onOpenEntry?.(s.ask.entryId)}>
+          <button type="button" className="ledger__stone-line is-ask" data-entry-id={s.ask.entryId} onClick={() => onOpenEntry?.(s.ask.entryId)}>
             <span className="ledger__date">{fmtDay(s.ask.date)} · {LEDGER_COPY.youAsked}</span>“{s.ask.text}”
           </button>
-          <button type="button" className="ledger__stone-line" onClick={() => onOpenEntry?.(s.later.entryId)}>
+          <button type="button" className="ledger__stone-line" data-entry-id={s.later.entryId} onClick={() => onOpenEntry?.(s.later.entryId)}>
             <span className="ledger__date">{fmtDay(s.later.date)} · {LEDGER_COPY.later}</span>“{s.later.text}”
           </button>
         </div>

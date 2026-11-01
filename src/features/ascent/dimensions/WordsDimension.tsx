@@ -87,6 +87,7 @@ export function WordsDimension({ data, onOpenEntry }: Props) {
                   type="button"
                   className="ascent-line"
                   style={{ animationDelay: `${i * 50}ms` }}
+                  data-entry-id={m.entryId}
                   onClick={() => onOpenEntry?.(m.entryId)}
                 >
                   <span className="ascent-line__text">{m.isQuote ? `“${m.text}”` : m.text}</span>
@@ -125,6 +126,7 @@ function HighlightCard({ theme, index, onOpenEntry }: CardProps) {
         <button
           type="button"
           className="ascent-hl__anchor"
+          data-entry-id={anchor.entryId}
           onClick={() => onOpenEntry?.(anchor.entryId)}
         >
           <span className="ascent-hl__quote">“{anchor.text}”</span>
@@ -141,6 +143,7 @@ function HighlightCard({ theme, index, onOpenEntry }: CardProps) {
                   key={q.entryId + j}
                   type="button"
                   className="ascent-hl__line"
+                  data-entry-id={q.entryId}
                   onClick={() => onOpenEntry?.(q.entryId)}
                 >
                   <span className="ascent-hl__quote">“{q.text}”</span>

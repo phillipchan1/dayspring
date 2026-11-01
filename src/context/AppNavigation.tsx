@@ -13,6 +13,7 @@ import {
   appHistoryEqual,
   isAppHistoryState,
   isLegacyScripturePath,
+  keyboardHistoryAction,
   mergeAppHistory,
   mouseHistoryAction,
   mouseHistoryNeedsFallback,
@@ -27,11 +28,33 @@ import {
   type AppHistoryState,
 } from '@/lib/appHistory'
 import { addBreadcrumb } from '@/lib/crashReport'
+import { isTypingContext } from '@/features/journal/keyboard'
+
+/**
+ * How long a coalesced replace waits for the stepping to pause. WebKit throws a
+ * SecurityError past ~100 history writes in 30 seconds, and a held ⌥← steps the
+ * Ascent's period thirty times a second — so the state moves at once and the
+ * frame catches up when the reader stops.
+ */
+const COALESCE_MS = 200
+
+/** A replace the host may refuse: the frame is a convenience for Back, never worth a crash. */
+function writeFrame(state: AppHistoryState): void {
+  try {
+    replaceAppHistory(state)
+  } catch {
+    addBreadcrumb('navigation', 'history replace refused')
+  }
+}
 
 interface AppNavigationValue {
   state: AppHistoryState
-  /** Navigate forward in app state; pushes a browser history entry unless `replace`. */
-  go: (patch: Partial<AppHistoryState>, opts?: { replace?: boolean }) => void
+  /**
+   * Navigate forward in app state; pushes a browser history entry unless `replace`.
+   * `coalesce` (with `replace`) is for a position changed many times a second —
+   * the state moves now, the frame is written once the changes pause.
+   */
+  go: (patch: Partial<AppHistoryState>, opts?: { replace?: boolean; coalesce?: boolean }) => void
   /** Pop one in-app history frame (mouse back, Android back, overlay close). */
   back: () => void
   /** Hold a history pop until the active editor has flushed its latest text. */
@@ -51,6 +74,21 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
   const seededRef = useRef(false)
   const historyPopBarrierRef = useRef<(() => Promise<void>) | null>(null)
   const popSequenceRef = useRef(0)
+  const pendingWriteRef = useRef<number | null>(null)
+
+  const dropPendingWrite = useCallback(() => {
+    if (pendingWriteRef.current === null) return
+    window.clearTimeout(pendingWriteRef.current)
+    pendingWriteRef.current = null
+  }, [])
+
+  /** Write a deferred replace now, if there is one. Before anything that pushes:
+   *  what sits beneath the new frame is where Back lands. */
+  const flushPendingWrite = useCallback(() => {
+    if (pendingWriteRef.current === null) return
+    dropPendingWrite()
+    writeFrame(stateRef.current)
+  }, [dropPendingWrite])
 
   const setHistoryPopBarrier = useCallback(
     (barrier: (() => Promise<void>) | null) => {
@@ -59,25 +97,36 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const commit = useCallback((next: AppHistoryState, replace: boolean) => {
+  const commit = useCallback((next: AppHistoryState, replace: boolean, coalesce: boolean) => {
     const prev = stateRef.current
+    if (!replace) flushPendingWrite()
     stateRef.current = next
     setState(next)
-    if (replace) replaceAppHistory(next)
-    else pushAppHistory(next)
+    if (replace && coalesce) {
+      dropPendingWrite()
+      pendingWriteRef.current = window.setTimeout(() => {
+        pendingWriteRef.current = null
+        writeFrame(stateRef.current)
+      }, COALESCE_MS)
+    } else if (replace) {
+      dropPendingWrite()
+      writeFrame(next)
+    } else {
+      pushAppHistory(next)
+    }
     // Breadcrumb for crash reports — log surface changes and settings opens.
     if (prev.surface !== next.surface) {
       addBreadcrumb('navigation', `opened ${next.surface}`)
     } else if (!prev.settings && next.settings) {
       addBreadcrumb('navigation', `opened settings:${next.settings.tab}`)
     }
-  }, [])
+  }, [flushPendingWrite, dropPendingWrite])
 
   const go = useCallback(
-    (patch: Partial<AppHistoryState>, opts?: { replace?: boolean }) => {
+    (patch: Partial<AppHistoryState>, opts?: { replace?: boolean; coalesce?: boolean }) => {
       const next = mergeAppHistory(stateRef.current, patch)
       if (appHistoryEqual(next, stateRef.current)) return
-      commit(next, Boolean(opts?.replace))
+      commit(next, Boolean(opts?.replace), Boolean(opts?.coalesce))
     },
     [commit],
   )
@@ -95,6 +144,9 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPop = (event: PopStateEvent) => {
+      // The stack has moved: a replace still waiting would land on the frame we
+      // arrived at, not the one it was meant for.
+      dropPendingWrite()
       const sequence = ++popSequenceRef.current
       let next = isAppHistoryState(event.state)
         ? event.state
@@ -134,7 +186,21 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [])
+  }, [dropPendingWrite])
+
+  // A reload or a closed window must not lose the last few steps.
+  useEffect(() => {
+    const flush = () => flushPendingWrite()
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onHide)
+    }
+  }, [flushPendingWrite])
 
   // Mouse Back / Forward — the same stack as the in-app Back button, Esc, and
   // Android back. Capture so CodeMirror never swallows the side buttons.
@@ -165,6 +231,24 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // ⌘[ / ⌘] — the same stack, from the keyboard. Most Mac mouse drivers send
+  // their Back button as this chord rather than as button 3, and the app has no
+  // browser chrome to catch it, so the side button was simply dead. Not while
+  // typing: in the editor ⌘[ is "outdent" (Esc and the Back control still leave).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const action = keyboardHistoryAction(event)
+      if (!action || event.repeat) return
+      if (isTypingContext(event.target)) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (action === 'back') history.back()
+      else history.forward()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+
   // One baseline frame so the first Back closes an overlay instead of leaving the app.
   useEffect(() => {
     if (seededRef.current) return
@@ -184,6 +268,8 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         scriptureVerse: null,
         entryReturn: null,
         ascentAltitude: 0,
+        ascentOffset: 0,
+        ascentSeat: null,
         ascentDrill: null,
       })
     } else if (pathSurface) {
@@ -196,6 +282,8 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         scriptureVerse: null,
         entryReturn: null,
         ascentAltitude: 0,
+        ascentOffset: 0,
+        ascentSeat: null,
         ascentDrill: null,
       })
     }

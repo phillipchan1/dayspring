@@ -4,7 +4,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
-import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
+import { entryReturnLabel } from '@/lib/appHistory'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { useSurfaceEmbers } from './surfaceEmbers'
 import { useSurfaceUpdates } from './surfaceUpdates'
@@ -173,7 +173,7 @@ export function MobileJournal(props: JournalViewProps) {
               className="journal-topbar__back"
               onClick={() => onReturnFromEntry()}
             >
-              ← {ENTRY_RETURN_LABEL[entryReturn.surface]}
+              ← {entryReturnLabel(entryReturn)}
             </button>
           ) : null}
           <span

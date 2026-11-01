@@ -2070,6 +2070,9 @@
 .ascent--framed:not(.ascent--light) .when--row .when__grains {
   background-color: color-mix(in srgb, var(--ascent-ink) 12%, transparent);
 }
+.ascent--framed:not(.ascent--light) .when__home {
+  border-color: color-mix(in srgb, var(--ascent-ink) 22%, transparent);
+}
 .ascent--framed:not(.ascent--light) .when--row .when__grains {
   border-color: color-mix(in srgb, var(--ascent-ink) 10%, transparent);
   background-color: color-mix(in srgb, var(--ascent-sky-0) 50%, transparent);
@@ -2101,4 +2104,28 @@
 .ascent--framed .now-strip__note,
 .ascent--framed .year-now__note {
   display: none;
+}
+
+/* WHERE YOU WERE — the thing you opened, found again on the way back (see
+   `useSeatArrival`). A ring that breathes out rather than a flash: it says
+   "this one", then gets out of the way. Only the fade goes under Reduce Motion;
+   the page has already scrolled to it either way. */
+.ascent [data-entry-id][data-returned] {
+  outline: 2px solid var(--ascent-gold-soft);
+  outline-offset: 3px;
+  animation: ascent-returned 1.8s ease-out forwards;
+}
+@keyframes ascent-returned {
+  0%,
+  45% {
+    outline-color: var(--ascent-gold-soft);
+  }
+  100% {
+    outline-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ascent [data-entry-id][data-returned] {
+    animation: none;
+  }
 }
