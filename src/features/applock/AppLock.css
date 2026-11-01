@@ -195,6 +195,8 @@
 
 .applock-dialog {
   width: min(24rem, 100%);
+  /* In with the app's dialog settle, out with a quick fade (useExit). */
+  animation: ds-modal-in var(--dur-base) var(--ease-out) both;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -291,10 +293,16 @@
   align-items: center;
 }
 
+.applock-dialog[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
+}
+
 /* ── iPhone: a sheet from the bottom edge ──────────────────────────────────
-   Pulled down to cancel (useSheetDismiss writes `translate`; the entrance
-   animation owns `transform`). Its ground follows the visible viewport, set
-   inline, so with the keyboard up the sheet rests on the keys. */
+   Pulled down to cancel: useSheetDismiss draws the drag on `translate` and
+   leaves it where the finger let go, and the fall below animates `transform`,
+   which composes with it — so it leaves from where it was released. Its ground
+   follows the visible viewport, set inline, so with the keyboard up the sheet
+   rests on the keys. */
 .applock-scrim--sheet {
   align-items: flex-end;
   padding: 0;
@@ -306,11 +314,10 @@
   padding: 0.55rem 1.5rem calc(1.25rem + var(--safe-bottom, 0px));
   border-bottom: none;
   border-radius: 20px 20px 0 0;
-  animation: applock-sheet-in var(--dur-sheet) var(--ease-ios) both;
-  transition: translate var(--dur-sheet) var(--ease-spring);
+  animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios) both;
 }
-.applock-dialog--sheet[data-dragging] {
-  transition: none;
+.applock-dialog--sheet[data-state='closing'] {
+  animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
 }
 
 .applock-dialog__grabber {
@@ -322,15 +329,8 @@
   background: color-mix(in srgb, var(--text-faint) 70%, transparent);
 }
 
-@keyframes applock-sheet-in {
-  from {
-    transform: translateY(100%);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .pin-field[data-shaking],
-  .applock-dialog--sheet {
+  .pin-field[data-shaking] {
     animation: none;
   }
 }

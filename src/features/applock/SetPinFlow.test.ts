@@ -7,11 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/appLockStore', () => ({ saveAppLock: vi.fn(), clearAppLock: vi.fn() }))
 
+// Reduce Motion, so closing does not wait out the exit animation (useExit).
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,
   writable: true,
   value: (query: string) => ({
-    matches: false,
+    matches: query.includes('reduce'),
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},

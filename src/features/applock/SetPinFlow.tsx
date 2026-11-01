@@ -16,6 +16,7 @@ import {
 } from '@/lib/appLock'
 import { clearAppLock, saveAppLock } from '@/lib/appLockStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useExit, useMergedRef } from '@/hooks/usePresence'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { PinField } from './PinField'
@@ -75,17 +76,23 @@ export function SetPinFlow({
 
   const noun = kind === 'pin' ? 'PIN' : 'passphrase'
 
+  // Every way out plays the exit first (useExit): the sheet goes back down,
+  // the dialog fades. The parent only hears once it has gone.
+  const exit = useExit(onClose)
+  const close = exit.close
+
   // On a phone this is a sheet from the bottom edge, pulled down to cancel; on
   // a Mac or an iPad it stays the centred dialog.
   const isSheet = useIsMobile()
-  const sheet = useSheetDismiss({ onDismiss: onClose, enabled: isSheet && !busy })
+  const sheet = useSheetDismiss({ onDismiss: close, enabled: isSheet && !busy && !exit.closing })
+  const dialogRef = useMergedRef<HTMLDivElement>(exit.ref, sheet.ref)
   // The keyboard is up the whole time (the field is focused), and a fixed
   // overlay on iOS is pinned to the layout viewport, not the visible one — so
   // the sheet's ground follows the visible area and the sheet rests on the keys.
   const frame = useVisualViewportFrame()
 
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
+  const closeRef = useRef(close)
+  closeRef.current = close
   const busyRef = useRef(busy)
   busyRef.current = busy
   useEffect(() => {
@@ -154,7 +161,7 @@ export function SetPinFlow({
     setError(null)
     try {
       await action()
-      onClose()
+      close()
     } catch {
       setBusy(false)
       // The verifier lives on the account, so this genuinely needs the network.
@@ -176,15 +183,17 @@ export function SetPinFlow({
     <div
       className={`scrim glass-scrim applock-scrim${isSheet ? ' applock-scrim--sheet' : ''}`}
       style={isSheet && frame ? { top: frame.top, height: frame.height, bottom: 'auto' } : undefined}
-      onClick={onClose}
+      data-state={exit.state}
+      onClick={close}
     >
       <div
+        ref={dialogRef}
         className={`applock-dialog glass-surface${isSheet ? ' applock-dialog--sheet' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        data-state={exit.state}
         data-dragging={sheet.dragging || undefined}
-        style={isSheet && sheet.dragY ? { translate: `0 ${sheet.dragY}px` } : undefined}
         onClick={(e) => e.stopPropagation()}
         {...sheet.handlers}
       >
@@ -315,7 +324,7 @@ export function SetPinFlow({
           >
             {busy ? 'Saving…' : step === 'confirm' || mode === 'off' ? 'Done' : 'Continue'}
           </button>
-          <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>
+          <button type="button" className="btn btn--ghost" onClick={close} disabled={busy}>
             Cancel
           </button>
         </div>
