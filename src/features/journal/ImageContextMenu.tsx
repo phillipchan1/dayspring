@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { AttachmentEditTarget } from '@/editor/attachmentInsert'
 import type { ImageMenuPoint } from '@/editor/attachmentImageExtension'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import { isContextPress, useMenuExit, useMenuKeyboard } from '@/hooks/useMenuKeyboard'
 import type { ImageSize } from '@/lib/attachments'
 import { swallowClickThrough } from '@/lib/ghostClick'
 
@@ -170,7 +171,8 @@ function MenuItem({
 }
 
 /**
- * Photo options menu — left- or right-click on a photo opens it. Mirrors
+ * Photo options menu — a right-click (or a long-press) on a photo opens it; a
+ * plain click or tap opens the photo itself. Mirrors
  * EntryContextMenu (portal, backdrop dismiss, viewport clamp) so a photo of any
  * size can never push the controls off-screen.
  */
@@ -188,61 +190,65 @@ export function ImageContextMenu({
   sheet = false,
 }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
 
   const open = phase.kind !== 'closed'
   const drag = useSheetDismiss({ onDismiss: onClose, enabled: sheet && open })
+  // The desktop menu appears at once and fades out (N3); the sheet's exit is
+  // the sheets' own business.
+  const exit = useMenuExit(phase.kind === 'menu' && !sheet ? phase : null)
+  const keys = useMenuKeyboard({
+    open,
+    menuRef,
+    onClose,
+    initial: sheet ? 'none' : 'auto',
+    restoreFocus: !sheet,
+    openKey: phase,
+  })
 
   useEffect(() => {
     if (!open) return
 
     const onPointerDown = (e: PointerEvent) => {
       if (menuRef.current?.contains(e.target as Node)) return
+      // A right-click on another photo opens that photo's menu.
+      if (isContextPress(e) && backdropRef.current) backdropRef.current.style.pointerEvents = 'none'
       swallowClickThrough()
       onClose()
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        onClose()
-      }
     }
     const onScroll = () => onClose()
 
     const id = window.requestAnimationFrame(() => {
       document.addEventListener('pointerdown', onPointerDown, true)
     })
-    window.addEventListener('keydown', onKey, true)
     window.addEventListener('scroll', onScroll, true)
 
     return () => {
       cancelAnimationFrame(id)
       document.removeEventListener('pointerdown', onPointerDown, true)
-      window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('scroll', onScroll, true)
     }
   }, [open, onClose])
 
   useLayoutEffect(() => {
+    if (backdropRef.current) backdropRef.current.style.pointerEvents = ''
     if (phase.kind !== 'menu' || !menuRef.current) return
-    // The sheet has no position to find, and no row to pre-focus.
-    if (sheet) {
-      menuRef.current.focus()
-      return
-    }
+    // The sheet has no position to find.
+    if (sheet) return
     const pad = 8
     const rect = menuRef.current.getBoundingClientRect()
     const x = Math.min(phase.point.x, window.innerWidth - rect.width - pad)
     const y = Math.min(phase.point.y, window.innerHeight - rect.height - pad)
     setPos({ x: Math.max(pad, x), y: Math.max(pad, y) })
-    menuRef.current.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()
   }, [phase, sheet])
 
-  if (phase.kind !== 'menu') return null
+  const live = phase.kind === 'menu' ? phase : sheet ? null : exit.shown
+  if (!live) return null
+  const leaving = phase.kind !== 'menu'
 
-  const target = phase.target
+  const target = live.target
   const arrange = (how: PhotoArrangement) => () => {
     onArrange(target, how)
     onClose()
@@ -250,20 +256,24 @@ export function ImageContextMenu({
 
   return createPortal(
     <>
-      <div
-        className={`entry-context-backdrop${sheet ? ' entry-context-backdrop--sheet' : ''}`}
-        role="presentation"
-        aria-hidden
-        onPointerDown={(e) => {
-          if (e.target === e.currentTarget) onClose()
-        }}
-      />
+      {leaving ? null : (
+        <div
+          ref={backdropRef}
+          className={`entry-context-backdrop${sheet ? ' entry-context-backdrop--sheet' : ''}`}
+          role="presentation"
+          aria-hidden
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) onClose()
+          }}
+        />
+      )}
       <div
         ref={menuRef}
         className={`entry-context-menu image-context-menu${sheet ? ' entry-context-menu--sheet' : ''}`}
         role="menu"
-        tabIndex={sheet ? -1 : undefined}
+        tabIndex={-1}
         aria-label="Photo options"
+        data-leaving={leaving ? 'true' : undefined}
         data-dragging={sheet && drag.dragging ? 'true' : undefined}
         style={
           sheet
@@ -274,6 +284,7 @@ export function ImageContextMenu({
         }
         onPointerDown={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.preventDefault()}
+        {...keys.menuProps}
         {...(sheet ? drag.handlers : {})}
       >
         {sheet && <span className="entry-context-menu__grab" aria-hidden />}
@@ -296,9 +307,9 @@ export function ImageContextMenu({
                   <button
                     key={opt.value}
                     type="button"
+                    role="menuitemradio"
                     className="image-context-menu__size-btn"
-                    aria-pressed={target.size === opt.value}
-                    data-active={target.size === opt.value}
+                    aria-checked={target.size === opt.value}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={(e) => {
                       e.stopPropagation()

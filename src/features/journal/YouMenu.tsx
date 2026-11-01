@@ -18,11 +18,12 @@
 // question nobody is asking. The initial gives the recognisable shape without
 // pretending there is more behind it.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { signOut } from '@/lib/auth'
 import { useGuestMode } from '@/context/GuestMode'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
+import { useMenuExit, useMenuKeyboard } from '@/hooks/useMenuKeyboard'
 import { placeYouMenu, readSafeInsets } from './youMenuPlacement'
 import './You.css'
 
@@ -111,20 +112,21 @@ export function YouMenu({
       const t = e.target as Node
       if (!wrap.current?.contains(t) && !menu.current?.contains(t)) setOpen(false)
     }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
     // `pointerdown`, not `mousedown` — see src/editor/pointerInput.ts. A tap
     // that WebKit routes to text selection or a scroll never becomes a mouse
     // press at all, so on the iPad this panel simply would not close when you
     // reached past it into the page. Every press produces a pointer event.
     document.addEventListener('pointerdown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('pointerdown', onDown)
   }, [open])
+
+  // Arrow keys, type-ahead, Return and Esc, as every menu in the app (N4).
+  // Esc hands focus back to the trigger.
+  const close = useCallback(() => setOpen(false), [])
+  const keys = useMenuKeyboard({ open: open && at != null, menuRef: menu, onClose: close })
+  // It appears at once and fades out when it goes (N3).
+  const exit = useMenuExit(open ? at : null)
+  const shownAt = exit.shown
 
   const pick = (fn: () => void) => () => {
     setOpen(false)
@@ -140,6 +142,13 @@ export function YouMenu({
         aria-expanded={open}
         aria-label="You"
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          // ↑ opens a menu that opens upward, as a pop-up button does.
+          if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !open) {
+            e.preventDefault()
+            setOpen(true)
+          }
+        }}
       >
         <span className="you__initial" aria-hidden>
           {initialOf(userEmail)}
@@ -149,14 +158,17 @@ export function YouMenu({
         {(labelsExpanded || placement === 'bar') && <span className="you__label">You</span>}
       </button>
 
-      {open &&
-        at &&
+      {shownAt &&
         createPortal(
           <div
             className={`you__menu you__menu--${placement}`}
             role="menu"
+            aria-label="You"
+            tabIndex={-1}
             ref={menu}
-            style={{ left: at.left, bottom: at.bottom, width: at.width }}
+            data-leaving={exit.leaving ? 'true' : undefined}
+            style={{ left: shownAt.left, bottom: shownAt.bottom, width: shownAt.width }}
+            {...keys.menuProps}
           >
           <button type="button" role="menuitem" className="you__item" onClick={pick(onLifeMap)}>
             Life Map

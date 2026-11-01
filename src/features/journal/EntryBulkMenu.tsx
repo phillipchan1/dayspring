@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { swallowClickThrough } from '@/lib/ghostClick'
 import type { Entry } from '@/lib/types'
+import { isContextPress, useMenuExit, useMenuKeyboard } from '@/hooks/useMenuKeyboard'
+import { confirmKeyAction } from './EntryContextMenu'
 import { EntryMenuIcon } from './entryMenuIcons'
 
 export type EntryBulkMenuPhase =
@@ -52,9 +54,13 @@ function MenuSep() {
 
 export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
-  const deleteBtnRef = useRef<HTMLButtonElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const cancelBtnRef = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
   const open = phase.kind !== 'closed'
+  const menuOpen = phase.kind === 'menu'
+  const { shown: shownMenu, leaving } = useMenuExit(menuOpen ? phase : null)
+  const keys = useMenuKeyboard({ open: menuOpen, menuRef, onClose, openKey: phase })
 
   useEffect(() => {
     if (!open) return
@@ -65,22 +71,21 @@ export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Pro
         const dialog = document.querySelector('.entry-confirm')
         if (dialog?.contains(target)) return
       }
+      // A right-click elsewhere opens a menu there (see EntryContextMenu).
+      if (phase.kind === 'menu' && isContextPress(e) && backdropRef.current) {
+        backdropRef.current.style.pointerEvents = 'none'
+      }
       swallowClickThrough()
       onClose()
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        onClose()
-        return
-      }
-      if (phase.kind === 'confirm' && e.key === 'Enter') {
-        e.preventDefault()
-        e.stopPropagation()
-        onAction('delete', phase.entries)
-        onClose()
-      }
+      if (phase.kind !== 'confirm') return
+      const act = confirmKeyAction(e)
+      if (!act) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (act === 'confirm') onAction('delete', phase.entries)
+      onClose()
     }
     const id = window.requestAnimationFrame(() => {
       document.addEventListener('pointerdown', onPointerDown, true)
@@ -94,8 +99,9 @@ export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Pro
   }, [open, phase, onClose, onAction])
 
   useLayoutEffect(() => {
+    if (backdropRef.current) backdropRef.current.style.pointerEvents = ''
     if (phase.kind === 'confirm') {
-      deleteBtnRef.current?.focus()
+      cancelBtnRef.current?.focus()
       return
     }
     if (phase.kind !== 'menu' || !menuRef.current) return
@@ -106,93 +112,112 @@ export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Pro
     setPos({ x: Math.max(pad, x), y: Math.max(pad, y) })
   }, [phase])
 
-  if (phase.kind === 'closed') return null
-
-  if (phase.kind === 'confirm') {
-    const n = phase.entries.length
+  function renderMenu(entries: Entry[]) {
+    const n = entries.length
+    const act = (action: EntryBulkAction) => {
+      onAction(action, entries)
+      onClose()
+    }
     return createPortal(
-      <div
-        className="entry-context-backdrop entry-context-backdrop--confirm"
-        role="presentation"
-        onPointerDown={(e) => {
-          if (e.target === e.currentTarget) onClose()
-        }}
-      >
+      <>
+        {leaving ? null : (
+          <div
+            ref={backdropRef}
+            className="entry-context-backdrop"
+            role="presentation"
+            aria-hidden
+            onPointerDown={(e) => {
+              if (e.target === e.currentTarget) onClose()
+            }}
+          />
+        )}
         <div
-          className="entry-confirm glass-surface glass-surface--compact"
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="entry-bulk-confirm-title"
+          ref={menuRef}
+          className="entry-context-menu"
+          role="menu"
+          tabIndex={-1}
+          aria-label={`Actions for ${n} entries`}
+          data-leaving={leaving ? 'true' : undefined}
+          style={{ left: pos.x, top: pos.y }}
           onPointerDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+          {...keys.menuProps}
         >
-          <div className="glass-surface__glow" aria-hidden />
-          <h3 id="entry-bulk-confirm-title" className="entry-confirm__title">
-            Delete {n} {n === 1 ? 'entry' : 'entries'}?
-          </h3>
-          <p className="entry-confirm__body">
-            These entries will be removed from your journal. This can’t be undone.
-          </p>
-          <div className="entry-confirm__actions">
-            <button type="button" className="btn btn--ghost" onClick={onClose}>
-              Cancel
-            </button>
-            <button
-              ref={deleteBtnRef}
-              type="button"
-              className="btn btn--danger"
-              onClick={() => {
-                onAction('delete', phase.entries)
-                onClose()
-              }}
-            >
-              Delete {n}
-            </button>
+          <div className="entry-context-menu__head">
+            <span className="entry-context-menu__head-title">
+              {n} {n === 1 ? 'entry' : 'entries'} selected
+            </span>
           </div>
+          <MenuItem label="Copy text" icon="copy-text" onClick={() => act('copy-text')} />
+          <MenuItem label="Copy Markdown" icon="copy-markdown" onClick={() => act('copy-markdown')} />
+          <MenuSep />
+          <MenuItem label="Export Markdown (.zip)…" icon="export" onClick={() => act('export-zip')} />
+          <MenuSep />
+          <MenuItem label={`Delete ${n} entries…`} icon="delete" danger onClick={() => onRequestDelete(entries)} />
         </div>
-      </div>,
+      </>,
       document.body,
     )
   }
 
-  const entries = phase.entries
-  const n = entries.length
-  const act = (action: EntryBulkAction) => {
-    onAction(action, entries)
-    onClose()
+  if (phase.kind === 'closed') return shownMenu ? renderMenu(shownMenu.entries) : null
+
+  if (phase.kind === 'confirm') {
+    const n = phase.entries.length
+    return (
+      <>
+        {shownMenu ? renderMenu(shownMenu.entries) : null}
+        {createPortal(
+          <div
+            className="entry-context-backdrop entry-context-backdrop--confirm"
+            role="presentation"
+            onPointerDown={(e) => {
+              if (e.target === e.currentTarget) onClose()
+            }}
+          >
+            <div
+              className="entry-confirm glass-surface glass-surface--compact"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="entry-bulk-confirm-title"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <div className="glass-surface__glow" aria-hidden />
+              <h3 id="entry-bulk-confirm-title" className="entry-confirm__title">
+                Delete {n} {n === 1 ? 'entry' : 'entries'}?
+              </h3>
+              <p className="entry-confirm__body">
+                These entries will be removed from your journal. This can’t be undone.
+              </p>
+              <div className="entry-confirm__actions">
+                <button
+                  ref={cancelBtnRef}
+                  type="button"
+                  className="btn btn--ghost"
+                  data-default="true"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--danger"
+                  aria-keyshortcuts="Meta+Backspace"
+                  onClick={() => {
+                    onAction('delete', phase.entries)
+                    onClose()
+                  }}
+                >
+                  Delete {n}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      </>
+    )
   }
 
-  return createPortal(
-    <>
-      <div
-        className="entry-context-backdrop"
-        role="presentation"
-        aria-hidden
-        onPointerDown={(e) => {
-          if (e.target === e.currentTarget) onClose()
-        }}
-      />
-      <div
-        ref={menuRef}
-        className="entry-context-menu"
-        role="menu"
-        aria-label={`Actions for ${n} entries`}
-        style={{ left: pos.x, top: pos.y }}
-        onPointerDown={(e) => e.stopPropagation()}
-        onContextMenu={(e) => e.preventDefault()}
-      >
-        <div className="entry-context-menu__head">
-          <span className="entry-context-menu__head-title">
-            {n} {n === 1 ? 'entry' : 'entries'} selected
-          </span>
-        </div>
-        <MenuItem label="Copy text" icon="copy-text" onClick={() => act('copy-text')} />
-        <MenuItem label="Copy Markdown" icon="copy-markdown" onClick={() => act('copy-markdown')} />
-        <MenuSep />
-        <MenuItem label="Export Markdown (.zip)…" icon="export" onClick={() => act('export-zip')} />
-        <MenuSep />
-        <MenuItem label={`Delete ${n} entries…`} icon="delete" danger onClick={() => onRequestDelete(entries)} />
-      </div>
-    </>,
-    document.body,
-  )
+  return renderMenu(phase.entries)
 }

@@ -973,13 +973,14 @@ a[href] {
 }
 
 /* ── Entry context menu ──────────────────────────────────────────────────── */
+/* A Mac menu does not dim or blur the window behind it. The backdrop is only
+   there to take the dismissing click, so it is clear; a right-click on it is
+   let through to whatever is underneath (useMenuKeyboard `isContextPress`). */
 .entry-context-backdrop {
   position: fixed;
   inset: 0;
   z-index: 199;
-  background: rgba(8, 10, 14, 0.22);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: transparent;
 }
 .entry-context-backdrop--confirm {
   z-index: 209;
@@ -1007,18 +1008,16 @@ a[href] {
     var(--glass-shadow),
     var(--glass-shadow-glow),
     inset 0 1px 0 var(--glass-edge);
-  animation: entry-context-menu-in 0.16s cubic-bezier(0.2, 0.85, 0.3, 1);
-  transform-origin: top left;
+  outline: none;
+  /* NSMenu: appears at once, no entrance (N3). */
 }
-@keyframes entry-context-menu-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(-3px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* …and fades when it goes, staying mounted for the fade (useMenuExit). */
+.entry-context-menu[data-leaving='true'],
+.you__menu[data-leaving='true'],
+.font-picker__menu[data-leaving='true'] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-exit) var(--ease-exit);
 }
 .entry-context-menu__head {
   padding: 0.4rem 0.55rem 0.35rem;
@@ -1036,6 +1035,9 @@ a[href] {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* One highlight, shared by the pointer and the arrow keys, drawn by
+   useMenuKeyboard as `data-highlighted`. It snaps — a menu row that eases its
+   highlight in reads as lag — and a Mac press tints, it doesn't shrink. */
 .entry-context-menu__item {
   display: flex;
   align-items: center;
@@ -1049,30 +1051,17 @@ a[href] {
   color: var(--text);
   font-size: 0.86rem;
   cursor: default;
-  transition:
-    background var(--transition),
-    color var(--transition),
-    transform 0.12s ease;
-}
-.entry-context-menu__item:hover,
-.entry-context-menu__item:focus-visible {
-  background: var(--bg-hover);
-  color: var(--text-bright);
   outline: none;
 }
-.entry-context-menu__item:active {
-  transform: scale(0.985);
-}
-.entry-context-menu__item:focus-visible {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+.entry-context-menu__item[data-highlighted='true'] {
+  background: var(--bg-hover);
+  color: var(--text-bright);
 }
 .entry-context-menu__icon {
   flex-shrink: 0;
   opacity: 0.5;
-  transition: opacity var(--transition), color var(--transition);
 }
-.entry-context-menu__item:hover .entry-context-menu__icon,
-.entry-context-menu__item:focus-visible .entry-context-menu__icon {
+.entry-context-menu__item[data-highlighted='true'] .entry-context-menu__icon {
   opacity: 0.92;
 }
 .entry-context-menu__label {
@@ -1085,13 +1074,11 @@ a[href] {
 .entry-context-menu__item--danger .entry-context-menu__icon {
   opacity: 0.65;
 }
-.entry-context-menu__item--danger:hover,
-.entry-context-menu__item--danger:focus-visible {
+.entry-context-menu__item--danger[data-highlighted='true'] {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
 }
-.entry-context-menu__item--danger:hover .entry-context-menu__icon,
-.entry-context-menu__item--danger:focus-visible .entry-context-menu__icon {
+.entry-context-menu__item--danger[data-highlighted='true'] .entry-context-menu__icon {
   opacity: 1;
 }
 .entry-context-menu__sep {
@@ -1189,7 +1176,7 @@ a[href] {
   font-size: 1.02rem;
 }
 /* No hover on glass under a finger — the press is the only feedback. */
-.entry-context-menu--sheet .entry-context-menu__item:hover {
+.entry-context-menu--sheet .entry-context-menu__item:hover:not([data-highlighted='true']) {
   background: transparent;
   color: var(--text);
 }
@@ -1248,12 +1235,14 @@ a[href] {
   padding: 0.18rem 0.5rem;
   border-radius: calc(var(--radius) - 2px);
   cursor: default;
-  transition: background 120ms ease, color 120ms ease;
+  outline: none;
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
 }
-.image-context-menu__size-btn:hover {
+.image-context-menu__size-btn[data-highlighted='true'] {
   color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
 }
-.image-context-menu__size-btn[data-active='true'] {
+.image-context-menu__size-btn[aria-checked='true'] {
   background: var(--bg-elevated, var(--bg));
   color: var(--text);
   box-shadow: var(--shadow-1);
@@ -1697,6 +1686,13 @@ a[href] {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+/* The default button — the one Return presses. In a destructive alert that is
+   Cancel (EntryContextMenu `confirmKeyAction`); it wears the theme's accent,
+   never system blue. */
+.entry-confirm__actions .btn[data-default='true'] {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  color: var(--text-bright);
 }
 
 /* ── Edit-date modal ──────────────────────────────────────────────────── */
@@ -2955,7 +2951,8 @@ textarea,
   font-size: 0.9rem;
   cursor: default;
 }
-.settings-select:focus {
+/* The ring is for the keyboard (N7): a click on the select draws nothing. */
+.settings-select:focus-visible {
   outline: 2px solid var(--accent-soft);
   outline-offset: 1px;
 }
@@ -3017,6 +3014,7 @@ textarea,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-2);
+  outline: none;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
@@ -3035,12 +3033,19 @@ textarea,
   color: var(--text);
   text-align: left;
   cursor: default;
+  outline: none;
 }
-.font-picker__option:hover {
-  background: var(--bg-hover);
-}
+/* The current face keeps its tint; the moving highlight (pointer or keys,
+   useMenuKeyboard) sits on top of it, with no easing. */
 .font-picker__option[aria-selected='true'] {
   background: var(--accent-soft);
+}
+.font-picker__option[data-highlighted='true'] {
+  background: var(--bg-hover);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.font-picker__option[aria-selected='true'][data-highlighted='true'] {
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-hover));
 }
 .font-picker__option-head {
   display: flex;
