@@ -9,6 +9,15 @@ import {
 } from '@/lib/scripture/citation'
 import './ChapterPane.css'
 
+/** Placeholder verses: line widths (%), ragged the way set prose is. */
+const PENDING_VERSES: readonly (readonly number[])[] = [
+  [96, 88, 54],
+  [93, 71],
+  [97, 90, 83, 38],
+  [91, 62],
+  [95, 86, 47],
+]
+
 export interface ChapterPaneProps {
   book: string
   chapter: number
@@ -120,7 +129,22 @@ export function ChapterPane({
         </div>
       </header>
       <div className="chapter-pane__body" ref={bodyRef}>
-        {verses === null && <p className="chapter-pane__status">Loading…</p>}
+        {/*
+          While the chapter is fetched: faint lines at the verses' own size and
+          leading, so the text arrives where the lines were instead of pushing
+          a "Loading…" out of the way (DESIGN_PRINCIPLES N5).
+        */}
+        {verses === null && (
+          <div className="chapter-pane__pending" aria-busy="true" aria-label="Opening the chapter">
+            {PENDING_VERSES.map((lines, i) => (
+              <p key={i} className="chapter-pane__verse chapter-pane__verse--pending" aria-hidden>
+                {lines.map((w, j) => (
+                  <span key={j} className="chapter-pane__ghost" style={{ inlineSize: `${w}%` }} />
+                ))}
+              </p>
+            ))}
+          </div>
+        )}
         {verses && verses.length === 0 && failed && (
           <p className="chapter-pane__status">Open ESV.org to read this chapter.</p>
         )}

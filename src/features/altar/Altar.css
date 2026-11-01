@@ -753,9 +753,23 @@
   border: none;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0.6rem;
-  padding: 1.05rem 0 1.15rem;
+  padding: 1.05rem 1.4rem 1.15rem 0;
   cursor: default;
+  position: relative;
   transition: background var(--transition), box-shadow var(--transition);
+}
+/* A row that pushes a view says so at its trailing edge, in the faintest ink
+   on the page — a disclosure, not a button. */
+.altar-strand__chev {
+  position: absolute;
+  inset-inline-end: 0.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-sans);
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-faint);
+  pointer-events: none;
 }
 .altar-strand:hover {
   background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);

@@ -58,9 +58,12 @@ export function VolumeView({
   lit,
   looking,
   backLabel = '← the shelf',
+  covered = false,
 }: {
   /** Says where the way up goes — the shelf, or the pages it was opened from. */
   backLabel?: string | undefined
+  /** A page is open over the volume; Esc is the page's, not the volume's. */
+  covered?: boolean | undefined
   volume: Volume
   /** Pages lit by the filter above, if one is set. */
   lit?: Set<string> | null | undefined
@@ -128,6 +131,25 @@ export function VolumeView({
       alive = false
     }
   }, [volume, prev, next])
+
+  /*
+   * Esc goes back up a level, as Back does — unless something on top of the
+   * volume has it: a page opened over it, a sheet it opened, the name being
+   * typed (whose own Escape cancels the rename), or anyone who claimed the key
+   * first. Bubbling, so the layers that claim it in capture always win.
+   */
+  useEffect(() => {
+    if (covered || seed || across || naming) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      const t = e.target
+      if (t instanceof HTMLElement && t.closest('input, textarea, select, [contenteditable="true"]')) return
+      e.preventDefault()
+      onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [covered, seed, across, naming, onClose])
 
   function write() {
     const lines = [first, last]

@@ -219,6 +219,7 @@ export function useSwipeToDismiss({
   enabled = true,
   threshold = 80,
   exit = false,
+  exitMs = EXIT_MS,
   guard,
 }: {
   onDismiss: () => void
@@ -249,6 +250,13 @@ export function useSwipeToDismiss({
    * rule on `[data-leaving]` lasting `EXIT_MS`.
    */
   exit?: boolean
+  /**
+   * How long the surface takes to finish leaving, when `exit` is set. Defaults
+   * to `EXIT_MS`; a pushed view popping off a navigation stack passes the
+   * push duration (`--dur-push`). Must equal the CSS transition on its
+   * `[data-leaving]` rule, for the reason given on `EXIT_MS`.
+   */
+  exitMs?: number
 }) {
   const start = useRef<{ x: number; y: number } | null>(null)
   const axis = useRef<'h' | 'v' | null>(null)
@@ -326,7 +334,7 @@ export function useSwipeToDismiss({
        */
       onDismiss()
       timer.current = setTimeout(() => setLeaving(false), STRANDED_MS)
-    }, EXIT_MS)
+    }, exitMs)
   }
 
   /*
