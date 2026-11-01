@@ -315,7 +315,7 @@ export function FindPalette({ onClose, onOpenEntry, onAsk, initialQuery = '' }: 
             <kbd className="kbd">tab</kbd> switch
           </span>
           <span>
-            <kbd className="kbd">esc</kbd> close
+            <kbd className="kbd">esc</kbd> {query ? 'clear' : 'close'}
           </span>
           {total > hits.length && (
             <span className="find__foot-count">{total} entries contain this</span>
