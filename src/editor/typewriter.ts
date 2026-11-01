@@ -8,6 +8,16 @@ import { Prec, type Extension } from '@codemirror/state'
  * doc/selection changes — never on geometryChanged alone (that caused a CM
  * measure loop when padding + scrollIntoView fed each other).
  *
+ * **Typing scrolls only when the caret's line block changes.** A keystroke
+ * that stays on the same line, in a paragraph that did not grow a row, has
+ * nothing to re-centre — but it used to cost a second transaction and a
+ * scroll measure after every key. Now typing re-centres only when the caret's
+ * block is a different one (Return, a join) or a different height (the
+ * paragraph wrapped onto, or back off, a row). The block comes from
+ * CodeMirror's height map (`lineBlockAt`), which reads no layout and no text.
+ * Caret moves that are not typing — arrows, clicks, a jump — still centre
+ * every time, as they always did.
+ *
  * The theme is `Prec.high`: CodeMirror ranks themes by extension precedence,
  * EARLIER wins, so registered after `editorTheme` (as the compartment is) the
  * base `paddingBottom: 40vh` beat `--tw-pad` and the caret on the last lines
@@ -43,6 +53,20 @@ const clearOfKeyboard = EditorView.scrollMargins.of((view) => {
   return bottom > 0 ? { bottom } : null
 })
 
+/** A line block as typewriter remembers it: where it starts and how tall it is. */
+export interface CaretBlock {
+  from: number
+  height: number
+}
+
+/**
+ * Does typing need a re-centre? Only when the caret is in a different line
+ * block than at the last centring, or the same block grew or shrank a row.
+ */
+export function caretBlockMoved(last: CaretBlock | null, now: CaretBlock): boolean {
+  return !last || last.from !== now.from || last.height !== now.height
+}
+
 const keepCentered = ViewPlugin.fromClass(
   class {
     private frame = 0
@@ -52,6 +76,8 @@ const keepCentered = ViewPlugin.fromClass(
     private view: EditorView
     /** The keyboard's band as the padding last measured it. */
     private band = 0
+    /** The caret's line block when we last centred. */
+    private block: CaretBlock | null = null
     // Only the primary button presses. A right-click opens WebKit's native
     // context menu, which swallows the release — counted as a press, it left
     // `pressed` true and typewriter silently off for the rest of the session.
@@ -93,9 +119,27 @@ const keepCentered = ViewPlugin.fromClass(
       if (view.state.selection.main.empty && !this.pressed) this.schedule(view)
     }
 
+    /** Has the caret's line block moved or changed height since we last centred? */
+    private blockChanged(view: EditorView): boolean {
+      const b = view.lineBlockAt(view.state.selection.main.head)
+      return caretBlockMoved(this.block, { from: b.from, height: b.height })
+    }
+
     update(update: ViewUpdate) {
       if (update.geometryChanged) {
         this.syncPadding(update.view)
+        // A paragraph that wrapped onto a new row is only measured after the
+        // keystroke that wrapped it, so its new height arrives as geometry.
+        if (
+          !update.docChanged &&
+          !update.selectionSet &&
+          this.block &&
+          update.state.selection.main.empty &&
+          !this.pressed &&
+          this.blockChanged(update.view)
+        ) {
+          this.schedule(update.view)
+        }
       }
       if (!update.docChanged && !update.selectionSet) return
       // Typewriter centres *the caret*. A range has no caret to centre, and
@@ -108,10 +152,12 @@ const keepCentered = ViewPlugin.fromClass(
       // press, so a keystroke proves any press is over: that also heals a
       // release some native gesture (a system drag, a menu) never delivered.
       // Keystrokes only — a click that edits (a task box) is still a press.
-      if (update.transactions.some((tr) => tr.isUserEvent('input') || tr.isUserEvent('delete'))) {
+      const typing = update.transactions.some((tr) => tr.isUserEvent('input') || tr.isUserEvent('delete'))
+      if (typing) {
         this.pressed = false
       }
       if (this.pressed) return
+      if (typing && !this.blockChanged(update.view)) return
       this.schedule(update.view)
     }
 
@@ -141,6 +187,8 @@ const keepCentered = ViewPlugin.fromClass(
       cancelAnimationFrame(this.frame)
       this.frame = requestAnimationFrame(() => {
         const head = view.state.selection.main.head
+        const b = view.lineBlockAt(head)
+        this.block = { from: b.from, height: b.height }
         view.dispatch({ effects: EditorView.scrollIntoView(head, { y: 'center' }) })
       })
     }
