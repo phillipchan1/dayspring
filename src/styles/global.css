@@ -1620,6 +1620,13 @@ a[href] {
 .link-popover__input::placeholder {
   color: var(--text-dim);
 }
+/* iOS zooms the whole page into any field under 16px the moment it takes
+   focus, and leaves it zoomed (DESIGN_PRINCIPLES N4). On a finger, 16px. */
+@media (pointer: coarse) {
+  .link-popover__input {
+    font-size: max(16px, 1rem);
+  }
+}
 .link-popover__input:focus-visible {
   outline: none;
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);

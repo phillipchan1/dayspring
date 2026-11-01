@@ -367,6 +367,13 @@
 .command-popover__search::placeholder {
   color: var(--text-faint);
 }
+/* iOS zooms the whole page into any field under 16px the moment it takes
+   focus, and leaves it zoomed (DESIGN_PRINCIPLES N4). On a finger, 16px. */
+@media (pointer: coarse) {
+  .command-popover__search {
+    font-size: max(16px, 1rem);
+  }
+}
 
 /* ── Prose capture field ─────────────────────────────────────────────────── */
 
