@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.521",
+  "appVersion": "1.0.525",
   "channel": "stable",
   "categories": {
     "shortcuts": [
@@ -125,6 +125,54 @@
         ],
         "mac": "⌘⏎",
         "pc": "Ctrl + Enter"
+      },
+      {
+        "id": "shortcut.larger-writing",
+        "group": "Writing",
+        "label": "Larger writing",
+        "when": "on the wall, larger pages",
+        "keys": [
+          "Mod",
+          "="
+        ],
+        "mac": "⌘=",
+        "pc": "Ctrl + ="
+      },
+      {
+        "id": "shortcut.smaller-writing",
+        "group": "Writing",
+        "label": "Smaller writing",
+        "when": "on the wall, smaller pages",
+        "keys": [
+          "Mod",
+          "-"
+        ],
+        "mac": "⌘-",
+        "pc": "Ctrl + -"
+      },
+      {
+        "id": "shortcut.writing-at-its-usual-size",
+        "group": "Writing",
+        "label": "Writing at its usual size",
+        "when": null,
+        "keys": [
+          "Mod",
+          "0"
+        ],
+        "mac": "⌘0",
+        "pc": "Ctrl + 0"
+      },
+      {
+        "id": "shortcut.print-the-entry",
+        "group": "Writing",
+        "label": "Print the entry",
+        "when": null,
+        "keys": [
+          "Mod",
+          "P"
+        ],
+        "mac": "⌘P",
+        "pc": "Ctrl + P"
       },
       {
         "id": "shortcut.indent-line",
@@ -409,6 +457,30 @@
         ],
         "mac": "↑↓",
         "pc": "↑ + ↓"
+      },
+      {
+        "id": "shortcut.back-to-where-you-were",
+        "group": "Navigation",
+        "label": "Back to where you were",
+        "when": "from an entry, not while typing",
+        "keys": [
+          "Mod",
+          "["
+        ],
+        "mac": "⌘[",
+        "pc": "Ctrl + ["
+      },
+      {
+        "id": "shortcut.forward-again",
+        "group": "Navigation",
+        "label": "Forward again",
+        "when": "not while typing",
+        "keys": [
+          "Mod",
+          "]"
+        ],
+        "mac": "⌘]",
+        "pc": "Ctrl + ]"
       },
       {
         "id": "shortcut.show-this-shortcut-guide",
