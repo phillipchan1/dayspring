@@ -17,10 +17,32 @@ mod ios_oauth;
 // and answers "no position" off the Mac.
 mod mac_location;
 
+// Window close/launch behaviour, native appearance, the iOS status-bar tap.
+// Compiles everywhere; its commands are no-ops where they don't apply.
+mod native_chrome;
+
+// VisionKit page scans and the PhotosUI picker. Compiles everywhere; off iOS
+// the commands answer "unsupported" and the web paths run.
+mod ios_capture;
+
+// The menu bar. Mac only: `tauri::menu` doesn't exist on mobile.
+#[cfg(target_os = "macos")]
+mod mac_menu;
+
 /// Open the web inspector (devtools). Gated by the `devtools` Cargo feature so
 /// it works in both debug and release builds when the user enables dev mode.
+///
+/// The Mac window is created with the inspector off (tauri.macos.conf.json,
+/// so release builds don't offer "Inspect Element"); asking for it from dev
+/// mode turns it on for the rest of the session first.
 #[tauri::command]
 fn open_devtools(window: tauri::WebviewWindow) {
+  #[cfg(target_os = "macos")]
+  {
+    let _ = window.with_webview(|webview| {
+      native_chrome::enable_web_inspector(webview.inner() as *mut objc2::runtime::AnyObject);
+    });
+  }
   window.open_devtools();
 }
 
@@ -68,6 +90,11 @@ fn reclaim_ios_viewport(webview: tauri::webview::PlatformWebview) {
   suppress_ios_accessory_bar();
   suppress_ios_edit_menu();
   IOS_WK.store(wk as usize, std::sync::atomic::Ordering::SeqCst);
+
+  // Not opaque, and on the voice's ground rather than WebKit's white until the
+  // first frame paints; and the status-bar tap handed to the page. The web
+  // layer re-sends the ground once it knows the voice (set_native_appearance).
+  native_chrome::prepare_ios_webview(wk);
 }
 
 /// Claim ⌘, natively so it opens Dayspring's own Settings instead of iPadOS's
@@ -336,6 +363,12 @@ fn empty_uimenu() -> *mut objc2::runtime::AnyObject {
 #[cfg(target_os = "ios")]
 static IOS_WK: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
+/// The WKWebView, once `reclaim_ios_viewport` has seen it; null before.
+#[cfg(target_os = "ios")]
+pub(crate) fn ios_webview() -> *mut objc2::runtime::AnyObject {
+  IOS_WK.load(std::sync::atomic::Ordering::SeqCst) as *mut objc2::runtime::AnyObject
+}
+
 /// Look Up / Share / Search Web / Translate / Replace guesses — the system
 /// edit-menu items the format bar now owns. No-op on every other platform so
 /// the front end can invoke without a platform check.
@@ -413,7 +446,7 @@ fn encode_query(s: &str) -> String {
 }
 
 #[cfg(target_os = "ios")]
-fn run_on_main(f: impl FnOnce() + Send + 'static) {
+pub(crate) fn run_on_main(f: impl FnOnce() + Send + 'static) {
   use block2::RcBlock;
   use objc2::msg_send;
   use objc2::runtime::{AnyClass, AnyObject};
@@ -547,7 +580,7 @@ fn scene_key_window(app: *mut objc2::runtime::AnyObject) -> *mut objc2::runtime:
 }
 
 #[cfg(target_os = "ios")]
-fn top_view_controller() -> *mut objc2::runtime::AnyObject {
+pub(crate) fn top_view_controller() -> *mut objc2::runtime::AnyObject {
   use objc2::msg_send;
   use objc2::runtime::AnyObject;
 
@@ -650,7 +683,7 @@ fn present_share(text: &str) {
 }
 
 #[cfg(target_os = "ios")]
-fn open_url(url: &str) {
+pub(crate) fn open_url(url: &str) {
   use objc2::msg_send;
   use objc2::runtime::{AnyClass, AnyObject};
   use objc2_foundation::NSString;
@@ -910,12 +943,43 @@ pub fn run() {
       ios_selection_action,
       ios_oauth::start_oauth_session,
       mac_location::mac_current_position,
+      native_chrome::resolve_close_request,
+      native_chrome::set_native_appearance,
+      native_chrome::open_app_settings,
+      ios_capture::scan_document_pages,
+      ios_capture::pick_photos,
     ]);
 
   // The updater plugin is desktop-only.
   #[cfg(desktop)]
   {
     builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    // Size, position, maximised and full screen come back on relaunch. Not
+    // VISIBLE: the window starts hidden on purpose and the webview shows it
+    // after its first render (native_chrome.rs), and a window last closed
+    // with ⌘W was saved hidden — restoring that would hide it for good.
+    builder = builder.plugin(
+      tauri_plugin_window_state::Builder::default()
+        .with_state_flags(
+          tauri_plugin_window_state::StateFlags::all()
+            & !tauri_plugin_window_state::StateFlags::VISIBLE,
+        )
+        .build(),
+    );
+  }
+
+  // The menu bar's own items (mac_menu.rs) go to the webview, which replays
+  // each one's keyboard shortcut (src/lib/nativeMenu.ts). Predefined items —
+  // Copy, Hide, Full Screen — are AppKit's and never come through here.
+  #[cfg(target_os = "macos")]
+  {
+    builder = builder.on_menu_event(|app, event| {
+      use tauri::Emitter;
+      let id = event.id().0.as_str();
+      if mac_menu::is_app_command(id) {
+        let _ = app.emit(mac_menu::MENU_EVENT, id);
+      }
+    });
   }
 
   // StoreKit / Play Billing — mobile only.
@@ -930,6 +994,8 @@ pub fn run() {
     // reads our own sentence out of Info.ios.plist. Asked through the webview,
     // it names the origin, which inside the app is "localhost".
     builder = builder.plugin(tauri_plugin_geolocation::init());
+    // Haptics, through one helper (src/lib/haptics.ts). Fire-and-forget.
+    builder = builder.plugin(tauri_plugin_haptics::init());
   }
 
   builder
@@ -940,19 +1006,6 @@ pub fn run() {
             .level(log::LevelFilter::Info)
             .build(),
         )?;
-      }
-
-      // After a post-update relaunch on macOS the new process starts without
-      // activating, leaving the window hidden behind other apps. Explicitly
-      // show and focus here so every launch — including relaunches — brings
-      // the window to the front.
-      #[cfg(desktop)]
-      {
-        use tauri::Manager;
-        if let Some(window) = app.get_webview_window("main") {
-          let _ = window.show();
-          let _ = window.set_focus();
-        }
       }
 
       #[cfg(target_os = "ios")]
@@ -971,24 +1024,38 @@ pub fn run() {
       #[cfg(target_os = "macos")]
       {
         use tauri::Manager;
+
+        // A real menu bar. If it can't be built, Tauri's default stays —
+        // better than no Edit menu, which would mean no Copy or Paste.
+        match mac_menu::build(app.handle()) {
+          Ok(menu) => {
+            if let Err(err) = app.set_menu(menu) {
+              log::warn!("menu bar: {err}");
+            }
+          }
+          Err(err) => log::warn!("menu bar: {err}; keeping the default menu"),
+        }
+
         if let Some(window) = app.get_webview_window("main") {
           let _ = window.with_webview(|webview| {
-            native_typing::enable_writing_tools(webview.inner() as *mut _);
-          });
-
-          // ⌘W / the red traffic light must hide the window, not destroy it.
-          // Tauri's default close destroys the webview, and with a single
-          // window that also exits the process — so ⌘W feels like quit.
-          // Hidden, the app stays in the Dock; the Reopen handler below
-          // brings the window back. ⌘Q is a different menu item and still
-          // quits.
-          let hidden = window.clone();
-          window.on_window_event(move |event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-              api.prevent_close();
-              let _ = hidden.hide();
+            let wk = webview.inner() as *mut objc2::runtime::AnyObject;
+            native_typing::enable_writing_tools(wk);
+            // Debug builds stay inspectable; release ones only on request
+            // (`open_devtools`).
+            if cfg!(debug_assertions) {
+              native_chrome::enable_web_inspector(wk);
             }
           });
+
+          // ⌘W / the red traffic light close the top layer, then hide the
+          // window — never destroy it (native_chrome.rs).
+          native_chrome::install_close_handler(&window);
+
+          // The window is created hidden and the webview shows (and focuses)
+          // it after its first render — which is also what brings the app to
+          // the front after a post-update relaunch, which starts without
+          // activating. If the webview never asks, show it anyway.
+          native_chrome::schedule_reveal_fallback(window.clone());
         }
       }
 

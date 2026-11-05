@@ -70,7 +70,7 @@
   position: relative;
   width: 150px;
   text-align: center;
-  cursor: pointer;
+  cursor: default;
   background: none;
   border: none;
   display: flex;
@@ -207,7 +207,7 @@
   fill: var(--text-dim);
 }
 .altar-arc {
-  cursor: pointer;
+  cursor: default;
   animation: altarFade 0.8s both;
 }
 .altar-arc__path,
@@ -240,11 +240,11 @@
 }
 .altar-arc__carry {
   fill: rgba(var(--scripture-ember), 0.85);
-  cursor: pointer;
+  cursor: default;
 }
 .altar-arc__rest {
   fill: var(--text-faint);
-  cursor: pointer;
+  cursor: default;
 }
 
 /* ── where He met me (harvest) ────────────────────────────────────────────── */
@@ -263,7 +263,7 @@
 .altar-harvest__card {
   text-align: left;
   border: none;
-  cursor: pointer;
+  cursor: default;
   background: linear-gradient(160deg, color-mix(in srgb, rgb(var(--scripture-gold)) 8%, var(--bg-elevated)), var(--bg));
   border-radius: 16px;
   padding: 1.4rem 1.5rem;
@@ -272,7 +272,6 @@
   animation: altarRise 0.6s both;
 }
 .altar-harvest__card:hover {
-  transform: translateY(-3px);
 }
 .altar-harvest__meta {
   display: flex;
@@ -388,7 +387,7 @@
   color: var(--text-dim);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   padding: 0;
   margin-bottom: 1.4rem;
   transition: color var(--transition);
@@ -449,7 +448,7 @@
   border: none;
   padding: 0;
   margin-top: 0.5rem;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 .altar-open-entry:hover {
@@ -470,7 +469,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   color: var(--text-dim);
 }
 .altar-return__dot {
@@ -559,12 +558,11 @@
   border-radius: 20px;
   font-family: var(--font-serif);
   font-size: 0.9rem;
-  cursor: pointer;
+  cursor: default;
   transition: transform var(--transition), background var(--transition);
 }
 .altar-ev__yes:hover:not(:disabled) {
   background: color-mix(in srgb, rgb(var(--scripture-gold)) 22%, transparent);
-  transform: translateY(-1px);
 }
 .altar-ev__no,
 .altar-ev__name {
@@ -575,7 +573,7 @@
   border-radius: 20px;
   font-family: var(--font-serif);
   font-size: 0.9rem;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 .altar-ev__name {
@@ -634,7 +632,7 @@
   font-family: var(--font-serif);
   font-style: normal;
   font-size: 0.8rem;
-  cursor: pointer;
+  cursor: default;
   flex: 0 0 auto;
   transition: color var(--transition);
 }
@@ -647,7 +645,7 @@
   margin: 2.5rem auto 0;
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.04em;
@@ -755,9 +753,23 @@
   border: none;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0.6rem;
-  padding: 1.05rem 0 1.15rem;
-  cursor: pointer;
+  padding: 1.05rem 1.4rem 1.15rem 0;
+  cursor: default;
+  position: relative;
   transition: background var(--transition), box-shadow var(--transition);
+}
+/* A row that pushes a view says so at its trailing edge, in the faintest ink
+   on the page — a disclosure, not a button. */
+.altar-strand__chev {
+  position: absolute;
+  inset-inline-end: 0.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-sans);
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-faint);
+  pointer-events: none;
 }
 .altar-strand:hover {
   background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);

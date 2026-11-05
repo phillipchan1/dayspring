@@ -166,7 +166,7 @@
   line-height: 1;
   display: grid;
   place-items: center;
-  cursor: help;
+  cursor: default;
   padding: 0;
 }
 .lifemap__info:hover,
@@ -241,7 +241,7 @@
   margin: 0;
   font: inherit;
   color: inherit;
-  cursor: pointer;
+  cursor: default;
 }
 .lifemap__open:hover .lb {
   color: var(--accent);
@@ -266,7 +266,7 @@
   background: none;
   border: 0;
   padding: 0 1px;
-  cursor: pointer;
+  cursor: default;
 }
 .lifemap__chip .x:hover {
   color: var(--accent);
@@ -327,7 +327,7 @@
   padding: 3px 2px;
   background: none;
   border: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-entry-list);
   font-size: 12px;
   color: var(--text-faint);
@@ -412,5 +412,89 @@
   }
   .lifemap__add {
     min-width: 140px;
+  }
+}
+
+/* ── after a change: Undo, or a write that did not land ─────────────────────
+ * A quiet line under the section, in the surface's serif. The Undo is a
+ * text button in the accent, never a toast floating over the page. */
+.lifemap__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-dim);
+}
+.lifemap__undo {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-entry-list);
+  font-size: 12.5px;
+  font-style: normal;
+  color: var(--accent);
+  cursor: default;
+}
+.lifemap__undo:active {
+  opacity: 0.6;
+}
+.lifemap__undo:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ── pressed ─────────────────────────────────────────────────────────────────
+ * Instant in, --dur-exit out (N2). The chip's frame washes when its name is
+ * pressed; the × darkens on its own. */
+.lifemap__chip {
+  transition: background-color var(--dur-exit) var(--ease-exit), border-color var(--dur-exit) var(--ease-exit);
+}
+.lifemap__chip:has(.lifemap__open:active) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  transition-duration: 0s;
+}
+.lifemap__chip .x:active,
+.lifemap__info:active {
+  color: var(--accent);
+}
+
+/* ── touch targets ───────────────────────────────────────────────────────────
+ * 44pt to a finger without changing the ink (N2). The ⓘ's target is padded
+ * past its 15px disc by an invisible box. The × gets real room inside its chip
+ * — padding, not a bigger glyph — so its target can never reach across the
+ * name beside it or into the next chip, which an overlapping hit box would. */
+@media (pointer: coarse) {
+  .lifemap__info {
+    position: relative;
+  }
+  .lifemap__info::before {
+    content: '';
+    position: absolute;
+    inset: -15px;
+  }
+  .lifemap__items,
+  .lifemap__past {
+    gap: 10px 8px;
+  }
+  .lifemap__chip {
+    padding-right: 0;
+  }
+  .lifemap__chip .x {
+    position: relative;
+    align-self: stretch;
+    min-width: 34px;
+    padding: 0 11px 0 7px;
+    margin-block: -4px;
+  }
+  .lifemap__chip .x::before {
+    content: '';
+    position: absolute;
+    inset: -5px -4px;
   }
 }

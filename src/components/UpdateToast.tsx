@@ -1,4 +1,5 @@
 import { useAppUpdate } from '@/hooks/useAppUpdate'
+import { usePresence } from '@/hooks/usePresence'
 
 // Small bottom-left prompt shown when a new desktop version has been downloaded
 // and staged. Mirrors Claude Desktop: the update is already installed, clicking
@@ -8,20 +9,31 @@ export function UpdateToast() {
 
   // The toast only speaks up for in-progress / ready states. Manual-check
   // feedback ("checking", "up to date", "error") shows in Settings, not here.
-  if (state.status !== 'downloading' && state.status !== 'ready') return null
+  const speaking = state.status === 'downloading' || state.status === 'ready'
+  // When it stops speaking (a download that failed, say) it fades out with what
+  // it last said, rather than blinking away mid-sentence (usePresence).
+  const presence = usePresence(speaking ? state : null)
+  const shown = presence.value
+  if (!presence.mounted || !shown) return null
 
-  const downloading = state.status === 'downloading'
+  const downloading = shown.status === 'downloading'
 
   return (
-    <div className="update-toast" role="status" aria-live="polite">
+    <div
+      ref={presence.ref}
+      className="update-toast"
+      role="status"
+      aria-live="polite"
+      data-state={presence.state}
+    >
       <div className="update-toast__row">
-        <span className="update-toast__dot" data-mode={state.status} aria-hidden />
+        <span className="update-toast__dot" data-mode={shown.status} aria-hidden />
         <span className="update-toast__text">
           {downloading ? (
             <>Downloading update…</>
           ) : (
             <>
-              Update ready <span className="update-toast__ver">v{state.version}</span>
+              Update ready <span className="update-toast__ver">v{shown.version}</span>
             </>
           )}
         </span>
@@ -31,10 +43,10 @@ export function UpdateToast() {
           </button>
         )}
       </div>
-      {!downloading && state.notes && (
+      {!downloading && shown.notes && (
         <details className="update-toast__notes">
           <summary>What’s new</summary>
-          <div className="update-toast__notes-body">{state.notes}</div>
+          <div className="update-toast__notes-body">{shown.notes}</div>
         </details>
       )}
     </div>

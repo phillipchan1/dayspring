@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
+import { usePagedSwipe } from '@/hooks/usePagedSwipe'
 import { settingsStore } from '@/lib/settings'
 import { pickCards, latestDeck, type Deck } from './pickCards'
 import { onOpenFirstLight } from './open'
@@ -17,6 +18,18 @@ import './FirstLight.css'
  * line locally. Cross-device catch-up still rides on the synced field.
  */
 const GUARD_KEY = 'dayspring.firstlight.seen'
+
+/**
+ * How long a deck pulled down takes to finish leaving. Its twin is the
+ * `translate` transition on `.firstlight[data-leaving='true'] .firstlight__panel`.
+ */
+const PULL_EXIT_MS = 240
+
+/**
+ * Longer than the closing animation (`--dur-exit`); only for when its
+ * `animationend` never comes.
+ */
+const EXIT_FALLBACK_MS = 320
 
 function readGuard(): string | null {
   try {
@@ -64,23 +77,44 @@ export function FirstLight() {
   const restoreTo = useRef<Element | null>(null)
   const { go } = useAppNavigation()
 
+  // Leaving plays an exit first — the card fades, the phone's sheet goes back
+  // down — and only then is the deck gone (and, from Done, the surface opened).
+  const [closing, setClosing] = useState(false)
+  const landing = useRef(false)
+
+  const finish = useCallback(() => {
+    if (!deck) return
+    setClosing(false)
+    setOpen(false)
+    setManual(null)
+    if (landing.current && deck.land) go({ surface: deck.land })
+    landing.current = false
+  }, [deck, go])
+
   const close = useCallback(
-    (land?: boolean) => {
-      if (!deck) return
-      // Mark seen on EVERY exit path — "Not now", Esc, backdrop, and finishing
-      // all count. Dismissing is final; there is no second attempt.
+    (land?: boolean, how: 'exit' | 'now' = 'exit') => {
+      if (!deck || closing) return
+      // Mark seen on EVERY exit path — "Not now", Esc, backdrop, a pull, and
+      // finishing all count. Dismissing is final; there is no second attempt.
+      // Marked now, not after the exit, so quitting mid-fade still counts.
       try {
         localStorage.setItem(GUARD_KEY, deck.seenId)
       } catch {
         /* ignore quota / private-mode failures */
       }
       settingsStore.update({ lastSeenRelease: deck.seenId })
-      setOpen(false)
-      setManual(null)
-      if (land && deck.land) go({ surface: deck.land })
+      landing.current = Boolean(land)
+      if (how === 'now' || prefersReducedMotion()) finish()
+      else setClosing(true)
     },
-    [deck, go],
+    [deck, closing, finish],
   )
+
+  useEffect(() => {
+    if (!closing) return
+    const t = window.setTimeout(finish, EXIT_FALLBACK_MS)
+    return () => window.clearTimeout(t)
+  }, [closing, finish])
 
   useEffect(
     () =>
@@ -104,10 +138,22 @@ export function FirstLight() {
     }
   }, [open, deck])
 
+  // The cards are a paged track under the finger, and the whole deck can be
+  // pulled down and away — a pull is a dismissal like any other, so it is
+  // marked seen the same way.
+  const swipe = usePagedSwipe({
+    index: at,
+    count: deck?.cards.length ?? 0,
+    onIndex: setAt,
+    enabled: open && deck != null,
+    // The pull has already carried it off; nothing more to play.
+    pullDown: { onDismiss: () => close(false, 'now'), exitMs: PULL_EXIT_MS },
+  })
+  const pulling = swipe.dragging === 'down'
+
   if (!deck || !open) return null
 
   const last = at === deck.cards.length - 1
-  const card = deck.cards[at]!
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -123,6 +169,15 @@ export function FirstLight() {
   return (
     <div
       className="firstlight"
+      data-state={closing ? 'closing' : 'open'}
+      data-leaving={swipe.leaving}
+      data-pulling={pulling}
+      style={
+        {
+          // How far the deck has been pulled, 0–1, for the ground to fade by.
+          '--firstlight-pull': Math.min(1, Math.max(0, swipe.offsetY) / 600).toFixed(3),
+        } as React.CSSProperties
+      }
       // A click on the ground behind the panel is a dismissal, like Esc.
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close()
@@ -135,8 +190,20 @@ export function FirstLight() {
         aria-labelledby="firstlight-title"
         tabIndex={-1}
         ref={panelRef}
+        data-state={closing ? 'closing' : 'open'}
         onKeyDown={onKeyDown}
+        onAnimationEnd={(e) => {
+          if (closing && e.target === e.currentTarget) finish()
+        }}
+        {...swipe.handlers}
+        style={{
+          // `translate`, not `transform`: the sheet's entrance animation owns
+          // `transform`, and a finished animation would win over this.
+          translate: swipe.leaving ? undefined : `0 ${swipe.offsetY}px`,
+          transitionDuration: swipe.leaving ? undefined : `${swipe.settleMs}ms`,
+        }}
       >
+        <div className="firstlight__grabber" aria-hidden />
         <div className="firstlight__top">
           <span className="firstlight__mark">{WHATS_NEW_LABEL}</span>
           <button type="button" className="firstlight__skip" onClick={() => close()}>
@@ -145,19 +212,37 @@ export function FirstLight() {
         </div>
 
         <div className="firstlight__body">
-          {/* Keyed so each card animates in rather than cross-fading in place. */}
-          <article className="firstlight__card" key={at}>
-            <p className="firstlight__kicker">{card.kicker}</p>
-            {card.art && <Art kind={card.art} />}
-            <h2 className="firstlight__title" id="firstlight-title">
-              {card.title}
-            </h2>
-            {card.body.map((p) => (
-              <p className="firstlight__text" key={p}>
-                {p}
-              </p>
+          <div
+            className="firstlight__track"
+            data-dragging={swipe.dragging === 'h'}
+            style={{
+              transform: `translate3d(calc(${-at * 100}% + ${swipe.offsetX}px), 0, 0)`,
+              transitionDuration: `${swipe.settleMs}ms`,
+            }}
+          >
+            {deck.cards.map((c, i) => (
+              // Each card scrolls on its own; data-sheet-scroll keeps a pull
+              // down from taking a card that is scrolled away from its top.
+              <article
+                className="firstlight__card"
+                key={c.title}
+                aria-hidden={i !== at}
+                inert={i !== at}
+                data-sheet-scroll
+              >
+                <p className="firstlight__kicker">{c.kicker}</p>
+                {c.art && <Art kind={c.art} />}
+                <h2 className="firstlight__title" id={i === at ? 'firstlight-title' : undefined}>
+                  {c.title}
+                </h2>
+                {c.body.map((p) => (
+                  <p className="firstlight__text" key={p}>
+                    {p}
+                  </p>
+                ))}
+              </article>
             ))}
-          </article>
+          </div>
         </div>
 
         <div className="firstlight__foot">

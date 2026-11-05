@@ -34,7 +34,7 @@ html.keeping-preview-root #root {
   color: var(--text-muted);
   background: transparent;
   font: 500 12px/1 var(--font-ui);
-  cursor: pointer;
+  cursor: default;
 }
 
 .keeping-playground button:hover,
@@ -170,7 +170,7 @@ html.keeping-preview-root #root {
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-muted);
   font: 12px/1.2 var(--font-ui);
-  cursor: pointer;
+  cursor: default;
 }
 
 .keeping-entry-list label:last-child {

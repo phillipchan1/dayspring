@@ -23,7 +23,7 @@
   border-radius: var(--radius);
   background: transparent;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   transition:
     background var(--transition),
     border-color var(--transition);

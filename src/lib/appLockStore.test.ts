@@ -6,6 +6,7 @@ import {
   lockState,
   markResetRequested,
   readMirror,
+  withLearnedPinLength,
   writeMirror,
 } from './appLockStore'
 import type { AppLockConfig } from './appLock'
@@ -111,5 +112,30 @@ describe('lockState', () => {
     stop()
     lockState.set(CONFIG)
     expect(calls).toBe(1)
+  })
+})
+
+describe('the PIN length', () => {
+  it('survives the mirror, so an offline launch still opens on the last digit', () => {
+    writeMirror('owner-a', { ...CONFIG, pinLength: 6 })
+    expect(readMirror('owner-a')?.pinLength).toBe(6)
+  })
+
+  // An older lock learns its length from the PIN that just opened it; the
+  // verifier and its timestamp are carried through untouched.
+  it('is learned by a lock made before it was stored', () => {
+    const learned = withLearnedPinLength(CONFIG, 4)
+    expect(learned).toEqual({ ...CONFIG, pinLength: 4 })
+    expect(learned?.hash).toBe(CONFIG.hash)
+    expect(learned?.updatedAt).toBe(CONFIG.updatedAt)
+  })
+
+  it('is not relearned when the lock already knows it', () => {
+    expect(withLearnedPinLength({ ...CONFIG, pinLength: 4 }, 4)).toBeNull()
+  })
+
+  it('is never learned for a passphrase, or from a length the rules forbid', () => {
+    expect(withLearnedPinLength({ ...CONFIG, kind: 'passphrase' }, 8)).toBeNull()
+    expect(withLearnedPinLength(CONFIG, 12)).toBeNull()
   })
 })

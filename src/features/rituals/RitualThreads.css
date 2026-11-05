@@ -73,20 +73,165 @@
   max-width: 32rem;
 }
 
-.rt__back {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0 0 1.5rem;
-  font-family: var(--font-label, sans-serif);
-  font-size: 0.82rem;
-  color: var(--pl-muted);
-  cursor: pointer;
+/* ── a practice, pushed over the shelf (ThreadPush) ──────────────────────────
+ * Opaque, carrying its own copy of the sky, and below the close disc. On a
+ * pointer it fades in; on a phone or a tablet it is a pushed view: in from the
+ * right at --dur-push / --ease-ios, back out with an edge swipe, and the shelf
+ * underneath parallaxes and dims with it (`--rt-out`, 0 → 1 as it leaves). */
+.rt-push {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  animation: rt-fade-in var(--dur-base) var(--ease-out) both;
 }
 
-.rt__back:hover {
+.rt-push__slide {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--pl-parchment);
+  touch-action: pan-y;
+  transition: transform var(--dur-push) var(--ease-ios);
+}
+
+/* The thread's own scroller, so a practice opens at its own top. */
+.ritual-threads .rt--thread {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}
+
+.rt-push[data-dragging='true'] .rt-push__slide {
+  transition: none;
+}
+
+/* `--dur-push` is `PUSH_MS` in edgeSwipe.ts — how long the layer stays mounted
+   once a swipe commits. */
+.rt-push[data-leaving='true'] .rt-push__slide {
+  transform: translateX(100%);
+}
+
+.rt-push[data-still='true'] {
+  animation: none;
+}
+
+@keyframes rt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rt-push-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .rt-push {
+    animation: none;
+  }
+
+  .rt-push:not([data-still='true']) .rt-push__slide {
+    animation: rt-push-in var(--dur-push) var(--ease-ios) backwards;
+  }
+
+  .rt-push__slide {
+    box-shadow: -1px 0 0 var(--pl-border), -18px 0 32px -18px rgba(0, 0, 0, 0.18);
+  }
+
+  /* The shade over the shelf: still while the page crosses it, so it darkens
+     as the page arrives and lifts as a swipe uncovers the shelf. */
+  .rt-push::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--pl-ink) 10%, transparent);
+    opacity: calc(1 - var(--rt-out, 0));
+    pointer-events: none;
+  }
+
+  .rt-push:not([data-still='true'])::before {
+    animation: rt-fade-in var(--dur-push) var(--ease-ios) backwards;
+  }
+
+  /* The shelf, pushed aside under the practice and back in step with a swipe
+     (ThreadPush writes `--rt-out` on the modal). The transition lives on this
+     rule only: when the practice is gone the shelf is simply home. */
+  .ritual-threads:has(> .rt-push) > .rt:not(.rt--thread) {
+    transform: translateX(calc(-30% * (1 - var(--rt-out, 0))));
+    transition: transform var(--dur-push) var(--ease-ios);
+  }
+
+  .ritual-threads:has(> .rt-push[data-dragging='true']) > .rt:not(.rt--thread) {
+    transition: none;
+  }
+}
+
+/* Reduced motion: the practice simply appears, with the shade's fade as the
+   only cue, and the shelf stays where it is. */
+@media (prefers-reduced-motion: reduce) {
+  .rt-push,
+  .rt-push__slide {
+    animation: none !important;
+  }
+
+  .rt-push__slide {
+    transition: none;
+  }
+
+  .ritual-threads:has(> .rt-push) > .rt:not(.rt--thread) {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* The way back: top leading, mirroring the close disc at top trailing — the
+   corner a thumb and every iOS habit look for it in. It rides with the page,
+   above its scroller, so it never scrolls away. */
+.rt__back {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: calc(env(safe-area-inset-left, 0px) + 10px);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 48px;
+  padding: 0 1rem 0 0.75rem;
+  appearance: none;
+  border: 1px solid var(--pl-border);
+  border-radius: 999px;
+  background: var(--pl-surface);
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.86rem;
+  color: var(--pl-muted);
+  cursor: default;
+  transition: color var(--dur-exit) var(--ease-exit), border-color var(--dur-exit) var(--ease-exit);
+}
+
+.rt__back:active {
   color: var(--pl-ink);
+  border-color: var(--pl-amber);
+  transition-duration: 0s;
+}
+
+@media (hover: hover) {
+  .rt__back:hover {
+    color: var(--pl-ink);
+    border-color: var(--pl-amber);
+  }
+}
+
+.rt__back:focus-visible {
+  outline: 2px solid var(--pl-amber);
+  outline-offset: 2px;
+}
+
+.rt__glyph {
+  display: block;
+  flex: none;
 }
 
 /* ── the shelf ────────────────────────────────────────────────────────────── */
@@ -107,8 +252,8 @@
   border: none;
   border-bottom: 1px solid var(--pl-border);
   padding: 1.05rem 0.4rem;
-  cursor: pointer;
-  transition: background 120ms ease;
+  cursor: default;
+  transition: background-color var(--dur-exit) var(--ease-exit);
 }
 
 .rt__row:hover,
@@ -117,7 +262,25 @@
   outline: none;
 }
 
+/* Pressed: instant in, --dur-exit out (N2) — a step deeper than the hover. */
+.rt__row:active {
+  background: var(--pl-amber-glow-strong);
+  transition-duration: 0s;
+}
+
+/* The row pushes a view, and says so: a faint chevron at the trailing edge. */
+.rt__row-chev {
+  align-self: center;
+  margin-inline-start: -0.4rem;
+  font-family: var(--font-label, sans-serif);
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--pl-ghost);
+}
+
 .rt__row-name {
+  /* Holds the date and the chevron together at the trailing edge. */
+  margin-inline-end: auto;
   font-family: var(--pl-display);
   font-size: 1.22rem;
   font-weight: 400;
@@ -157,7 +320,7 @@
   font-size: 0.8rem;
   color: var(--pl-muted);
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
 }
 
 .rt__rail-btn:hover {
@@ -207,7 +370,7 @@
   border: none;
   border-left: 1px solid var(--pl-border);
   padding: 1.1rem 0.75rem 1.1rem 1.15rem;
-  cursor: pointer;
+  cursor: default;
   position: relative;
   font-family: var(--pl-body);
 }
@@ -234,6 +397,15 @@
 .rt__answer:hover::before,
 .rt__answer:focus-visible::before {
   opacity: 1;
+}
+
+.rt__answer {
+  transition: background-color var(--dur-exit) var(--ease-exit);
+}
+
+.rt__answer:active {
+  background: var(--pl-amber-glow-strong);
+  transition-duration: 0s;
 }
 
 .rt__answer-date {

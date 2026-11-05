@@ -1,7 +1,7 @@
 // Inline image rendering for `attachment:<sha256>.<ext>` refs.
 //
-// Resolved images render as block widgets with hover + click-to-edit, matching
-// spiritual blocks. A photo still being saved is drawn from the file in hand,
+// Resolved images render as block widgets: a click or a tap opens the photo,
+// a right-click or a long-press its options. A photo still being saved is drawn from the file in hand,
 // pale, and comes into colour as it goes (lib/photoArrival.ts).
 
 import {
@@ -45,10 +45,38 @@ import {
   type AttachmentEditTarget,
 } from './attachmentInsert'
 import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
+import { editorTap, TAP_HOLD_MS, TAP_SLOP } from './pointerInput'
 
+/**
+ * Where a press on a photo landed, and what it asked for.
+ *
+ * A photo is an object you LOOK at: a plain click or tap opens it in the
+ * viewer (`intent: 'look'`), as Photos and Notes do. Its options are the
+ * secondary gesture — a right-click, ⌃-click or long-press — and come with no
+ * intent. Both travel the same `onMenu` route, so every screen that shows the
+ * options menu already knows how to look (ImageContextMenu answers `look` by
+ * calling its own `onLook`).
+ */
 export interface ImageMenuPoint {
   x: number
   y: number
+  intent?: 'look'
+}
+
+/** The height caps the size classes put on a lone photo (see the theme). */
+const PHOTO_HEIGHT_CAP: Record<'s' | 'm', string> = {
+  s: 'min(34vh, 260px)',
+  m: 'min(56vh, 480px)',
+}
+
+/**
+ * The width a lone, uncropped photo of known size will settle at — what the
+ * size class gives the loaded image: the column for Full; otherwise as wide as
+ * the height cap allows at its ratio, never wider than the column.
+ */
+export function sizedPhotoWidth(size: ImageSize, width: number, height: number): string {
+  if (size === 'f') return '100%'
+  return `min(100%, calc(${PHOTO_HEIGHT_CAP[size]} * ${(width / height).toFixed(5)}))`
 }
 
 /** What a set's own tools do: bring more photos into it, or open it to rearrange. */
@@ -240,7 +268,8 @@ class AttachmentImageWidget extends WidgetType {
     const wrap = document.createElement('div')
     wrap.className = `cm-attachment cm-attachment--interactive cm-attachment--size-${this.size}`
     wrap.contentEditable = 'false'
-    wrap.title = 'Click for options · drag to move, or onto another photo to put them together'
+    // No `title`: a tooltip of instructions is a web tell, and the gestures
+    // are the platform's own (click to look, right-click for options).
     wrap.draggable = true
     wrap.dataset.attachmentKey = this.cacheKey
 
@@ -266,6 +295,13 @@ class AttachmentImageWidget extends WidgetType {
     if (crop) {
       wrap.classList.add(crop.axis === 'height' ? 'cm-attachment--crop-h' : 'cm-attachment--crop-w')
       media.style.aspectRatio = crop.aspect
+    } else if (this.width && this.height) {
+      // Known dimensions: the photo's box is laid out at its final size before
+      // a byte of it has decoded, so the page — and the caret line under it —
+      // never jumps when it arrives (N5).
+      wrap.classList.add('cm-attachment--sized')
+      media.style.aspectRatio = `${this.width} / ${this.height}`
+      frame.style.width = sizedPhotoWidth(this.size, this.width, this.height)
     }
     frame.append(media)
 
@@ -293,7 +329,7 @@ class AttachmentImageWidget extends WidgetType {
       label.textContent = 'photo'
       const hint = document.createElement('span')
       hint.className = 'cm-attachment__chrome-hint'
-      hint.textContent = this.caption ? 'options' : 'add caption'
+      hint.textContent = 'look'
       chrome.append(label, hint)
       media.append(chrome)
     } else {
@@ -445,7 +481,7 @@ function dressTile(tile: HTMLElement, spec: SetTile): void {
   if (spec.key) {
     tile.dataset.attachmentKey = spec.key
     tile.draggable = true
-    tile.title = 'Click for options · drag to reorder, or out of the set'
+    tile.removeAttribute('title')
     tile.removeAttribute('aria-label')
     delete tile.dataset.pendingId
     delete tile.dataset.arrival
@@ -855,8 +891,15 @@ function resolveAttachmentTarget(
 }
 
 /**
- * A photo is an object, not text, so left- and right-click both open the same
- * options menu (anchored at the pointer). `dragstart` tags the transfer so the
+ * The presses a photo answers (DESIGN_PRINCIPLES N4):
+ *
+ *  - a click (mouse, on release, so a press can still become a drag) or a
+ *    tap (`editorTap`: a finger acts on release, once it has proved to be a
+ *    tap) opens the photo in the viewer;
+ *  - a right-click, ⌃-click or long-press opens its options at the pointer.
+ *
+ * WebKit's own image callout never fires: the attachment is
+ * `-webkit-touch-callout: none` (theme). `dragstart` tags the transfer so the
  * drop handler can move the ref instead of treating it as a file drop.
  */
 function attachmentMenuHandler(
@@ -880,19 +923,94 @@ function attachmentMenuHandler(
     return true
   }
 
-  const open = (event: MouseEvent, view: EditorView): boolean => {
-    const blockEl = (event.target as HTMLElement | null)?.closest(
-      '.cm-attachment--interactive',
-    ) as HTMLElement | null
-    if (!blockEl) return false
-    const target = resolveAttachmentTarget(view, blockEl, event.clientX, event.clientY)
+  const photoAt = (target: EventTarget | null): HTMLElement | null => {
+    if (!(target instanceof Element)) return null
+    if (target.closest('[data-photoset-action]')) return null
+    return target.closest<HTMLElement>('.cm-attachment--interactive')
+  }
+
+  const openAt = (
+    view: EditorView,
+    blockEl: HTMLElement,
+    x: number,
+    y: number,
+    intent?: 'look',
+  ): boolean => {
+    const target = resolveAttachmentTarget(view, blockEl, x, y)
     if (!target) return false
-    event.preventDefault()
-    onMenu(target, { x: event.clientX, y: event.clientY }, computeBlockPanelAnchor(view, blockEl))
+    onMenu(target, { x, y, ...(intent ? { intent } : null) }, computeBlockPanelAnchor(view, blockEl))
     return true
   }
 
-  return EditorView.domEventHandlers({
+  const open = (event: MouseEvent, view: EditorView, intent?: 'look'): boolean => {
+    const blockEl = photoAt(event.target)
+    if (!blockEl) return false
+    if (!openAt(view, blockEl, event.clientX, event.clientY, intent)) return false
+    event.preventDefault()
+    return true
+  }
+
+  /*
+   * A finger: a tap looks, a hold asks for options. The hold is timed here;
+   * `editorTap` refuses anything held past TAP_HOLD_MS, and `held` covers the
+   * release that lands on the very millisecond.
+   */
+  let held = false
+  const touchTap = editorTap({
+    claims: (ctx) => ctx.pointerType !== 'mouse' && photoAt(ctx.target) != null,
+    onTap: (ctx, view) => {
+      if (held) {
+        held = false
+        return true
+      }
+      const blockEl = photoAt(ctx.target)
+      return blockEl ? openAt(view, blockEl, ctx.clientX, ctx.clientY, 'look') : false
+    },
+  })
+  const longPress = ViewPlugin.define((view) => {
+    let timer: number | undefined
+    let origin: { x: number; y: number; id: number } | null = null
+    const cancel = () => {
+      window.clearTimeout(timer)
+      timer = undefined
+      origin = null
+    }
+    const down = (e: PointerEvent) => {
+      cancel()
+      held = false
+      if (e.pointerType === 'mouse') return
+      const blockEl = photoAt(e.target)
+      if (!blockEl) return
+      const start = { x: e.clientX, y: e.clientY, id: e.pointerId }
+      origin = start
+      timer = window.setTimeout(() => {
+        timer = undefined
+        origin = null
+        held = true
+        openAt(view, blockEl, start.x, start.y)
+      }, TAP_HOLD_MS)
+    }
+    const move = (e: PointerEvent) => {
+      if (!origin || e.pointerId !== origin.id) return
+      if (Math.abs(e.clientX - origin.x) > TAP_SLOP || Math.abs(e.clientY - origin.y) > TAP_SLOP) cancel()
+    }
+    const dom = view.contentDOM
+    dom.addEventListener('pointerdown', down, true)
+    dom.addEventListener('pointermove', move, true)
+    dom.addEventListener('pointerup', cancel, true)
+    dom.addEventListener('pointercancel', cancel, true)
+    return {
+      destroy() {
+        cancel()
+        dom.removeEventListener('pointerdown', down, true)
+        dom.removeEventListener('pointermove', move, true)
+        dom.removeEventListener('pointerup', cancel, true)
+        dom.removeEventListener('pointercancel', cancel, true)
+      },
+    }
+  })
+
+  return [touchTap, longPress, EditorView.domEventHandlers({
     // A completed drag emits no `click`, so a plain handler won't fire mid-move.
     // Pressing a set's tool must not move the caret into the text beside it.
     mousedown(event) {
@@ -902,10 +1020,13 @@ function attachmentMenuHandler(
     },
     click(event, view) {
       if (event.button !== 0) return false
-      return setTool(event, view) || open(event, view)
+      if (setTool(event, view)) return true
+      // ⌃-click is the Mac's right-click; the contextmenu below answers it.
+      if (event.ctrlKey) return false
+      return open(event, view, 'look')
     },
     contextmenu(event, view) {
-      // Suppress the native browser menu on photos only; text keeps spellcheck.
+      // Options, and no native menu — on photos only; text keeps spellcheck.
       return open(event, view)
     },
     dragstart(event, _view) {
@@ -924,7 +1045,7 @@ function attachmentMenuHandler(
       blockEl.addEventListener('dragend', clear)
       return false
     },
-  })
+  })]
 }
 
 const attachmentTheme = EditorView.theme({
@@ -932,9 +1053,12 @@ const attachmentTheme = EditorView.theme({
     display: 'block',
     margin: '0.6rem 0',
     lineHeight: '1',
+    // A long-press is ours (options), never WebKit's image callout. The
+    // editor turns the callout back on for text, so the photo turns it off.
+    WebkitTouchCallout: 'none',
   },
   '.cm-attachment--interactive': {
-    cursor: 'pointer',
+    cursor: 'default',
   },
   // The frame hugs the image (fit-content) and centers it, so a portrait that
   // renders narrow leaves balanced whitespace and the chrome/caption align to
@@ -966,10 +1090,6 @@ const attachmentTheme = EditorView.theme({
     boxShadow:
       '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 40%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07)',
     transition: 'box-shadow 160ms ease',
-  },
-  '.cm-attachment--interactive:hover .cm-attachment__media': {
-    boxShadow:
-      '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 48%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07), 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent)',
   },
   '.cm-attachment__img': {
     display: 'block',
@@ -1039,6 +1159,25 @@ const attachmentTheme = EditorView.theme({
     maxHeight: 'none',
     objectFit: 'cover',
   },
+  // Known dimensions (see toDOM): the frame carries the final width inline and
+  // the media box the ratio, so the image — and its placeholder — just fill it.
+  // After the size rules, which they override at equal specificity.
+  '.cm-attachment--sized .cm-attachment__frame': {
+    minWidth: '0',
+  },
+  '.cm-attachment--sized .cm-attachment__media': {
+    width: '100%',
+  },
+  '.cm-attachment--sized .cm-attachment__img': {
+    width: '100%',
+    height: '100%',
+    maxHeight: 'none',
+    objectFit: 'cover',
+  },
+  '.cm-attachment--sized .cm-attachment__placeholder': {
+    height: '100%',
+    borderRadius: '0',
+  },
   '.cm-attachment__chrome': {
     position: 'absolute',
     left: 0,
@@ -1054,9 +1193,6 @@ const attachmentTheme = EditorView.theme({
     opacity: '0',
     transition: 'opacity 160ms ease',
     pointerEvents: 'none',
-  },
-  '.cm-attachment--interactive:hover .cm-attachment__chrome': {
-    opacity: '1',
   },
   '.cm-attachment__chrome-label': {
     fontFamily: 'var(--font-editor)',
@@ -1122,10 +1258,6 @@ const attachmentTheme = EditorView.theme({
     background: 'var(--bg-input)',
     boxShadow: 'inset 0 0 0 1px rgba(20, 12, 4, 0.07)',
   },
-  '.cm-photoset__tile.cm-attachment--interactive:hover': {
-    // Inset: the rows clip at the set's edge, and an outer ring would be cut there.
-    boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent)',
-  },
   '.cm-photoset__img': {
     display: 'block',
     width: '100%',
@@ -1168,12 +1300,35 @@ const attachmentTheme = EditorView.theme({
     transition: 'opacity 160ms ease',
     pointerEvents: 'none',
   },
-  '.cm-photoset:hover .cm-photoset__tools, .cm-photoset__tools:focus-within': {
+  '.cm-photoset__tools:focus-within': {
     opacity: '1',
     pointerEvents: 'auto',
   },
   '@media (hover: none)': {
     '.cm-photoset__tools': { display: 'none' },
+  },
+  // Every hover on a photo, pointer only: on touch `:hover` latches on the
+  // last tap, which left the "photo · options" gradient and the accent ring
+  // painted on a photo after it was tapped (DESIGN_PRINCIPLES N2).
+  '@media (hover: hover)': {
+    '.cm-attachment--interactive:hover .cm-attachment__media': {
+      boxShadow:
+        '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 48%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07), 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent)',
+    },
+    '.cm-attachment--interactive:hover .cm-attachment__chrome': {
+      opacity: '1',
+    },
+    // Inset: the rows clip at the set's edge, and an outer ring would be cut there.
+    '.cm-photoset__tile.cm-attachment--interactive:hover': {
+      boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent)',
+    },
+    '.cm-photoset:hover .cm-photoset__tools': {
+      opacity: '1',
+      pointerEvents: 'auto',
+    },
+    '.cm-photoset__tool:hover': {
+      background: 'rgba(20, 12, 4, 0.8)',
+    },
   },
   '.cm-photoset__tool': {
     border: '0',
@@ -1187,10 +1342,7 @@ const attachmentTheme = EditorView.theme({
     fontSize: '12px',
     lineHeight: '1.2',
     letterSpacing: '0.01em',
-    cursor: 'pointer',
-  },
-  '.cm-photoset__tool:hover': {
-    background: 'rgba(20, 12, 4, 0.8)',
+    cursor: 'default',
   },
   '.cm-photoset__tool:focus-visible': {
     outline: '2px solid var(--accent)',
@@ -1213,7 +1365,10 @@ const attachmentTheme = EditorView.theme({
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
-/** @param onMenu Called when the user left- or right-clicks a resolved photo block. */
+/**
+ * @param onMenu Called for any press on a resolved photo: with `intent: 'look'`
+ * for a click or a tap, without one for a right-click or a long-press.
+ */
 export function attachmentImageExtension(
   onMenu?: (
     target: AttachmentEditTarget,

@@ -1,4 +1,5 @@
 import type { Appearance } from '@/lib/settings'
+import { useSelectionPlate } from '@/hooks/useSelectionPlate'
 
 const OPTIONS: { value: Appearance; label: string; title: string }[] = [
   { value: 'light', label: 'Light', title: 'Light appearance' },
@@ -32,6 +33,9 @@ export function AppearanceToggle({
   icon = false,
   tabFocus = true,
 }: Props) {
+  // The chosen tile slides to the choice (useSelectionPlate). Called before the
+  // icon branch so the hooks run the same way whichever this renders.
+  const plate = useSelectionPlate<HTMLDivElement>(icon ? null : appearance)
   if (icon) {
     const next = CYCLE[(CYCLE.indexOf(appearance) + 1) % CYCLE.length]!
     return (
@@ -51,6 +55,7 @@ export function AppearanceToggle({
 
   return (
     <div
+      ref={plate}
       className={compact ? 'segmented segmented--compact' : 'segmented'}
       role="group"
       aria-label="Appearance"

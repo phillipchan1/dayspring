@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/400-italic.css'
@@ -96,6 +96,22 @@ import { initPostHog } from './lib/posthog'
 import { track } from './lib/analytics'
 import { platformKind } from './lib/platform'
 import { markDeviceFirstSeen } from './lib/firstEntry'
+import { installContextMenuGuard } from './lib/contextMenuGuard'
+import { installNativeMenu } from './lib/nativeMenu'
+import { installWindowChrome, revealWindow } from './lib/windowChrome'
+
+/**
+ * Shows the Mac window once React has committed its first render — the window
+ * is created hidden so WKWebView's white never shows (lib/windowChrome.ts).
+ * A sibling of the app rather than inside it, so an app that throws on its
+ * first render is still revealed, error screen and all.
+ */
+function RevealWindow() {
+  useEffect(() => {
+    revealWindow()
+  }, [])
+  return null
+}
 
 async function bootstrap() {
   // Dev-only App Store previews: render a surface standalone, with no auth and
@@ -258,6 +274,16 @@ async function bootstrap() {
   // the macOS traffic lights under the overlay title bar) applies immediately.
   applyPlatformClass()
 
+  // The native app's frame, all no-ops on the web:
+  // - WebKit's own right-click menu (Reload, Inspect Element) never shows,
+  //   except where the system menu is the right one (editor, fields);
+  // - the Mac menu bar's items replay their keyboard shortcuts here;
+  // - the Mac window: drag strip, ⌘W / ⌘. close the top layer, inactive and
+  //   full-screen states; on iOS, the status-bar tap scrolls to the top.
+  installContextMenuGuard()
+  installNativeMenu()
+  installWindowChrome()
+
   // Catch non-React errors (unhandled rejections, stray throws) and report them.
   installGlobalHandlers()
 
@@ -310,6 +336,7 @@ async function bootstrap() {
       <ErrorBoundary variant="root">
         <App />
       </ErrorBoundary>
+      <RevealWindow />
     </StrictMode>,
   )
 }

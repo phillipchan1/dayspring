@@ -106,7 +106,7 @@
   border-radius: var(--radius-lg);
   background: var(--bg-input);
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   transition:
     border-color var(--transition),
     background var(--transition),
@@ -364,7 +364,7 @@
   font-family: var(--font-sans);
   font-size: 0.88rem;
   letter-spacing: 0.01em;
-  cursor: pointer;
+  cursor: default;
   transition:
     background 0.2s,
     border-color 0.2s,
@@ -377,7 +377,6 @@
   background: rgba(232, 184, 115, 0.2);
   border-color: rgba(232, 184, 115, 0.6);
   color: #f4cd8a;
-  transform: translateY(-1px);
 }
 
 .trial-welcome__cta:active {
@@ -427,7 +426,7 @@
   color: var(--text-faint);
   font-size: 1rem;
   line-height: 1;
-  cursor: pointer;
+  cursor: default;
   padding: 0 0.2rem;
   transition: color var(--transition);
 }
@@ -467,7 +466,7 @@
   font-family: var(--font-sans);
   font-size: 0.73rem;
   font-weight: 500;
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition), border-color var(--transition);
   -webkit-app-region: no-drag;
   touch-action: manipulation;
@@ -576,7 +575,6 @@
   .paywall__plan:hover:not([aria-disabled='true']) {
     border-color: var(--accent);
     background: var(--bg-hover);
-    transform: translateY(-1px);
   }
 
   .trial-banner__action:hover:not([aria-disabled='true']) {
@@ -1014,6 +1012,13 @@
   outline: none;
   border-color: rgba(240, 197, 135, 0.55);
 }
+/* iOS zooms the whole page into any field under 16px the moment it takes
+   focus, and leaves it zoomed (DESIGN_PRINCIPLES N4). On a finger, 16px. */
+@media (pointer: coarse) {
+  .locked-ask__field {
+    font-size: max(16px, 1rem);
+  }
+}
 [data-appearance='light'] .locked-ask__field {
   color: #2a2118;
   background: rgba(255, 255, 255, 0.7);
@@ -1040,7 +1045,7 @@
   font-size: 0.68rem;
   letter-spacing: 0.06em;
   color: rgba(236, 231, 223, 0.42);
-  cursor: pointer;
+  cursor: default;
   transition: color 0.15s ease;
 }
 .locked-screen__refresh:hover:not(:disabled) { color: rgba(236, 231, 223, 0.7); }

@@ -105,7 +105,7 @@ describe('SlashPalette (desktop pointer)', () => {
     host.remove()
   })
 
-  function mount(onSelect = vi.fn()) {
+  function mount(onSelect = vi.fn(), onDismiss: () => void = () => {}) {
     host = document.createElement('div')
     document.body.appendChild(host)
     root = createRoot(host)
@@ -114,7 +114,7 @@ describe('SlashPalette (desktop pointer)', () => {
         createElement(SlashPalette, {
           state,
           onSelect,
-          onDismiss: () => {},
+          onDismiss,
           onCancel: () => {},
         }),
       )
@@ -151,5 +151,87 @@ describe('SlashPalette (desktop pointer)', () => {
     mount()
     act(() => firePointer(rows()[3]!, 'mousemove', 4))
     expect(activeIndex()).toBe(3)
+  })
+})
+
+describe('SlashPalette (desktop, native popover grammar)', () => {
+  let root: Root
+  let host: HTMLDivElement
+
+  beforeEach(() => {
+    media.touch = false
+  })
+
+  afterEach(() => {
+    media.touch = true
+    act(() => root.unmount())
+    host.remove()
+  })
+
+  function mount(onSelect = vi.fn(), onDismiss = vi.fn()) {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => {
+      root.render(createElement(SlashPalette, { state, onSelect, onDismiss, onCancel: () => {} }))
+    })
+    return { onSelect, onDismiss }
+  }
+
+  const rows = () => Array.from(document.querySelectorAll('.slash-palette__item'))
+  const mouse = (el: EventTarget, type: string) =>
+    act(() => {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 }))
+    })
+
+  it('chooses on release, not on press', () => {
+    const { onSelect } = mount()
+    mouse(rows()[1]!, 'mousedown')
+    expect(onSelect).not.toHaveBeenCalled()
+    mouse(rows()[1]!, 'mouseup')
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('press, slide to another row, release: that row', () => {
+    const { onSelect } = mount()
+    mouse(rows()[0]!, 'mousedown')
+    mouse(rows()[2]!, 'mouseup')
+    expect(onSelect.mock.calls[0]![0]).toEqual(itemAt(slashColumns(''), { col: 0, row: 2 })!.selection)
+  })
+
+  it('a release that began outside the palette chooses nothing', () => {
+    const { onSelect } = mount()
+    mouse(rows()[1]!, 'mouseup')
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('closes when the window loses focus', () => {
+    const { onDismiss } = mount()
+    act(() => {
+      window.dispatchEvent(new Event('blur'))
+    })
+    expect(onDismiss).toHaveBeenCalled()
+  })
+
+  it('closes when the writer scrolls the page, not when the palette scrolls', () => {
+    const { onDismiss } = mount()
+    const palette = document.querySelector('.slash-palette')!
+    act(() => {
+      palette.dispatchEvent(new WheelEvent('wheel', { bubbles: true }))
+    })
+    expect(onDismiss).not.toHaveBeenCalled()
+    act(() => {
+      document.body.dispatchEvent(new WheelEvent('wheel', { bubbles: true }))
+    })
+    expect(onDismiss).toHaveBeenCalled()
+  })
+
+  it('stays open while typing scrolls the caret into view', () => {
+    const { onDismiss } = mount()
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }))
+      document.dispatchEvent(new Event('scroll'))
+    })
+    expect(onDismiss).not.toHaveBeenCalled()
   })
 })

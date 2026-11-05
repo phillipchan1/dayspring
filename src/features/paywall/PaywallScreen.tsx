@@ -18,7 +18,9 @@ import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
 import { FULL_ACCESS_SENTENCE, SERVICE_BULLETS } from './valueCopy'
 import { RitualLibraryGrowth } from './RitualLibraryGrowth'
+import { untilHandoffSettles } from './handoff'
 import './Paywall.css'
+import { haptic } from '@/lib/haptics'
 
 export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}) {
   const useApple = isAppleIapAvailable()
@@ -60,16 +62,21 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           return
         }
         if (outcome === 'pending') {
+          haptic('warning')
           setError('Purchase is pending approval. You’ll get access once it’s approved.')
           setLoading(null)
           return
         }
         if (warning) setNotice(warning)
+        haptic('success')
         onPurchased?.()
         return
       }
       const url = await startCheckout(plan)
       await openExternal(url, { sameTab: true })
+      // The browser has it; give the tile back once the hand-off is over.
+      await untilHandoffSettles()
+      setLoading(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
       setLoading(null)
@@ -86,6 +93,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
       // recorded plan, and the server decides what happens next.
       onPurchased?.()
       const message = describeRestore(outcome)
+      haptic(message?.kind === 'error' ? 'error' : 'success')
       if (message?.kind === 'error') setError(message.text)
       else if (message) setNotice(message.text)
     } catch (e) {
@@ -108,6 +116,9 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
     !busy && monthlyPrice !== null,
   )
   const restoreTap = useTapAction(() => void handleRestore(), !busy)
+  // Said in the pressed tile, where the eye already is, instead of in a line of
+  // its own further down. The billed amount above it stays put.
+  const pendingWords = useApple ? 'Confirming with the App Store…' : 'Redirecting to checkout…'
 
   return (
     <div className="paywall">
@@ -137,7 +148,9 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             aria-label={`Start annual plan${annualPrice ? ` — ${annualPrice} per year` : ''}`}
           >
             <span className="paywall__plan-price">{annualPrice ?? 'Yearly'}</span>
-            <span className="paywall__plan-cadence">per year</span>
+            <span className="paywall__plan-cadence">
+              {loading === 'annual' ? pendingWords : 'per year'}
+            </span>
           </button>
 
           <button
@@ -149,7 +162,9 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             aria-label={`Start monthly plan${monthlyPrice ? ` — ${monthlyPrice} per month` : ''}`}
           >
             <span className="paywall__plan-price">{monthlyPrice ?? 'Monthly'}</span>
-            <span className="paywall__plan-cadence">per month</span>
+            <span className="paywall__plan-cadence">
+              {loading === 'monthly' ? pendingWords : 'per month'}
+            </span>
           </button>
         </div>
 
@@ -185,12 +200,6 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           >
             {loading === 'restore' ? 'Restoring…' : 'Restore purchases'}
           </button>
-        )}
-
-        {loading && loading !== 'restore' && (
-          <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-            {useApple ? 'Confirming with the App Store…' : 'Redirecting to checkout…'}
-          </p>
         )}
 
         {notice && <p className="paywall__trial-note">{notice}</p>}

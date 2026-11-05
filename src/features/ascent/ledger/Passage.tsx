@@ -115,7 +115,7 @@ export function Passage({ thread, months, today, open, onOpenEntry, onWrite, onW
               </li>
             ) : (
               <li key={`${it.line.entryId}${i}`}>
-                <button type="button" className="story__line" onClick={() => onOpenEntry?.(it.line.entryId)}>
+                <button type="button" className="story__line" data-entry-id={it.line.entryId} onClick={() => onOpenEntry?.(it.line.entryId)}>
                   <span className="story__when">{fmtDay(it.line.date)}</span>
                   <span className="story__knot" aria-hidden />
                   <span className="story__text">{it.line.text}</span>

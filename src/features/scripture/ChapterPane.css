@@ -121,7 +121,7 @@
   font-family: inherit;
   font-size: 0.78rem;
   color: var(--text-faint);
-  cursor: pointer;
+  cursor: default;
 }
 
 .chapter-pane__quiet:hover {
@@ -157,6 +157,28 @@
 
 .chapter-pane[data-focused='true'] .chapter-pane__verse:not([data-highlight]) {
   opacity: var(--chapter-context-opacity);
+}
+
+/* The chapter, before it arrives: each placeholder line is one line box of a
+   real verse (same face, size and leading), so nothing moves when the text
+   lands. Quiet bars, not a shimmer — a sweep across a reading pane is motion
+   on a surface that should be still. */
+.chapter-pane__verse--pending {
+  display: flex;
+  flex-direction: column;
+  color: transparent;
+}
+
+.chapter-pane__ghost {
+  display: block;
+  /* One line box: `.chapter-pane__verse`'s line-height, 1.6. */
+  block-size: 1.6em;
+  background: linear-gradient(
+    transparent 30%,
+    color-mix(in srgb, var(--text) 7%, transparent) 30% 70%,
+    transparent 70%
+  );
+  border-radius: 3px;
 }
 
 .chapter-pane[data-focused='true'] .chapter-pane__verse:not([data-highlight]):hover,

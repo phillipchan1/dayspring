@@ -7,8 +7,10 @@
 // meter, no "we know N things about you", no streaks. One-off mentions stay
 // hidden until they recur (SURFACE_MIN_DISTINCT_ENTRIES) or the user vouches.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useExit } from '@/hooks/usePresence'
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import {
   CONCORDANCE,
   listConcordance,
@@ -32,6 +34,23 @@ interface Props {
 }
 
 export function ConcordanceDrawer({ onClose }: Props) {
+  /*
+   * It slides in from the right edge, so it goes back out that way: every way
+   * out (✕, scrim, Esc, a swipe) plays the exit first and tells the parent
+   * after. The parents mount it conditionally; this is how it gets to leave.
+   */
+  const exit = useExit(onClose)
+  const close = exit.close
+  /*
+   * A rightward swipe takes it back off the edge it came from. The panel
+   * follows the finger (`translate`), and a committed swipe holds where the
+   * finger let go so the exit carries on from there instead of snapping home.
+   */
+  const swipe = useSwipeToDismiss({ onDismiss: close, enabled: !exit.closing })
+  const startSwipe = (swipe.handlers as { onTouchStart?: (e: React.TouchEvent) => void }).onTouchStart
+  const held = useRef(0)
+  if (swipe.dragging) held.current = swipe.dragX
+  const offset = exit.closing ? held.current : swipe.dragX
   const [items, setItems] = useState<ConcordanceItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -51,15 +70,16 @@ export function ConcordanceDrawer({ onClose }: Props) {
   }, [])
 
   useEffect(() => {
+    if (exit.closing) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       e.preventDefault()
       e.stopPropagation()
-      onClose()
+      close()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  }, [close, exit.closing])
 
   async function handleConfirm(item: ConcordanceItem) {
     setItems((rows) =>
@@ -99,20 +119,33 @@ export function ConcordanceDrawer({ onClose }: Props) {
   }
 
   return createPortal(
-    <div className="scrim glass-scrim concordance-scrim" onClick={onClose}>
+    <div className="scrim glass-scrim concordance-scrim" data-state={exit.state} onClick={close}>
       <aside
+        ref={exit.ref}
         className="concordance-drawer glass-surface"
         role="dialog"
         aria-modal="true"
         aria-label={CONCORDANCE.DRAWER_TITLE}
+        data-state={exit.state}
+        data-dragging={swipe.dragging ? 'true' : undefined}
+        style={offset ? { translate: `${offset}px 0` } : undefined}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => {
+          // A drag inside a field is the field's: selecting what you typed.
+          if ((e.target as Element).closest('input, textarea')) return
+          startSwipe?.(e)
+        }}
       >
         <header className="concordance-drawer__head">
           <div>
             <h2 className="concordance-drawer__title">{CONCORDANCE.DRAWER_TITLE}</h2>
             <p className="concordance-drawer__subtitle">{CONCORDANCE.DRAWER_SUBTITLE}</p>
           </div>
-          <button className="btn btn--ghost" onClick={onClose} aria-label="Close concordance">
+          <button
+            className="btn btn--ghost concordance-drawer__close"
+            onClick={close}
+            aria-label="Close concordance"
+          >
             ✕
           </button>
         </header>

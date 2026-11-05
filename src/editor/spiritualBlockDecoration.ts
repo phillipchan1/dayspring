@@ -390,7 +390,7 @@ const spiritualBlockTheme = EditorView.theme({
     backgroundRepeat: 'no-repeat',
     borderBottomLeftRadius: 'var(--radius-md)',
     borderBottomRightRadius: 'var(--radius-md)',
-    cursor: 'pointer',
+    cursor: 'default',
     // On the line, for the same reason the verse is — and the underline with
     // it, which is what lets the arrow escape it by being an inline-block.
     //
@@ -438,13 +438,24 @@ const spiritualBlockTheme = EditorView.theme({
     color: 'var(--text-faint)',
     transition: 'transform 120ms ease, color 120ms ease',
   },
-  '.cm-scripture-cite:hover': {
-    color: 'var(--text)',
-    textDecorationColor: 'color-mix(in srgb, var(--accent) 85%, transparent)',
-  },
-  '.cm-scripture-cite:hover .cm-scripture-door': {
-    transform: 'translateX(2px)',
-    color: 'var(--text-dim)',
+  // Pointer hover only: on a touch device `:hover` latches on the last tap
+  // (DESIGN_PRINCIPLES N2), which left a citation lit after it was tapped.
+  '@media (hover: hover)': {
+    '.cm-scripture-cite:hover': {
+      color: 'var(--text)',
+      textDecorationColor: 'color-mix(in srgb, var(--accent) 85%, transparent)',
+    },
+    '.cm-scripture-cite:hover .cm-scripture-door': {
+      transform: 'translateX(2px)',
+      color: 'var(--text-dim)',
+    },
+    '.cm-scripture-line:hover .cm-scripture-menu': {
+      opacity: '1',
+    },
+    '.cm-scripture-menu:hover': {
+      color: 'var(--text)',
+    },
+    ...perKindHoverRules(),
   },
 
   // The `\u22ef`, in the corner it has always been in. Absolute against the opening
@@ -462,20 +473,17 @@ const spiritualBlockTheme = EditorView.theme({
     fontSize: '1rem',
     lineHeight: '1',
     letterSpacing: '0',
-    cursor: 'pointer',
+    cursor: 'default',
     opacity: '0',
     transition: 'opacity 120ms ease, color 120ms ease',
   },
-  '.cm-scripture-line:hover .cm-scripture-menu, .cm-scripture-menu:focus-visible': {
+  '.cm-scripture-menu:focus-visible': {
     opacity: '1',
   },
   '@media (hover: none)': {
     '.cm-scripture-menu': {
       opacity: '0.55',
     },
-  },
-  '.cm-scripture-menu:hover': {
-    color: 'var(--text)',
   },
 
   // ——— Prayer and sense. The writer's own lines, marked. ———
@@ -499,7 +507,7 @@ const spiritualBlockTheme = EditorView.theme({
     backgroundSize: '3px 100%',
     backgroundPosition: '0 0',
     backgroundRepeat: 'no-repeat',
-    cursor: 'pointer',
+    cursor: 'default',
     transition: 'background-color 120ms ease',
   },
   // A fence body parses as a CommonMark code block, so every character inside
@@ -559,9 +567,6 @@ function perKindRules(): Record<string, Record<string, string>> {
     rules[`.cm-mark-line--${meta.kind}`] = {
       backgroundImage: `linear-gradient(${meta.tone}, ${meta.tone})`,
     }
-    rules[`.cm-mark-line--${meta.kind}:hover`] = {
-      backgroundColor: `color-mix(in srgb, ${meta.tone} 8%, transparent)`,
-    }
   }
 
   // Absence is a line with a gap in it — never a solid bar, and never an X. A
@@ -572,10 +577,25 @@ function perKindRules(): Record<string, Record<string, string>> {
   rules['.cm-mark-line--absence'] = {
     backgroundImage: `repeating-linear-gradient(to bottom, ${absence} 0 5px, transparent 5px 11px)`,
   }
-  rules['.cm-mark-line--absence:hover'] = {
-    backgroundColor: `color-mix(in srgb, ${absence} 7%, transparent)`,
-  }
 
+  return rules
+}
+
+/**
+ * The wash a marked line takes under the pointer, per kind. Spread into the
+ * theme's one `@media (hover: hover)` block — pointer hover only, because on
+ * touch `:hover` latches on the last tap and left a tapped line washed
+ * (DESIGN_PRINCIPLES N2). A second block under the same key would replace the
+ * first, which is why this is not part of `perKindRules`.
+ */
+function perKindHoverRules(): Record<string, Record<string, string>> {
+  const rules: Record<string, Record<string, string>> = {}
+  for (const meta of MARKED_LINE_KINDS) {
+    const wash = meta.kind === 'absence' ? 7 : 8
+    rules[`.cm-mark-line--${meta.kind}:hover`] = {
+      backgroundColor: `color-mix(in srgb, ${meta.tone} ${wash}%, transparent)`,
+    }
+  }
   return rules
 }
 

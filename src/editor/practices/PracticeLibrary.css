@@ -319,8 +319,8 @@
   border: 1px solid var(--pl-border);
   border-radius: 100px;
   padding: 5px 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  cursor: default;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .practice-filter:hover {
@@ -352,7 +352,7 @@
   border: 1px solid var(--pl-border);
   border-radius: 12px;
   padding: 24px 22px 20px;
-  cursor: pointer;
+  cursor: default;
   transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
   position: relative;
   overflow: hidden;
@@ -392,7 +392,6 @@
 .practice-card:hover,
 .practice-card[data-active='true'] {
   border-color: color-mix(in srgb, var(--pl-amber) 35%, transparent);
-  transform: translateY(-2px);
   box-shadow: 0 8px 28px rgba(28, 22, 18, 0.08);
 }
 
@@ -538,7 +537,7 @@
   font-size: 12.5px;
   letter-spacing: 0.01em;
   color: var(--pl-muted);
-  cursor: pointer;
+  cursor: default;
   transition: color 120ms ease;
 }
 
@@ -723,7 +722,7 @@
   letter-spacing: 0.02em;
   color: var(--pl-ghost);
   opacity: 0.55;
-  cursor: pointer;
+  cursor: default;
   transition: opacity 0.2s ease;
 }
 .practice-threshold__skip:hover {
@@ -733,7 +732,7 @@
   width: 12px;
   height: 12px;
   accent-color: var(--pl-amber);
-  cursor: pointer;
+  cursor: default;
 }
 
 .practice-threshold__begin {
@@ -746,7 +745,7 @@
   border: 1px solid var(--pl-amber);
   border-radius: 100px;
   padding: 10px 28px;
-  cursor: pointer;
+  cursor: default;
   transition: background 0.2s ease;
 }
 
@@ -764,7 +763,7 @@
   color: var(--pl-ghost);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   letter-spacing: 0.04em;
   display: flex;
   align-items: center;

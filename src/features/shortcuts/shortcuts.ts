@@ -49,6 +49,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Mod', 'Shift', 'F'], label: 'Show formatting', when: 'in the editor' },
       { keys: ['Mod', 'K'], label: 'Link', when: 'with text selected in the editor' },
       { keys: ['Mod', 'Enter'], label: 'Toggle focus mode' },
+      { keys: ['Mod', '='], label: 'Larger writing', when: 'on the wall, larger pages' },
+      { keys: ['Mod', '-'], label: 'Smaller writing', when: 'on the wall, smaller pages' },
+      { keys: ['Mod', '0'], label: 'Writing at its usual size' },
+      { keys: ['Mod', 'P'], label: 'Print the entry' },
       { keys: ['Tab'], label: 'Indent line', when: 'while writing in the editor' },
       { keys: ['Shift', 'Tab'], label: 'Outdent line', when: 'while writing in the editor' },
       { keys: ['Esc'], label: 'Exit focus mode', when: 'while in focus mode' },
@@ -78,6 +82,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Alt', '←', '→'], label: 'An earlier or later period', when: 'in Pages, the Ascent, Lamp and Altar' },
       { keys: ['Alt', '↑', '↓'], label: 'A longer or shorter period', when: 'in Pages, the Ascent, Lamp and Altar' },
       { keys: ['↑', '↓'], label: 'Climb or descend', when: 'on the Ascent' },
+      // Back returns you to the place you left, not just the room — the same period,
+      // the same spot on the page. The mouse's side buttons do the same pair.
+      { keys: ['Mod', '['], label: 'Back to where you were', alsoKeys: ['Esc'], when: 'from an entry, not while typing' },
+      { keys: ['Mod', ']'], label: 'Forward again', when: 'not while typing' },
     ],
   },
   {

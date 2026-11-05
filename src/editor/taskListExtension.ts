@@ -9,6 +9,7 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import { spiritualBlocksField, posInsideBlock } from './spiritualBlocksField'
+import { editorTap } from './pointerInput'
 import {
   parseTaskLine,
   taskBodyStart,
@@ -16,6 +17,7 @@ import {
   toggledMarker,
   uncheckedTaskPrefix,
 } from '@/lib/taskListMarkdown'
+import { haptic } from '@/lib/haptics'
 
 class TaskCheckboxWidget extends WidgetType {
   constructor(
@@ -34,45 +36,69 @@ class TaskCheckboxWidget extends WidgetType {
     )
   }
 
-  toDOM(view: EditorView): HTMLElement {
+  toDOM(): HTMLElement {
     const el = document.createElement('span')
     el.className = `cm-task-checkbox${this.checked ? ' cm-task-checkbox--checked' : ''}`
     el.setAttribute('role', 'checkbox')
     el.setAttribute('aria-checked', this.checked ? 'true' : 'false')
     el.setAttribute('aria-label', this.checked ? 'Mark incomplete' : 'Mark complete')
-    // Pointer, not mouse — see pointerInput.ts. A checkbox is the smallest
-    // target on the page and the one most often missed: bound to `mousedown`
-    // a finger's tap was acknowledged a third of a second late, and swallowed
-    // entirely whenever WebKit read the gesture as a caret placement instead.
-    // `pointerdown` is the real press, from every input, with no replay.
-    //
-    // `preventDefault` on the press keeps the caret where it was and stops the
-    // compatibility mouse burst that follows a touch, so the box toggles once.
-    el.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return
-      e.preventDefault()
-      toggleTaskAt(view, this.markerFrom)
-    })
     return el
   }
 
+  /*
+   * The press is `editorTap`'s (taskCheckboxTap below), so CodeMirror has to
+   * let the event reach its handlers — the tap claims it at Prec.highest, so
+   * CodeMirror's own mouse handling never sees it to move the caret.
+   */
   ignoreEvent(): boolean {
-    return true
+    return false
   }
 }
 
-function toggleTaskAt(view: EditorView, markerFrom: number): void {
+/**
+ * Tick or untick the task whose marker starts at `markerFrom`.
+ *
+ * Focus is left exactly as it was. Ticking a box while reading back must not
+ * focus the editor — on a phone that raises the keyboard over the list you
+ * were reading — and ticking one while writing keeps the caret and the
+ * keyboard where they are.
+ */
+export function toggleTaskAt(view: EditorView, markerFrom: number): boolean {
   const line = view.state.doc.lineAt(markerFrom)
   const parsed = parseTaskLine(line.text)
-  if (!parsed) return
+  if (!parsed) return false
   const range = taskMarkerRange(line.text)
-  if (!range) return
+  if (!range) return false
   const from = line.from + range.from
   const to = line.from + range.to
   const insert = toggledMarker(parsed)
+  const hadFocus = view.hasFocus
   view.dispatch({ changes: { from, to, insert } })
-  view.focus()
+  if (hadFocus && !view.hasFocus) view.focus()
+  haptic('light')
+  return true
 }
+
+/**
+ * The checkbox's press — the shared tap model (pointerInput.ts): a mouse
+ * acts on the press, a finger on the RELEASE, once the gesture has proved to
+ * be a tap. Bound to `pointerdown`, a scroll that happened to start on a box
+ * ticked it.
+ */
+const taskCheckboxTap = editorTap({
+  claims: (ctx) => ctx.target instanceof Element && ctx.target.closest('.cm-task-checkbox') != null,
+  onTap: (ctx, view) => {
+    const box = ctx.target instanceof Element ? ctx.target.closest('.cm-task-checkbox') : null
+    if (!box) return false
+    let pos: number
+    try {
+      pos = view.posAtDOM(box)
+    } catch {
+      return false
+    }
+    return toggleTaskAt(view, pos)
+  },
+})
 
 function continueTaskOnEnter(view: EditorView): boolean {
   if (!view.state.selection.main.empty) return false
@@ -183,9 +209,25 @@ const taskListTheme = EditorView.theme({
     border: '1.5px solid var(--text-dim)',
     borderRadius: '0.2em',
     background: 'color-mix(in srgb, var(--bg-input) 70%, transparent)',
-    cursor: 'pointer',
+    cursor: 'default',
     boxSizing: 'border-box',
     position: 'relative',
+    WebkitTouchCallout: 'none',
+  },
+  // A finger needs 44pt (N2). The box stays its drawn size; an invisible
+  // square around it takes the press. Touch only — under a mouse it would
+  // swallow clicks meant for the first letters of the task.
+  '@media (pointer: coarse)': {
+    '.cm-task-checkbox::before': {
+      content: '""',
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      width: '44px',
+      height: '44px',
+      transform: 'translate(-50%, -50%)',
+      background: 'transparent',
+    },
   },
   '.cm-task-checkbox--checked': {
     borderColor: 'var(--accent)',
@@ -213,6 +255,7 @@ export function taskListExtension(): Extension {
   return [
     taskListTheme,
     taskListPlugin,
+    taskCheckboxTap,
     Prec.highest(keymap.of([{ key: 'Enter', run: continueTaskOnEnter }])),
   ]
 }

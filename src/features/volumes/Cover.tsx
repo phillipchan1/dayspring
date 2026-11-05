@@ -63,7 +63,7 @@ export function CoverArt({ volume, photo }: { volume: Pick<Volume, 'n'>; photo: 
   return (
     <span className="vol-art">
       <Pattern v={volume} />
-      {url ? <img src={url} alt="" loading="lazy" /> : null}
+      {url ? <img src={url} alt="" loading="lazy" draggable={false} /> : null}
     </span>
   )
 }

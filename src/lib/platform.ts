@@ -80,16 +80,45 @@ export function applyPlatformClass(): void {
     return
   }
   root.dataset.platform = 'desktop'
-  const style = root.style
-  style.setProperty('--mac-traffic-x', MAC_TRAFFIC_INSET.sidebarX)
-  style.setProperty('--mac-traffic-main-top', MAC_TRAFFIC_INSET.mainTop)
-  style.setProperty('--mac-traffic-main-left-collapsed', MAC_TRAFFIC_INSET.mainLeftCollapsed)
+  setFullscreenInsets(false)
+}
+
+/**
+ * The traffic-light clearances are only owed while the lights are drawn. In
+ * full screen macOS hides them (they slide in with the menu bar), so the frame
+ * bar and the rail take the web's spacing instead of keeping an empty band
+ * where three buttons used to be. Called by windowChrome.ts on every resize.
+ */
+export function setFullscreenInsets(fullscreen: boolean): void {
+  if (typeof document === 'undefined') return
+  const style = document.documentElement.style
+  const vars: Array<[string, string]> = [
+    ['--mac-traffic-x', MAC_TRAFFIC_INSET.sidebarX],
+    ['--mac-traffic-main-top', MAC_TRAFFIC_INSET.mainTop],
+    ['--mac-traffic-main-left-collapsed', MAC_TRAFFIC_INSET.mainLeftCollapsed],
+    ['--mac-traffic-rail-top', MAC_TRAFFIC_INSET.railClearance],
+  ]
+  for (const [name, value] of vars) {
+    if (fullscreen) style.removeProperty(name)
+    else style.setProperty(name, value)
+  }
 }
 
 /** Room for macOS traffic lights under Tauri’s overlay title bar. */
 export const MAC_TRAFFIC_INSET = {
-  /** Navigation rail top — push the Mark/nav below the traffic lights */
-  railTop: '2.85rem',
+  /**
+   * Navigation rail top — push the Mark/nav below the traffic lights. A CSS
+   * reference rather than a length, so it lets go in full screen (see
+   * setFullscreenInsets); 0.5rem is the rail's own padding on the web.
+   */
+  railTop: 'var(--mac-traffic-rail-top, 0.5rem)',
+  /**
+   * Room under the traffic lights at their default spot. Moving the lights onto
+   * the frame bar's row (`trafficLightPosition`) is a later change: the rail,
+   * the ritual composer and the Scripture margins all clear 2.85rem today, and
+   * they should move together, checked on a Mac.
+   */
+  railClearance: '2.85rem',
   sidebarX: '1rem',
   /** Main toolbar when the entry list is visible */
   mainTop: '1.7rem',

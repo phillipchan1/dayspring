@@ -514,7 +514,7 @@ const practiceTheme = EditorView.theme({
   // Without it a ritual is questions floating in the entry with nothing to say
   // they belong together.
   // The record is a door, so it points like one.
-  '.cm-ritual-body, .cm-practice-prompt, .cm-ritual-colophon': { cursor: 'pointer' },
+  '.cm-ritual-body, .cm-practice-prompt, .cm-ritual-colophon': { cursor: 'default' },
   '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon':
     {
       borderLeft: '1px solid color-mix(in srgb, var(--text-faint) 30%, transparent)',
@@ -671,15 +671,21 @@ const practiceTheme = EditorView.theme({
     background: 'none',
     border: 'none',
     padding: '0',
-    cursor: 'pointer',
+    cursor: 'default',
     opacity: '0',
     transition: 'opacity 200ms ease, color 200ms ease',
   },
-  '.cm-practice-header:hover .cm-practice-action, .cm-practice-action:focus-visible': {
+  '.cm-practice-action:focus-visible': {
     opacity: '1',
   },
-  '.cm-practice-action:hover': {
-    color: 'var(--accent, #c8853a)',
+  // Pointer hover only — on touch `:hover` latches on the last tap.
+  '@media (hover: hover)': {
+    '.cm-practice-header:hover .cm-practice-action': {
+      opacity: '1',
+    },
+    '.cm-practice-action:hover': {
+      color: 'var(--accent, #c8853a)',
+    },
   },
   // Touch devices have no hover — keep the actions quietly visible there, and
   // give the one control that carries the practice forward a real thumb target.

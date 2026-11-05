@@ -15,6 +15,10 @@
   align-items: flex-start;
   justify-content: center;
   overflow-y: auto;
+  /* A screen pushing in from the right edge must not scroll the page sideways. */
+  overflow-x: hidden;
+  /* Vertical pans scroll; a sideways one from the edge is the swipe back. */
+  touch-action: pan-y;
   color: #ece7df;
   font-family: var(--font-serif);
   -webkit-font-smoothing: antialiased;
@@ -68,10 +72,11 @@
 }
 
 /* ── theme toggle (matches the carousel's, for the setup screens) ─────────── */
+/* Trailing corner: the leading one is the way back (.ob-back). */
 .ob-theme {
   position: fixed;
   top: max(18px, env(safe-area-inset-top, 0px));
-  left: 24px;
+  right: max(24px, env(safe-area-inset-right, 0px));
   z-index: 5;
   display: inline-flex;
   align-items: center;
@@ -116,7 +121,7 @@ html[data-platform='desktop'] .ob-theme {
   padding: 0;
   border: none;
   background: none;
-  cursor: pointer;
+  cursor: default;
   border-radius: var(--radius-full, 999px);
   color: rgba(236, 231, 223, 0.45);
   transition: color 0.25s ease;
@@ -134,6 +139,60 @@ html[data-platform='desktop'] .ob-theme {
 .ob-theme__opt svg {
   width: 15px;
   height: 15px;
+}
+
+/* ── back (top-leading, as a navigation bar keeps it) ───────────────────── */
+.ob-back {
+  position: fixed;
+  /* Centred on the theme toggle's row opposite. */
+  top: max(13px, calc(env(safe-area-inset-top, 0px) - 5px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  min-height: 44px;
+  padding: 0 12px 0 4px;
+  border: none;
+  border-radius: 22px;
+  background: none;
+  color: rgba(236, 231, 223, 0.72);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: color var(--dur-quick) var(--ease-out), opacity var(--dur-quick) var(--ease-out);
+}
+.ob-back svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.ob-back:hover {
+  color: #ece7df;
+}
+/* A navigation button dims under the finger, then comes back. */
+.ob-back:active {
+  opacity: 0.5;
+  transition-duration: 0s;
+}
+.ob-back:disabled {
+  opacity: 0.4;
+}
+.ob-back:focus-visible {
+  outline: 2px solid rgba(244, 205, 138, 0.75);
+  outline-offset: 2px;
+}
+.ob-root.is-light .ob-back {
+  color: rgba(74, 64, 53, 0.72);
+}
+.ob-root.is-light .ob-back:hover {
+  color: #2a2118;
+}
+/* Clear the traffic lights under the overlay title bar. */
+html[data-platform='desktop'] .ob-back {
+  top: calc(3.25rem - 5px);
 }
 
 .ob-column {
@@ -167,7 +226,12 @@ html[data-platform='desktop'] .ob-theme {
     0 1px 0 rgba(255, 255, 255, 0.14) inset,
     0 30px 80px -30px rgba(0, 0, 0, 0.7),
     0 0 60px -20px rgba(232, 184, 115, 0.15);
-  animation: ob-enter 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+/* On a card, the copy and the actions flow as one column, as they always did;
+   the split only matters on a phone, where the actions pin to the bottom. */
+.ob-screen__body,
+.ob-screen__foot {
+  display: contents;
 }
 .ob-root.is-light .ob-screen {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.34));
@@ -243,7 +307,7 @@ html[data-platform='desktop'] .ob-theme {
   font-family: var(--font-serif);
   font-size: 15.5px;
   font-weight: 500;
-  cursor: pointer;
+  cursor: default;
   width: 100%;
   box-shadow: 0 8px 26px -8px rgba(232, 184, 115, 0.7);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -255,11 +319,11 @@ html[data-platform='desktop'] .ob-theme {
   }
 }
 .ob-primary:hover {
-  transform: translateY(-2px);
   box-shadow: 0 12px 34px -8px rgba(232, 184, 115, 0.85);
 }
 .ob-primary:active {
-  transform: translateY(0);
+  filter: brightness(0.92);
+  transition-duration: 0s;
 }
 .ob-primary:disabled {
   opacity: 0.6;
@@ -274,7 +338,7 @@ html[data-platform='desktop'] .ob-theme {
   color: rgba(236, 231, 223, 0.55);
   font-family: var(--font-serif);
   font-size: 14.5px;
-  cursor: pointer;
+  cursor: default;
   padding: 4px 8px;
   transition: color 200ms ease;
 }
@@ -321,16 +385,16 @@ html[data-platform='desktop'] .ob-theme {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
   color: #ece7df;
-  cursor: pointer;
-  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
+  cursor: default;
+  transition: border-color 200ms ease, background 200ms ease;
 }
 .ob-card:hover {
   border-color: rgba(232, 184, 115, 0.55);
   background: rgba(255, 255, 255, 0.09);
-  transform: translateY(-2px);
 }
 .ob-card:active {
-  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.05);
+  transition-duration: 0s;
 }
 .ob-root.is-light .ob-card {
   border-color: rgba(74, 64, 53, 0.16);
@@ -381,7 +445,7 @@ html[data-platform='desktop'] .ob-theme {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.03);
   color: rgba(236, 231, 223, 0.74);
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   transition: border-color 200ms ease, background 200ms ease;
 }
@@ -654,7 +718,7 @@ html[data-platform='desktop'] .ob-theme {
   color: rgba(236, 231, 223, 0.5);
   font-size: 16px;
   line-height: 1;
-  cursor: pointer;
+  cursor: default;
   padding: 0 2px;
 }
 .ob-bg-indicator__dismiss:hover {
@@ -662,6 +726,81 @@ html[data-platform='desktop'] .ob-theme {
 }
 
 /* ── motion ─────────────────────────────────────────────────────────────── */
+
+/*
+ * The push stack (PushStack.tsx). Every screen in flight sits in the same grid
+ * cell; which one is on top is z-index, not DOM order. Forward: the new screen
+ * comes in from just past the right edge — calc(50vw + 50%) puts a centred
+ * layer's leading edge exactly there — while the old one slides a third left
+ * and fades. Back is the mirror, and a swipe back starts each layer from where
+ * the finger left it (--ob-from).
+ */
+.ob-push {
+  display: grid;
+  width: 100%;
+}
+.ob-push__layer {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.ob-push__layer[data-role='current'] {
+  z-index: 2;
+}
+.ob-push__layer[data-role='under'] {
+  z-index: 1;
+  pointer-events: none;
+}
+.ob-push__layer[data-role='leaving'] {
+  z-index: 1;
+  pointer-events: none;
+}
+/* Popping, the screen going away is the one on top. */
+.ob-push__layer[data-leave='back'] {
+  z-index: 3;
+}
+.ob-push__layer[data-enter='appear'] {
+  animation: ob-enter 360ms var(--ease-out) both;
+}
+.ob-push__layer[data-enter='forward'] {
+  animation: ob-push-in var(--dur-push) var(--ease-ios) both;
+}
+.ob-push__layer[data-leave='forward'] {
+  animation: ob-push-out var(--dur-push) var(--ease-ios) both;
+}
+.ob-push__layer[data-enter='back'] {
+  animation: ob-pop-in var(--dur-push) var(--ease-ios) both;
+}
+.ob-push__layer[data-leave='back'] {
+  animation: ob-pop-out var(--dur-push) var(--ease-ios) both;
+}
+.ob-push__layer[data-enter='fade'] {
+  animation: ob-cross-in var(--dur-base) var(--ease-out) both;
+}
+.ob-push__layer[data-leave='fade'] {
+  animation: ob-cross-out var(--dur-exit) var(--ease-exit) both;
+}
+@keyframes ob-push-in {
+  from { transform: translateX(var(--ob-from, calc(50vw + 50%))); }
+}
+@keyframes ob-push-out {
+  to { transform: translateX(-30%); opacity: 0; }
+}
+@keyframes ob-pop-in {
+  from { transform: translateX(var(--ob-from, -30%)); opacity: var(--ob-from-opacity, 0); }
+}
+@keyframes ob-pop-out {
+  from { transform: translateX(var(--ob-from, 0px)); }
+  to { transform: translateX(calc(50vw + 50%)); }
+}
+@keyframes ob-cross-in {
+  from { opacity: 0; }
+}
+@keyframes ob-cross-out {
+  to { opacity: 0; }
+}
 
 .ob-fade-in {
   animation: ob-fade-in 320ms ease both;
@@ -688,6 +827,74 @@ html[data-platform='desktop'] .ob-theme {
   }
 }
 
+/*
+ * Phones: the screen is the whole screen. The card dissolves into the dawn
+ * ground, only the copy scrolls, and the primary action is pinned above the
+ * home indicator where a thumb already is — instead of at the foot of a page
+ * that had to be scrolled to find it.
+ */
+@media (max-width: 767px) {
+  .ob-root {
+    overflow: hidden;
+    padding: 0;
+    align-items: stretch;
+  }
+  .ob-column {
+    height: 100%;
+    max-width: none;
+    margin: 0;
+  }
+  .ob-push,
+  .ob-push__layer {
+    height: 100%;
+    min-height: 0;
+  }
+  .ob-screen,
+  .ob-root.is-light .ob-screen {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    gap: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .ob-screen__body {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: calc(env(safe-area-inset-top, 0px) + 76px) max(24px, env(safe-area-inset-right, 0px)) 24px
+      max(24px, env(safe-area-inset-left, 0px));
+  }
+  .ob-screen--center .ob-screen__body {
+    justify-content: center;
+  }
+  .ob-screen__foot {
+    flex: none;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px max(24px, env(safe-area-inset-right, 0px))
+      calc(env(safe-area-inset-bottom, 0px) + 16px) max(24px, env(safe-area-inset-left, 0px));
+  }
+  .ob-screen__foot .ob-tertiary {
+    min-height: 44px;
+  }
+}
+
 /* ── export help disclosure ──────────────────────────────────────────────── */
 
 .ob-export-help {
@@ -702,7 +909,7 @@ html[data-platform='desktop'] .ob-theme {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.03em;
@@ -771,6 +978,14 @@ html[data-platform='desktop'] .ob-theme {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Movement becomes a crossfade, so a step still reads as a change of place.
+     !important on these selectors outranks the global kill-switch's `*`. */
+  .ob-push__layer[data-enter] {
+    animation: ob-cross-in var(--dur-base) ease both !important;
+  }
+  .ob-push__layer[data-leave] {
+    animation: ob-cross-out var(--dur-exit) ease both !important;
+  }
   .ob-fade-in,
   .ob-screen,
   .ob-pulse,

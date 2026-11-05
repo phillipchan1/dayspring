@@ -133,14 +133,62 @@ export async function shareEntry(entry: Entry): Promise<void> {
   }
 }
 
-/** Opens a minimal print view for the entry body. */
+/**
+ * Print an entry: the system print panel on the Mac, AirPrint on iOS.
+ *
+ * From a hidden, same-origin iframe holding a bare print document. The old
+ * route — `window.open(…, 'noopener')` — can never work: with `noopener` the
+ * call returns null by specification, so Print… did nothing at all, and a
+ * webview has no second window to open anyway.
+ */
 export function printEntry(entry: Entry, asTitle = true): void {
-  const title = entryTitle(entry)
-  const html = renderMarkdown(entry.body_markdown, { asTitle })
-  const win = window.open('', '_blank', 'noopener')
-  if (!win) return
+  printMarkdown(entry.body_markdown, entryTitle(entry), asTitle)
+}
+
+/** The frame a print is in flight in, so a second ⌘P replaces it. */
+let printFrame: HTMLIFrameElement | null = null
+
+/** Print a body of markdown under `title`. See printEntry. */
+export function printMarkdown(body: string, title: string, asTitle = true): void {
+  if (typeof document === 'undefined') return
+  printFrame?.remove()
+  const frame = document.createElement('iframe')
+  printFrame = frame
+  frame.setAttribute('aria-hidden', 'true')
+  frame.tabIndex = -1
+  // Off-screen rather than display:none — a frame that is not rendered
+  // prints blank in WebKit.
+  frame.style.cssText =
+    'position:fixed;left:-10000px;top:0;width:800px;height:600px;border:0;opacity:0;pointer-events:none'
+  const done = () => {
+    if (printFrame === frame) printFrame = null
+    frame.remove()
+  }
+  frame.addEventListener(
+    'load',
+    () => {
+      const win = frame.contentWindow
+      if (!win) {
+        done()
+        return
+      }
+      // The panel is modal on some engines and not on others: tidy up when
+      // printing is over, with a long backstop for engines that never say.
+      win.addEventListener('afterprint', () => window.setTimeout(done, 0), { once: true })
+      window.setTimeout(done, 10 * 60_000)
+      win.focus()
+      win.print()
+    },
+    { once: true },
+  )
+  frame.srcdoc = printDocument(body, title, asTitle)
+  document.body.append(frame)
+}
+
+function printDocument(body: string, title: string, asTitle: boolean): string {
+  const html = renderMarkdown(body, { asTitle })
   const safeTitle = escapeHtml(title)
-  win.document.write(`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${safeTitle}</title>
 <style>
   body { font-family: Georgia, serif; max-width: 40rem; margin: 2rem auto; line-height: 1.55; color: #222; }
@@ -153,8 +201,5 @@ export function printEntry(entry: Entry, asTitle = true): void {
   .read-task__box { display: inline-block; width: .8em; height: .8em; margin-right: .4em; vertical-align: -.08em; border: 1.5px solid #888; border-radius: .18em; box-sizing: border-box; text-align: center; line-height: .7em; font-size: 1em; }
   .read-task__box[data-checked='true']::after { content: '\\2713'; font-size: .7em; color: #444; }
 ${highlightPrintCss()}
-</style></head><body>${html}</body></html>`)
-  win.document.close()
-  win.focus()
-  win.print()
+</style></head><body>${html}</body></html>`
 }

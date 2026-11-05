@@ -140,7 +140,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -230,7 +230,7 @@ button.pg__sense-q:hover {
   color: var(--text-dim);
   background: var(--bg);
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), background-color var(--transition),
     border-color var(--transition);
 }
@@ -310,7 +310,7 @@ button.pg__sense-q:hover {
   border-radius: 50%;
   border: 1px solid transparent;
   background: rgba(var(--swatch-hue), 0.55);
-  cursor: pointer;
+  cursor: default;
   transition: transform var(--transition), box-shadow var(--transition);
 }
 
@@ -357,7 +357,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   transition: color var(--transition);
 }
@@ -386,7 +386,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -606,7 +606,7 @@ button.pg__sense-q:hover {
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 0.8rem;
-  cursor: pointer;
+  cursor: default;
   white-space: nowrap;
 }
 .pg__volume-rule button:hover {
@@ -798,7 +798,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   /* The rail owns the gesture; a stop must not swallow the pointer. */
   pointer-events: none;
   transition: color var(--transition);
@@ -875,7 +875,7 @@ button.pg__sense-q:hover {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-1);
-  cursor: pointer;
+  cursor: default;
   /* Colour and opacity only — a page must never move under the cursor. */
   transition: border-color var(--transition), background-color var(--transition),
     opacity var(--transition-slow);
@@ -993,6 +993,40 @@ button.pg__sense-q:hover {
 
 .pgc[data-context='true'] {
   border-color: var(--accent);
+}
+
+/*
+ * The hold, under a finger (useWallPointer).
+ *
+ * The one place a page moves under you, and only under a finger — a pointer
+ * never sets these, so the wall's rule that nothing moves under the cursor
+ * stands. iOS says what a long-press is doing while it does it: the page gives
+ * a little as the press deepens (after a beat, so a tap never flinches), and
+ * when the menu comes it lifts toward you with the wall dimmed behind it, then
+ * settles. Without motion none of it happens; the menu simply arrives.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .pgc {
+    --pg-hold-rest: border-color var(--transition), background-color var(--transition),
+      opacity var(--transition-slow), box-shadow var(--dur-base) var(--ease-out);
+    transition: var(--pg-hold-rest), transform var(--dur-quick) var(--ease-out);
+  }
+
+  /* 500ms is `LONG_PRESS_MS`: the give is complete the moment the menu fires.
+     (The row's twins of these rules sit after `.pgr`'s own declarations.) */
+  .pgc[data-pressing='true'] {
+    transform: scale(0.97);
+    transition: var(--pg-hold-rest), transform 380ms linear 120ms;
+  }
+
+  .pgc[data-lifted='true'] {
+    z-index: 3;
+    transform: scale(1.02);
+    /* The wall behind dims for the beat the page is lifted — a ring of shade as
+       wide as the screen, clipped by the scroller to the wall itself. */
+    box-shadow: var(--shadow-2), 0 0 0 100vmax color-mix(in srgb, var(--text) 10%, transparent);
+    transition: var(--pg-hold-rest), transform var(--dur-base) var(--ease-spring);
+  }
 }
 
 /* Selection wins over subject dimming — you can only select what you can see,
@@ -1330,7 +1364,7 @@ button.pg__sense-q:hover {
   border: 1px solid transparent;
   border-inline-start: 2px solid color-mix(in srgb, var(--tone, var(--accent)) 55%, transparent);
   border-radius: var(--radius-sm);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition), border-color var(--transition);
 }
 
@@ -1627,7 +1661,7 @@ button.pg__sense-q:hover {
   font-family: var(--font-sans);
   font-size: 0.68rem;
   letter-spacing: -0.004em;
-  cursor: pointer;
+  cursor: default;
   transition:
     color var(--transition),
     background var(--transition),
@@ -1718,7 +1752,7 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--accent) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
 }
 
 .pg-stretch__on:hover {
@@ -1961,7 +1995,7 @@ button.pg__sense-q:hover {
   color: var(--bar-ink);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -2011,7 +2045,7 @@ button.pg__sense-q:hover {
   color: var(--bar-ink);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
   animation: pg-aside-in 260ms ease both;
 }
@@ -2090,7 +2124,7 @@ button.pg__sense-q:hover {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), background-color var(--transition),
     border-color var(--transition);
 }
@@ -2167,7 +2201,7 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--accent) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition);
 }
 
@@ -2202,7 +2236,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
@@ -2243,11 +2277,17 @@ button.pg__sense-q:hover {
   border: 1px solid var(--border-subtle);
   border-radius: 18px;
   box-shadow: var(--shadow-panel, 0 40px 90px -46px rgba(0, 0, 0, 0.45));
-  animation: pg-sheet-in 150ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+  animation: pg-sheet-in var(--dur-quick) var(--ease-out) both;
   /* `translate`, not `transform`: the entrance animation owns `transform` for
      good (a `both` fill outranks an inline style on the same property), and the
      drag has to be able to move the sheet after it has arrived. */
-  transition: translate 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+  transition: translate var(--dur-base) var(--ease-out);
+}
+
+/* Out the way a Mac popover goes: a quick fade, no travel (LookFor's
+   usePresence keeps it mounted for this). The phone's sheet is below. */
+.pg-sheet[data-state='closing'] {
+  animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
 }
 
 /* Following a finger, so no easing between frames. */
@@ -2498,7 +2538,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -2600,7 +2640,7 @@ button.pg__sense-q:hover {
   border-inline-start: 1px solid transparent;
   border-radius: 0 var(--radius-full) var(--radius-full) 0;
   opacity: 0;
-  cursor: pointer;
+  cursor: default;
   transition: opacity var(--transition), color var(--transition),
     border-color var(--transition);
 }
@@ -2698,7 +2738,7 @@ button.pg__sense-q:hover {
   color: var(--text-dim);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -2734,7 +2774,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition), opacity var(--transition);
   /* The hold is the menu here too — see `.pgc`. */
   -webkit-touch-callout: none;
@@ -2787,6 +2827,115 @@ button.pg__sense-q:hover {
 
 .pgr[data-context='true'] {
   background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/*
+ * A row's trailing actions (useRowSwipe).
+ *
+ * Drawn over the strip the row has vacated rather than behind the row — the
+ * tray is one portal for the whole wall, not an element under every row — so
+ * it reads as lying behind the row without the row carrying anything. The
+ * verbs are the long-press menu's own, in its own tints: the accent for
+ * Change date…, the theme's danger for Delete…, which sits at the trailing
+ * edge and is what a full swipe asks for. Past that point it takes the whole
+ * strip, which is how iOS says "let go and this happens".
+ */
+.pgr-actions {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pgr-actions__reveal {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  inline-size: 0;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.pgr-actions__btn {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0 0.4rem;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--bg);
+  cursor: default;
+  transition: flex-grow var(--dur-base) var(--ease-out), filter var(--dur-exit) var(--ease-exit);
+}
+
+.pgr-actions__btn[data-action='edit-date'] {
+  background: var(--accent);
+}
+
+.pgr-actions__btn[data-action='delete'] {
+  background: var(--danger);
+}
+
+.pgr-actions__btn:active {
+  filter: brightness(0.88);
+  transition-duration: 0s;
+}
+
+.pgr-actions__reveal[data-full] .pgr-actions__btn[data-action='edit-date'] {
+  flex-grow: 0.0001;
+}
+
+.pgr-actions__reveal[data-full] .pgr-actions__btn[data-action='delete'] {
+  flex-grow: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pgr-actions__btn {
+    transition: none;
+  }
+}
+
+/* The browser never had a horizontal pan here (the wall scrolls one way), so
+   saying so makes every sideways move on a row arrive, cancelable, at the
+   swipe — and leaves the vertical axis entirely to the scroller. */
+@media (pointer: coarse) {
+  .pgr {
+    touch-action: pan-y;
+  }
+}
+
+/* The hold, under a finger — the row's twin of the card's rules (see "The hold,
+   under a finger" by `.pgc`). Here, after `.pgr`'s own transition, so the
+   release eases home instead of snapping. A row is wide, so it gives less. */
+@media (prefers-reduced-motion: no-preference) {
+  .pgr {
+    --pg-hold-rest: background-color var(--transition), opacity var(--transition),
+      box-shadow var(--dur-base) var(--ease-out);
+    transition: var(--pg-hold-rest), transform var(--dur-quick) var(--ease-out);
+  }
+
+  .pgr[data-pressing='true'] {
+    transform: scale(0.985);
+    transition: var(--pg-hold-rest), transform 380ms linear 120ms;
+  }
+
+  .pgr[data-lifted='true'] {
+    position: relative;
+    z-index: 3;
+    transform: scale(1.01);
+    background: var(--bg);
+    box-shadow: var(--shadow-2), 0 0 0 100vmax color-mix(in srgb, var(--text) 10%, transparent);
+    transition: var(--pg-hold-rest), transform var(--dur-base) var(--ease-spring);
+  }
 }
 
 /*
@@ -3195,7 +3344,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: 10px;
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition);
 }
 
@@ -3261,7 +3410,7 @@ button.pg__sense-q:hover {
   color: var(--text-dim);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
 }
 
 .pg-found__more:hover,
@@ -3283,7 +3432,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition), border-color var(--transition);
 }
 
@@ -3392,7 +3541,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition);
 }
 
@@ -3462,7 +3611,7 @@ button.pg__sense-q:hover {
   border-radius: var(--radius-sm);
   background: var(--bg);
   text-align: start;
-  cursor: pointer;
+  cursor: default;
   transition:
     border-color var(--transition),
     background var(--transition);
@@ -3539,7 +3688,7 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--transition);
 }
 
@@ -3695,7 +3844,7 @@ button.pg__sense-q:hover {
   border: 0;
   border-radius: inherit;
   background: transparent;
-  cursor: pointer;
+  cursor: default;
 }
 
 .pg-band__cell:has(.pg-band__jump) {
@@ -3800,7 +3949,7 @@ button.pg__sense-q:hover {
   block-size: 11px;
   background: var(--text-faint);
   border-radius: 50%;
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition), box-shadow var(--transition);
 }
 
@@ -3812,22 +3961,18 @@ button.pg__sense-q:hover {
 /*
  * THE LIFT.
  *
- * A page picked up off the table, not a button pressed — so it rises, and casts
- * a shadow that is mostly transparent and warm rather than black. A neutral
- * drop shadow reads as a hole, and a page is not a hole.
+ * A page picked up off the table, not a button pressed — so it casts a shadow
+ * that is mostly transparent and warm rather than black. A neutral drop shadow
+ * reads as a hole, and a page is not a hole.
  *
- * This reverses the wall's earlier rule ("a page must never move under the
- * cursor"). The prototype settled the other way and it is right: colour alone
- * does not read as picking something up, and the movement is 3px, which is a
- * page lifting rather than a card jumping.
- *
- * `will-change` is deliberate — hundreds of cards, and the hover fires while
- * the wall is scrolling, which is exactly when a main-thread paint is felt.
+ * The lift is the shadow alone. For a while the page also rose 3px; that is the
+ * one hover in software that says "website" before anything else does, and a
+ * Mac grid (Finder, Photos) never moves an item under the cursor — so the wall's
+ * first rule is back: a page must never move under the cursor
+ * (DESIGN_PRINCIPLES N2). The warm shadow keeps the picking-up.
  */
 .pgc {
-  will-change: transform;
   transition:
-    transform var(--transition),
     border-color var(--transition),
     background-color var(--transition),
     box-shadow var(--transition),
@@ -3835,7 +3980,6 @@ button.pg__sense-q:hover {
 }
 
 .pgc:hover {
-  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--accent) 22%, transparent);
   box-shadow:
     0 18px 34px -20px color-mix(in srgb, var(--text) 32%, transparent),
@@ -3847,17 +3991,10 @@ button.pg__sense-q:hover {
   color: var(--accent);
 }
 
+/* Pressed: the page goes down under the finger, at once — never up. */
 .pgc:active {
-  transform: translateY(-1px);
-  transition-duration: 90ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pgc,
-  .pgc:hover,
-  .pgc:active {
-    transform: none;
-  }
+  background: color-mix(in srgb, var(--text) 5%, var(--bg-elevated));
+  transition-duration: 0s;
 }
 
 /* The year numeral was a watermark the size of a headline. The prototype marks
@@ -3877,7 +4014,7 @@ button.pg__sense-q:hover {
   color: var(--text-faint);
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition);
 }
 
@@ -4001,7 +4138,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
@@ -4084,7 +4221,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
@@ -4146,7 +4283,7 @@ button.pg__sense-q:hover {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), border-color var(--transition);
 }
 
@@ -4394,12 +4531,34 @@ button.pg__sense-q:hover {
 }
 
 /*
+ * A pushed view arriving on a phone: in from the right. At the top level, not
+ * inside the narrow block, because the volume layer (Volumes.css) pushes with
+ * it too. (The practice thread keeps its own copy, `rt-push-in`: Rituals can
+ * open before Pages' stylesheet has ever loaded.)
+ */
+@keyframes pg-open-narrow {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* The veil over the view underneath, darkening as the pushed view crosses it. */
+@keyframes pg-veil-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
  * The page: the scroller, and the thing a back-swipe carries.
  *
  * Snaps back on release short of the threshold, and on a committed swipe
  * carries on off the right edge under `[data-leaving]` — the reader stays
- * mounted for exactly that long (`EXIT_MS` in useSwipeToDismiss, which is this
- * duration by construction). Before, `onDismiss` and the reset to zero landed
+ * mounted for exactly that long (`PUSH_MS` in edgeSwipe.ts, which is
+ * `--dur-push` by construction). Before, `onDismiss` and the reset to zero landed
  * in the same tick, so the page snapped back to centre for one frame before
  * vanishing: the dismissal played backwards at speed, which was most of what
  * made the gesture feel broken.
@@ -4434,7 +4593,8 @@ button.pg__sense-q:hover {
    * brush, for the same reason.
    */
   touch-action: pan-y;
-  transition: transform 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+  /* A swipe that does not commit settles home the way a pop would have gone. */
+  transition: transform var(--dur-push) var(--ease-ios);
 }
 
 /*
@@ -4460,16 +4620,18 @@ button.pg__sense-q:hover {
 
 /* Committed: the page finishes the journey the thumb started, at the speed it
    would have had. `--pg-out` goes to 1 with it so the veil lifts and the edge
-   shadow stays lit the whole way out. */
+   shadow stays lit the whole way out. (PageReader writes 1 inline while
+   leaving too — an inline custom property outranks this rule.) */
 .pg-read1[data-leaving='true'] {
   --pg-out: 1;
 }
 
-/* 220ms is `EXIT_MS` in useSwipeToDismiss, which is how long the reader stays
-   mounted for. Change one and change the other. */
+/* `--dur-push` is `PUSH_MS` in edgeSwipe.ts, which is how long the reader stays
+   mounted for once a swipe commits. Change one and change the other — a test
+   holds them together. */
 .pg-read1[data-leaving='true'] .pg-read1__slide {
   transform: translateX(100%);
-  transition: transform 220ms cubic-bezier(0.32, 0.72, 0.3, 1);
+  transition: transform var(--dur-push) var(--ease-ios);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4695,16 +4857,35 @@ button.pg__sense-q:hover {
   background: none;
   border: none;
   border-inline: 1px solid transparent;
-  cursor: pointer;
+  cursor: default;
   /* Quieter than it was: the chevrons carry the navigation, so this only has
      to say "there is a page over here", never "press me". */
   opacity: 0.14;
   transition: opacity var(--transition), border-color var(--transition);
-  animation: pg-leaf-in 260ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+  /* A fade, every open but the first — see `data-first` below. */
+  animation: pg-leaf-fade var(--dur-base) var(--ease-out) both;
 }
 
-/* In from its own edge, so the sliver reads as a page lying under this one
-   rather than as a panel switching on. */
+/*
+ * In from its own edge, so the sliver reads as a page lying under this one
+ * rather than as a panel switching on — the FIRST time a page is opened in a
+ * session (`leavesIntroduced` in PageReader). After that the leaves are known,
+ * and a slide on every open is an entrance replaying on a surface somebody
+ * visits all day (DESIGN_PRINCIPLES N3). They just fade up.
+ */
+.pg-read1__edge[data-first='true'] {
+  animation: pg-leaf-in 260ms var(--ease-out) both;
+}
+
+@keyframes pg-leaf-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.14;
+  }
+}
+
 @keyframes pg-leaf-in {
   from {
     opacity: 0;
@@ -4850,7 +5031,7 @@ button.pg__sense-q:hover {
   color: inherit;
   line-height: inherit;
   text-align: start;
-  cursor: pointer;
+  cursor: default;
 }
 
 /* The door's rule shows when it is reached for, not at rest — at rest the
@@ -5194,56 +5375,23 @@ button.pg__sense-q:hover {
  * editor's margin already works by ("the hand is the label").
  */
 /*
- * Why the prose does not take touches on a phone.
+ * The prose takes touches on a phone — so a finger can select it.
  *
- * WebKit hands a touch that lands on running text to its own text-interaction
- * recogniser, and once that has the gesture the JS touch stream simply stops:
- * exactly one `touchmove` arrives and then nothing — no move, no end, no cancel,
- * at the element, at the window, or at the document. The back-swipe froze
- * wherever that one move left it. It is why the gesture worked over the editor
- * (CodeMirror's contenteditable arbitrates differently), worked over a page's
- * gaps and margins, and died anywhere there were words — which on a page of
- * writing is everywhere that matters. Measured, not guessed: same page, same
- * finger height, 20px apart. On the gap it goes back. On the sentence it dies.
+ * It used to be taken out of hit-testing on coarse pointers. WebKit hands a
+ * touch that lands on running text to its own text-interaction recogniser, and
+ * once that has the gesture the JS touch stream stops: one `touchmove`, then
+ * nothing, at the element, the window or the document. A back-swipe that could
+ * start anywhere on the page froze wherever that one move left it, so the words
+ * were made untouchable — and nobody could select or copy their own writing.
  *
- * `-webkit-user-select: none` does NOT stop it — verified on device, computed
- * style and all. Taking the prose out of hit-testing does: the touch then lands
- * on the page around it, which is a box WebKit has no text gesture for.
- *
- * What it costs: you cannot select a sentence out of an open page with a finger
- * any more. Nothing else — on touch the page has no click behaviour to lose
- * (see the note on `touch` in PageReader), the markings are hover decorations a
- * finger never had, and the margin is a sibling. A "Copy page" action in the
- * reader's bar is the way to give copying back, and is better on a phone than
- * dragging two handles across a paragraph.
- *
- * Coarse pointers only. A mouse has no such recogniser and never lost the
- * gesture, so on a desktop the page stays live and selectable.
+ * The back-swipe now starts only in a strip at the leading edge, as
+ * UINavigationController's does (`useEdgeSwipeBack`, ~24px), which is the
+ * reader's side margin: a touch there lands on the page's gutter, not on a
+ * word, and WebKit has no text gesture to take. The prose keeps the
+ * `user-select: text` global.css gives `.markdown-body`, and a long-press on a
+ * sentence is a selection again (DESIGN_PRINCIPLES, Rulings: "people copy
+ * their own words").
  */
-@media (pointer: coarse) {
-  /* Two classes on purpose. `.markdown-body` is handed `user-select: text` by
-     the coarse-pointer block in global.css — the rule that makes sure people
-     can copy their own words back out — and a single-class selector here ties
-     with it and loses on source order. */
-  .pg-read1__body.markdown-body {
-    pointer-events: none;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  /* The one thing in the prose a finger does need: a photo opens in the viewer.
-     A photo is not running text, so WebKit's text recogniser never takes the
-     touch and the back-swipe still works across it. A caption printed on a
-     tile is text, so it stays out of hit-testing with the prose around it. */
-  .pg-read1__body.markdown-body [data-look='true'] {
-    pointer-events: auto;
-  }
-
-  .pg-read1__body.markdown-body .pg-read1__photoset-caption {
-    pointer-events: none;
-  }
-}
 
 .pg-read1__body [data-marking] {
   position: relative;
@@ -5438,6 +5586,17 @@ button.pg__sense-q:hover {
     box-shadow: 0 -24px 60px -30px rgba(0, 0, 0, 0.55);
     /* The scroll belongs to the sheet, not the wall behind it. */
     overscroll-behavior: contain;
+    /*
+     * Up from the bottom edge, and back down it — a sheet, not the dropdown's
+     * three-pixel drop, which on a phone read as the sheet simply appearing
+     * and then blinking out. A drag is drawn on `translate` (useSheetDismiss),
+     * which composes with these, so a sheet let go of mid-drag leaves from
+     * where it was.
+     */
+    animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios);
+  }
+  .pg-sheet[data-narrow='true'][data-state='closing'] {
+    animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
   }
 
   /* A tap outside is the obvious way out of a sheet that covers two thirds of
@@ -5451,6 +5610,10 @@ button.pg__sense-q:hover {
     background: color-mix(in srgb, var(--bg) 55%, transparent);
     -webkit-backdrop-filter: blur(2px);
     backdrop-filter: blur(2px);
+    animation: ds-fade-in var(--dur-base) var(--ease-out);
+  }
+  .pg-sheet__scrim[data-state='closing'] {
+    animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
   }
 
   /*
@@ -5853,7 +6016,7 @@ button.pg__sense-q:hover {
     background: none;
     border: none;
     border-block-start: 1px solid var(--border-subtle);
-    cursor: pointer;
+    cursor: default;
   }
 
   .pg-sheet__somewhere:active {
@@ -5869,30 +6032,71 @@ button.pg__sense-q:hover {
    * in from the right, out to the right, and the wall is where it was the whole
    * time. That coherence is most of what "feels native" means here; the rest is
    * in `useSwipeToDismiss`.
+   *
+   * The PAGE pushes, not the layer. The layer holds the veil, and a veil that
+   * rode in with the page could only ever dim what the page was already
+   * covering; left still, it darkens the wall as the page crosses it, which is
+   * the dimming UINavigationController does. `backwards` fill, not `both`: the
+   * page is what a back-swipe drags with an inline transform, and a held
+   * animation end-state would outrank that for as long as the page was open.
+   *
+   * One push timing for every pushed view (`--dur-push` / `--ease-ios`): the
+   * reader, a volume, a practice's thread, the Lamp's book panel.
    */
   .pg-read1 {
-    animation-name: pg-open-narrow;
-    animation-duration: 260ms;
-    animation-timing-function: cubic-bezier(0.32, 0.72, 0.3, 1);
+    animation: none;
   }
 
-  @keyframes pg-open-narrow {
-    from {
-      transform: translateX(100%);
-    }
-    to {
-      transform: none;
-    }
+  .pg-read1__slide {
+    animation: pg-open-narrow var(--dur-push) var(--ease-ios) backwards;
+  }
+
+  .pg-read1::before {
+    animation: pg-veil-in var(--dur-push) var(--ease-ios) backwards;
+  }
+
+  /* The editor handing a page back makes no entrance — see `[data-arrive]`. */
+  .pg-read1[data-arrive] .pg-read1__slide,
+  .pg-read1[data-arrive]::before {
+    animation: none;
+  }
+
+  /*
+   * ── The wall, under an open page ──────────────────────────────────────────
+   *
+   * Pushed aside, not left where it was: about a third of the way left as the
+   * page comes in over it, and back in step with `--pg-out` as a back-swipe
+   * uncovers it (PageReader writes that onto `.pg__body`). It is the parallax
+   * every pushed view on iOS has, and it is a geometry cue rather than an
+   * ornament — the wall moving the other way is what says the page is ON it.
+   *
+   * The transition lives only on the reading rule. A page closed by its Back
+   * button is unmounted at once, and the wall should be home at once with it,
+   * not sliding back across an empty screen.
+   */
+  .pg[data-reading-page='true'] .pg__body > :not(.pg-read1) {
+    transform: translateX(calc(-30% * (1 - var(--pg-out, 0))));
+    transition: transform var(--dur-push) var(--ease-ios);
+  }
+
+  .pg__body:has(> .pg-read1[data-dragging='true']) > :not(.pg-read1) {
+    transition: none;
   }
 
   /* Re-stated here because this block comes after the surface's reduced-motion
      rules and would otherwise hand the animation back to someone who asked for
-     none. `both` fill means "off" has to restore the end state explicitly. */
+     none. Reduced motion keeps the veil's fade and drops the travel. */
   @media (prefers-reduced-motion: reduce) {
-    .pg-read1 {
+    .pg-read1,
+    .pg-read1__slide {
       animation: none;
       opacity: 1;
       transform: none;
+    }
+
+    .pg[data-reading-page='true'] .pg__body > :not(.pg-read1) {
+      transform: none;
+      transition: none;
     }
   }
 
@@ -6319,7 +6523,7 @@ button.pg__sense-q:hover {
   font-size: 0.9rem;
   font-style: italic;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 .pg-read1__thread:hover { color: var(--accent); }
 .pg-read1__thread:focus-visible {
@@ -6345,7 +6549,7 @@ button.pg__sense-q:hover {
   font-family: var(--bar-font);
   font-size: var(--bar-size);
   color: var(--bar-ink);
-  cursor: pointer;
+  cursor: default;
   transition: color var(--transition), background-color var(--transition);
 }
 .pg-volumes button:hover { color: var(--bar-ink-hover); }

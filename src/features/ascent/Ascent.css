@@ -193,7 +193,7 @@
 .ascent-lens__x {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   color: color-mix(in srgb, var(--ascent-ink) 45%, transparent);
   font-size: 13px;
   line-height: 1;
@@ -220,7 +220,7 @@
 .ascent-lenses__edit {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.1em;
@@ -263,7 +263,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.06em;
@@ -293,7 +293,7 @@
   border: none;
   padding: 0;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   color: inherit;
   font: inherit;
 }
@@ -332,7 +332,7 @@
 .ascent-oneline {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   color: var(--ascent-ink-bright);
   font-family: var(--font-serif);
   font-size: 27px;
@@ -358,7 +358,7 @@
   flex-direction: column;
   gap: 6px;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   background: linear-gradient(160deg, color-mix(in srgb, var(--ascent-ink) 5%, transparent), color-mix(in srgb, var(--ascent-ink) 1.5%, transparent));
   border: 1px solid color-mix(in srgb, var(--ascent-ink) 9%, transparent);
   border-left: 2px solid color-mix(in srgb, var(--ascent-gold) 55%, transparent);
@@ -370,7 +370,6 @@
 .ascent-theme:hover {
   border-color: color-mix(in srgb, var(--ascent-gold) 50%, transparent);
   border-left-color: var(--ascent-gold-soft);
-  transform: translateY(-1px);
 }
 .ascent-theme__head {
   display: flex;
@@ -409,7 +408,7 @@
 }
 .ascent-inorder__summary {
   list-style: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -448,13 +447,12 @@
   border: 1px solid color-mix(in srgb, var(--ascent-ink) 9%, transparent);
   border-radius: 999px;
   padding: 7px 14px;
-  cursor: pointer;
+  cursor: default;
   animation: ascent-rise 0.5s both;
   transition: border-color 0.2s, transform 0.2s;
 }
 .ascent-scrip:hover {
   border-color: color-mix(in srgb, var(--ascent-gold) 45%, transparent);
-  transform: translateY(-1px);
 }
 .ascent-scrip__ref {
   font-size: 15px;
@@ -472,7 +470,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.05em;
@@ -489,7 +487,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   font-family: var(--font-serif);
   font-size: 18px;
@@ -532,7 +530,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   font-family: var(--font-serif);
   font-size: 19px;
@@ -623,12 +621,17 @@
   position: fixed;
   inset: 0;
   border: none;
-  cursor: pointer;
+  cursor: default;
   background: color-mix(in srgb, var(--ascent-shade) 72%, transparent);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
-  animation: ascent-fade 0.25s both;
+  animation: ds-fade-in var(--dur-base) var(--ease-out);
 }
+.ascent-drill__scrim[data-state='closing'] {
+  animation: ds-fade-out var(--dur-exit) var(--ease-exit) forwards;
+}
+/* A card in the room: in with the app's dialog settle, out with a quick fade
+   (DrillSheet → useExit). The phone's sheet is under "responsive" below. */
 .ascent-drill__panel {
   position: relative;
   z-index: 1;
@@ -639,7 +642,10 @@
   border-radius: 18px;
   padding: 22px 24px 26px;
   box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7);
-  animation: ascent-rise 0.4s both;
+  animation: ds-modal-in var(--dur-base) var(--ease-out);
+}
+.ascent-drill__panel[data-state='closing'] {
+  animation: ds-modal-out var(--dur-exit) var(--ease-exit) forwards;
 }
 .ascent-drill__head {
   display: flex;
@@ -659,7 +665,7 @@
   flex: 0 0 auto;
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
@@ -718,7 +724,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 15px;
   font-style: italic;
@@ -1111,11 +1117,58 @@
   .ascent-oneline {
     font-size: 21px;
   }
+  /*
+   * A bottom sheet, like the ledger's WriteSheet: it rises from the edge the
+   * thumb is at, carries a grabber, follows a downward drag, and goes back down
+   * the way it came. Fixed to the screen rather than the room so it covers the
+   * tab bar the way an iOS sheet does; the New-entry disc steps aside below.
+   */
   .ascent-drill {
-    padding: 20px 12px;
+    position: fixed;
+    z-index: 95;
+    align-items: flex-end;
+    padding: 0;
+    overflow: hidden;
   }
   .ascent-drill__panel {
-    padding: 18px 16px 22px;
+    max-width: none;
+    max-height: calc(100dvh - 56px - var(--safe-top));
+    overflow-y: auto;
+    /* A flick inside the sheet doesn't scroll the Ascent underneath it. */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    padding: 26px 16px calc(22px + var(--safe-bottom));
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    animation: ds-sheet-rise var(--dur-sheet) var(--ease-ios);
+  }
+  .ascent-drill__panel[data-state='closing'] {
+    animation: ds-sheet-fall var(--dur-exit) var(--ease-exit) forwards;
+  }
+  /* The grabber: says it can be pulled down. */
+  .ascent-drill__panel::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 38px;
+    height: 4px;
+    margin-left: -19px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--ascent-ink) 22%, transparent);
+  }
+  /* A 44pt way out, whatever the size of the word on it. */
+  .ascent-drill__close {
+    min-height: 44px;
+    padding: 0 0 0 12px;
+  }
+  /* The disc floats above the canvas's stacking context; over a sheet it is a
+     second, unrelated action on top of the one in hand. Same move Pages makes
+     for an open page. */
+  .journal-canvas:has(.ascent-drill[data-sheet='true']) ~ .mobile-fab {
+    opacity: 0;
+    pointer-events: none;
   }
 }
 
@@ -1205,7 +1258,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -1239,7 +1292,7 @@
   border: none;
   padding: 0;
   margin-top: 4px;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.08em;
@@ -1284,7 +1337,7 @@
   background: none;
   font: inherit;
   color: inherit;
-  cursor: pointer;
+  cursor: default;
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
@@ -1412,7 +1465,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
@@ -1534,7 +1587,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
 }
 .ascent-hl__quote {
   font-family: var(--font-serif);
@@ -1571,7 +1624,7 @@
   background: none;
   border: none;
   padding: 2px 0 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
@@ -1603,7 +1656,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   animation: ascent-rise 0.55s ease both;
 }
 .ascent-line__text {
@@ -1736,7 +1789,7 @@
   border: none;
   padding: 0;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.55;
@@ -1750,7 +1803,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -1770,7 +1823,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.15em;
@@ -1813,7 +1866,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-serif);
   font-size: 21px;
   font-style: italic;
@@ -1825,7 +1878,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.13em;
@@ -1862,7 +1915,7 @@
 
 /* The stones are a button on a drawing — give the keyboard somewhere to land. */
 .ascent-stone-g {
-  cursor: pointer;
+  cursor: default;
 }
 /* A focusable <g> picks up the browser default ring on a plain mouse focus,
    which paints a blue square over the mountain. Keyboard focus keeps its own. */
@@ -1947,7 +2000,7 @@
   background: none;
   border: none;
   padding: 4px 9px;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -2057,6 +2110,14 @@
   background: color-mix(in srgb, var(--ascent-gold) 16%, transparent);
   color: var(--ascent-gold-soft);
 }
+/* The same tile, as the sliding plate (global.css, "THE SELECTION PLATE"):
+   once the plate is up, the chosen pill keeps the ink and gives up the tile. */
+.ascent--framed:not(.ascent--light) .pill-set {
+  --plate-bg: color-mix(in srgb, var(--ascent-gold) 16%, transparent);
+}
+.ascent--framed:not(.ascent--light) .pill-set[data-plate] .pill[aria-pressed='true'] {
+  background-color: transparent;
+}
 .ascent--framed:not(.ascent--light) .frame-bar::after {
   background: linear-gradient(
     to right,
@@ -2070,6 +2131,9 @@
 .ascent--framed:not(.ascent--light) .when--row .when__grains {
   background-color: color-mix(in srgb, var(--ascent-ink) 12%, transparent);
 }
+.ascent--framed:not(.ascent--light) .when__home {
+  border-color: color-mix(in srgb, var(--ascent-ink) 22%, transparent);
+}
 .ascent--framed:not(.ascent--light) .when--row .when__grains {
   border-color: color-mix(in srgb, var(--ascent-ink) 10%, transparent);
   background-color: color-mix(in srgb, var(--ascent-sky-0) 50%, transparent);
@@ -2082,6 +2146,39 @@
 }
 .ascent-rise {
   animation: ascent-rise 0.7s both;
+}
+
+/*
+ * Settled: the second Ascent of the session, and every one after it.
+ *
+ * The room rises once per app session (firstRise.ts). After that it is a place
+ * someone comes back to daily, and a stagger that holds the words back by up
+ * to a second is a wait, not a welcome (DESIGN_PRINCIPLES N3). So every rise
+ * and staggered fade in the room is simply off, and the content is there.
+ * The ceremonial pace is kept for the visit it was written for — the first.
+ */
+.ascent[data-settled='true']
+  :is(
+    .ascent-rise,
+    .ascent-lenses,
+    .ascent-dim,
+    .ascent-word,
+    .ascent-theme,
+    .ascent-scrip,
+    .ascent-summit,
+    .ascent-band,
+    .ascent-howto__key,
+    .ascent-tended__entry,
+    .ascent-arc,
+    .ascent-hl,
+    .ascent-hl__more,
+    .ascent-line,
+    .ascent-stone-pair,
+    .ascent-stone-g,
+    .ledger,
+    .ledger-walk
+  ) {
+  animation: none;
 }
 .ascent .room-head__eyebrow {
   color: var(--ascent-gold);
@@ -2101,4 +2198,28 @@
 .ascent--framed .now-strip__note,
 .ascent--framed .year-now__note {
   display: none;
+}
+
+/* WHERE YOU WERE — the thing you opened, found again on the way back (see
+   `useSeatArrival`). A ring that breathes out rather than a flash: it says
+   "this one", then gets out of the way. Only the fade goes under Reduce Motion;
+   the page has already scrolled to it either way. */
+.ascent [data-entry-id][data-returned] {
+  outline: 2px solid var(--ascent-gold-soft);
+  outline-offset: 3px;
+  animation: ascent-returned 1.8s ease-out forwards;
+}
+@keyframes ascent-returned {
+  0%,
+  45% {
+    outline-color: var(--ascent-gold-soft);
+  }
+  100% {
+    outline-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ascent [data-entry-id][data-returned] {
+    animation: none;
+  }
 }

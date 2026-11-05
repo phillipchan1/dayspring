@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile",
-  "description": "iOS/Android permissions (StoreKit IAP + biometrics + location + shared defaults)",
+  "description": "iOS/Android permissions (StoreKit IAP + biometrics + location + haptics + shared defaults)",
   "platforms": [
     "iOS",
     "android"
@@ -26,6 +26,9 @@
     "biometric:default",
     "geolocation:allow-check-permissions",
     "geolocation:allow-request-permissions",
-    "geolocation:allow-get-current-position"
+    "geolocation:allow-get-current-position",
+    "haptics:allow-selection-feedback",
+    "haptics:allow-impact-feedback",
+    "haptics:allow-notification-feedback"
   ]
 }

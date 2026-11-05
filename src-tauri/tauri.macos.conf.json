@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "app": {
+    "windows": [
+      {
+        "title": "Dayspring",
+        "width": 1100,
+        "height": 800,
+        "minWidth": 600,
+        "minHeight": 480,
+        "resizable": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "dragDropEnabled": false,
+        "visible": false,
+        "backgroundColor": "#14161d",
+        "devtools": false
+      }
+    ]
+  }
+}

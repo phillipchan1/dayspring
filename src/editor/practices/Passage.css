@@ -116,7 +116,7 @@
 /* choose: verses are the targets. The wash sits on the verse, not on each
    word, so a chosen verse reads as one band rather than a row of tiles. */
 .psg[data-mode='choose'] .psg__v {
-  cursor: pointer;
+  cursor: default;
   border-radius: 4px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
@@ -162,7 +162,7 @@
   border: 1px solid transparent;
   border-radius: 999px;
   background: none;
-  cursor: pointer;
+  cursor: default;
 }
 .psg__n--cite:hover,
 .psg__n--cite:focus-visible { border-color: var(--psg-lit); background: var(--psg-wash); outline: none; }
@@ -206,7 +206,7 @@
   color: var(--text-dim);
   font: inherit;
   font-size: 0.9rem;
-  cursor: pointer;
+  cursor: default;
   padding: 0.3rem 0;
 }
 html[data-platform='desktop'] .pf__back { top: 2.6rem; }
@@ -279,7 +279,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font: inherit;
   font-size: 1rem;
   color: var(--text-bright);
-  cursor: pointer;
+  cursor: default;
 }
 .pf__chip:hover { border-color: color-mix(in srgb, var(--pf-gold) 45%, var(--border-subtle)); }
 .pf__glow { width: 7px; height: 7px; border-radius: 99px; background: var(--pf-gold); box-shadow: 0 0 8px var(--pf-gold); }
@@ -296,7 +296,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 .pf__book {
   border: none;
   background: none;
-  cursor: pointer;
+  cursor: default;
   padding: 0.14rem 0.3rem;
   border-radius: 5px;
   font: inherit;
@@ -318,7 +318,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font-family: var(--font-sans, system-ui, sans-serif);
   font-size: 12px;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 .pf__ch[data-lit='true'] {
   background: color-mix(in srgb, var(--pf-gold) calc(12% + var(--h) * 30%), var(--bg-elevated));
@@ -336,7 +336,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   border: none;
   border-top: 1px solid var(--border-subtle);
   background: none;
-  cursor: pointer;
+  cursor: default;
   padding: 0.9rem 0.3rem;
   font: inherit;
   color: inherit;
@@ -404,7 +404,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font: inherit;
   font-size: 1rem;
   padding: 0.5rem 1.3rem;
-  cursor: pointer;
+  cursor: default;
 }
 .pf__begin:disabled { opacity: 0.4; cursor: default; }
 
@@ -498,7 +498,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font-family: var(--rc-body);
   font-size: 0.85rem;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 .rc__leaf-ref button:hover,
 .rc__leaf-under button:hover { color: var(--accent); }
@@ -523,7 +523,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   padding: 0.15rem 0;
   font: inherit;
   color: var(--text-faint);
-  cursor: pointer;
+  cursor: default;
   border-bottom: 1px solid transparent;
   transition: color 0.2s ease, border-color 0.2s ease;
 }
@@ -567,7 +567,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font-style: normal;
   font-size: 12px;
   color: var(--accent);
-  cursor: pointer;
+  cursor: default;
 }
 .rc__leaf-loading { color: var(--text-faint); font-style: italic; animation: pf-breathe 1.6s ease-in-out infinite; }
 .rc__leaf-fallback { font-size: max(calc(var(--voice-text-size, 24px) * 0.85), 13px); line-height: 1.8; color: var(--text-bright); margin: 0; white-space: pre-line; }
@@ -636,7 +636,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font-size: 0.82rem;
   font-style: normal;
   color: var(--text-dim);
-  cursor: pointer;
+  cursor: default;
 }
 .rc__caught button:hover { color: var(--accent); }
 .rc__caught[data-small='true'] { font-size: 1.12rem; }
@@ -704,7 +704,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font-size: 0.9rem;
   color: var(--text-dim);
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 .rc__strip-ref {
   font-size: 0.58rem;
@@ -764,7 +764,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   font: inherit;
   font-size: 0.95rem;
   color: var(--text-bright);
-  cursor: pointer;
+  cursor: default;
 }
 .rc__ask-tools .rc__ask-go { background: var(--text-bright); color: var(--bg); border-color: var(--text-bright); }
 
@@ -788,7 +788,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 .rc__ghost-lands { display: block; margin-top: 0.15rem; font-style: normal; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; letter-spacing: 0.03em; color: var(--text-faint); }
 @keyframes rc-ghost { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 .rc__chip { position: fixed; z-index: 1003; display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--text-bright); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18); animation: rc-ghost 0.16s ease both; }
-.rc__chip button { border: none; background: none; color: var(--bg); font-family: var(--rc-body, var(--font-serif)); font-size: 0.92rem; cursor: pointer; border-radius: 999px; }
+.rc__chip button { border: none; background: none; color: var(--bg); font-family: var(--rc-body, var(--font-serif)); font-size: 0.92rem; cursor: default; border-radius: 999px; }
 .rc__chip-go { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.8rem; }
 .rc__chip-go kbd { font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; opacity: 0.7; border: 1px solid color-mix(in srgb, var(--bg) 35%, transparent); border-radius: 4px; padding: 0 4px; }
 .rc__chip-x { padding: 0.3rem 0.6rem; opacity: 0.7; }
@@ -801,7 +801,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 .rc__card-said { display: -webkit-box; margin-top: 0.15rem; font-style: italic; color: var(--text-dim); -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rc__card-foot { display: block; margin-top: 0.45rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; color: var(--text-faint); }
 .rc__bring { display: flex; gap: 0.6rem; align-items: center; margin-top: 0.6rem; }
-.rc__bring button { border: none; background: none; font-family: var(--rc-body); font-size: 0.9rem; color: var(--text-dim); cursor: pointer; }
+.rc__bring button { border: none; background: none; font-family: var(--rc-body); font-size: 0.9rem; color: var(--text-dim); cursor: default; }
 .rc__bring .rc__bring-go { padding: 0.45rem 0.9rem; border-radius: 999px; background: var(--text-bright); color: var(--bg); font-style: italic; }
 /* The close: every line drawn, movement by movement. */
 .rc__drawn { width: 100%; max-width: 36rem; margin: 2.4rem auto 0; text-align: left; }
@@ -820,17 +820,17 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 .pf__theme {
   border: 1px solid var(--border-subtle); border-radius: 999px; background: none;
   padding: 0.28rem 0.75rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px;
-  color: var(--text-dim); cursor: pointer;
+  color: var(--text-dim); cursor: default;
 }
 .pf__theme:hover { color: var(--text-bright); }
 .pf__theme[aria-pressed='true'] { color: var(--text-bright); border-color: color-mix(in srgb, var(--pf-gold) 55%, var(--border-subtle)); background: color-mix(in srgb, var(--pf-gold) 10%, transparent); }
 .pf__picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.6rem; }
 .pf__pick {
-  display: flex; flex-direction: column; gap: 0.2rem; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 0.2rem; text-align: left; cursor: default;
   padding: 0.8rem 0.95rem 0.75rem; border: 1px solid var(--border-subtle); border-radius: 12px;
   background: var(--bg-elevated); font: inherit; color: inherit; transition: border-color 0.2s ease, transform 0.2s ease;
 }
-.pf__pick:hover { border-color: color-mix(in srgb, var(--pf-gold) 45%, var(--border-subtle)); transform: translateY(-1px); }
+.pf__pick:hover { border-color: color-mix(in srgb, var(--pf-gold) 45%, var(--border-subtle)); }
 .pf__pick-title { font-size: 1.05rem; line-height: 1.3; color: var(--text-bright); }
 .pf__pick-ref { font-size: 0.66rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--pf-gold); }
 .pf__pick-themes { font-family: var(--font-sans, system-ui, sans-serif); font-size: 11px; color: var(--text-faint); }

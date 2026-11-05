@@ -4,6 +4,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { useDictation } from '@/hooks/useDictation'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import { useExit, useMergedRef } from '@/hooks/usePresence'
 import './VoiceCapture.css'
 
 interface VoiceCaptureProps {
@@ -33,6 +34,10 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
     dictation
   const isMobile = useIsMobile()
   const keyboardInset = useKeyboardInset()
+  // Every way out plays the exit (the sheet back down the edge it rose from,
+  // the card fading out), then tells the parent. See useExit.
+  const exit = useExit(onClose)
+  const close = exit.close
 
   const orbRef = useRef<HTMLDivElement>(null)
   const barsRef = useRef<HTMLSpanElement[]>([])
@@ -54,17 +59,18 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
 
   // Esc cancels.
   useEffect(() => {
+    if (exit.closing) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
         cancel()
-        onClose()
+        close()
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [cancel, onClose])
+  }, [cancel, close, exit.closing])
 
   // Drive the orb + waveform from live loudness without re-rendering React.
   useEffect(() => {
@@ -92,7 +98,7 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
       const text = await finish(vocab)
       const clean = text.trim()
       if (clean) onInsert(clean)
-      onClose()
+      close()
     } catch {
       // error state is shown; the recording is preserved for retry/salvage.
     }
@@ -103,7 +109,7 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
       const text = await retry(vocab)
       const clean = text.trim()
       if (clean) onInsert(clean)
-      onClose()
+      close()
     } catch {
       // still failing — stay in the error state with salvage options.
     }
@@ -113,25 +119,27 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
     const clean = partial.trim()
     if (clean) onInsert(clean)
     discard()
-    onClose()
+    close()
   }
 
   function handleCancel() {
     cancel()
-    onClose()
+    close()
   }
 
   function handleDiscard() {
     discard()
-    onClose()
+    close()
   }
 
   // The grab pill rendered but did nothing. Same contract as the scrim: pulling
-  // the sheet down cancels the take.
-  const { handlers: dragHandlers, dragY, dragging } = useSheetDismiss({
+  // the sheet down cancels the take. Drawn straight onto the sheet, and let go
+  // of where the finger left it so the exit carries on from there.
+  const drag = useSheetDismiss({
     onDismiss: handleCancel,
-    enabled: isMobile,
+    enabled: isMobile && !exit.closing,
   })
+  const sheetRef = useMergedRef<HTMLDivElement>(exit.ref, drag.ref)
 
   const style: React.CSSProperties = isMobile
     ? {
@@ -140,21 +148,27 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
         right: 0,
         bottom: keyboardInset,
         zIndex: 8500,
-        ...(dragY ? { transform: `translateY(${dragY}px)` } : {}),
-        ...(dragging ? { transition: 'none' } : {}),
       }
     : { position: 'fixed', zIndex: 8500 }
 
   return createPortal(
     <>
-      <div className="command-popover__scrim" onClick={handleCancel} aria-hidden />
       <div
+        className="command-popover__scrim"
+        data-state={exit.state}
+        onClick={handleCancel}
+        aria-hidden
+      />
+      <div
+        ref={sheetRef}
         className={`voice-capture glass-surface${isMobile ? ' voice-capture--sheet' : ''}`}
         style={style}
         role="dialog"
         aria-label="Voice dictation"
+        data-state={exit.state}
+        data-dragging={drag.dragging ? 'true' : undefined}
         onMouseDown={(e) => e.stopPropagation()}
-        {...(isMobile ? dragHandlers : {})}
+        {...(isMobile ? drag.handlers : {})}
       >
         <div className="glass-surface__glow" aria-hidden />
         {/* Pulling the handle down cancels the take — same as the scrim. */}
@@ -199,9 +213,17 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
                   <button type="button" className="btn btn--ghost" onClick={handleCancel}>
                     Close
                   </button>
-                  <button type="button" className="btn" onClick={() => void start()}>
-                    Try again
-                  </button>
+                  {/* iOS asks for the microphone once. After a "Don't Allow", trying
+                      again can never work — the only way back is Settings. */}
+                  {dictation.micDenied && dictation.openMicSettings ? (
+                    <button type="button" className="btn" onClick={dictation.openMicSettings}>
+                      Open Settings
+                    </button>
+                  ) : (
+                    <button type="button" className="btn" onClick={() => void start()}>
+                      Try again
+                    </button>
+                  )}
                 </div>
               )}
             </div>

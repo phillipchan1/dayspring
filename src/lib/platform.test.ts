@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { isAppleTouchDevice, platformKind } from './platform'
+import {
+  MAC_TRAFFIC_INSET,
+  isAppleTouchDevice,
+  platformKind,
+  setFullscreenInsets,
+} from './platform'
 
 describe('isAppleTouchDevice', () => {
   it('recognizes an iPhone UA without consulting touch points', () => {
@@ -128,5 +135,49 @@ describe('platformKind', () => {
     })
     Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 5 })
     expect(platformKind()).toBe('ios')
+  })
+})
+
+describe('the Mac window config', () => {
+  const read = (name: string) =>
+    JSON.parse(readFileSync(join(__dirname, '../../src-tauri', name), 'utf8')) as {
+      app: { windows: Array<Record<string, unknown>> }
+    }
+
+  it('starts the Mac window hidden on the Ink ground, inspector off', () => {
+    const [window] = read('tauri.macos.conf.json').app.windows
+    expect(window).toMatchObject({ visible: false, backgroundColor: '#14161d', devtools: false })
+  })
+
+  it('keeps every other window setting the same as the shared config', () => {
+    // tauri.macos.conf.json replaces the windows array wholesale (JSON merge
+    // patch), so a setting changed only in tauri.conf.json would silently not
+    // reach the Mac.
+    const [shared] = read('tauri.conf.json').app.windows
+    const [mac] = read('tauri.macos.conf.json').app.windows
+    const { visible, backgroundColor, devtools, ...rest } = mac ?? {}
+    void visible
+    void backgroundColor
+    void devtools
+    expect(rest).toEqual(shared)
+  })
+
+  it('never hides the iOS web view: visible:false stays out of the shared config', () => {
+    const [shared] = read('tauri.conf.json').app.windows
+    expect(shared?.visible).not.toBe(false)
+  })
+})
+
+describe('setFullscreenInsets', () => {
+  it('drops the traffic-light clearances in full screen and puts them back after', () => {
+    const style = document.documentElement.style
+    setFullscreenInsets(false)
+    expect(style.getPropertyValue('--mac-traffic-main-top')).toBe(MAC_TRAFFIC_INSET.mainTop)
+    expect(style.getPropertyValue('--mac-traffic-rail-top')).not.toBe('')
+    setFullscreenInsets(true)
+    expect(style.getPropertyValue('--mac-traffic-main-top')).toBe('')
+    expect(style.getPropertyValue('--mac-traffic-rail-top')).toBe('')
+    setFullscreenInsets(false)
+    expect(style.getPropertyValue('--mac-traffic-main-top')).toBe(MAC_TRAFFIC_INSET.mainTop)
   })
 })

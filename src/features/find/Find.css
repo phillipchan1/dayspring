@@ -6,6 +6,10 @@
  * decorative here would slow down the two seconds it's meant to take.
  */
 
+/* No whole-window blur: a palette is a popover over the page, not a modal
+   that frosts it (Spotlight leaves the desktop sharp). A faint wash of the
+   ground only, so the panel lifts. Both arrive in ~80ms, opacity only — the
+   time a Mac popover may take (DESIGN_PRINCIPLES N3). */
 .find-scrim {
   z-index: 60;
   display: flex;
@@ -14,17 +18,22 @@
   padding: max(12vh, 3rem) 1rem 2rem;
   overflow-y: auto;
 }
+/* Two classes, so it outranks `.scrim`'s black wash and fade wherever the
+   stylesheets land in the bundle. */
+.scrim.find-scrim {
+  background: color-mix(in srgb, var(--bg) 22%, transparent);
+  animation: find-in 80ms var(--ease-out);
+}
 
 .find {
   width: min(640px, 100%);
   border-radius: 14px;
-  animation: find-in 200ms cubic-bezier(0.16, 0.84, 0.36, 1);
+  animation: find-in 80ms var(--ease-out);
 }
 
 @keyframes find-in {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.99);
   }
 }
 
@@ -66,6 +75,49 @@
   outline: none;
 }
 
+/* A search field in our face, not WebKit's: no system chrome, and the clear
+   button below rather than the native one. */
+.find__input {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.find__input::-webkit-search-decoration,
+.find__input::-webkit-search-cancel-button,
+.find__input::-webkit-search-results-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+/* NSSearchField's circled ✕, in the voice's quiet ink. */
+.find__clear {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-right: -0.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: default;
+}
+.find__clear:hover {
+  color: var(--text-dim);
+}
+.find__clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (pointer: coarse) {
+  .find__clear {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 /* Flips with what was typed. Amber only when it's about to cost something. */
 .find__verb {
   display: inline-flex;
@@ -80,7 +132,7 @@
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.07em;
-  cursor: pointer;
+  cursor: default;
   transition:
     color 200ms ease,
     border-color 200ms ease,
@@ -115,13 +167,18 @@
   background: transparent;
   text-align: left;
   padding: 0.6rem 1.05rem;
-  cursor: pointer;
+  cursor: default;
   color: var(--text);
   font: inherit;
 }
 
+/* The selected row in the theme's accent, as a selected row is in a native
+   list — never a neutral grey. It snaps; no transition. */
 .find__row[data-sel='true'] {
-  background: var(--bg-hover);
+  background: var(--accent-soft);
+}
+.find__row[data-sel='true'] .find__row-t {
+  color: var(--text);
 }
 
 .find__row-t {
@@ -162,7 +219,7 @@
   border-radius: 9px;
   background: transparent;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   font: inherit;
   color: var(--text);
 }

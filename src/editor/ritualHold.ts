@@ -59,8 +59,11 @@ const holdTheme = EditorView.theme({
   // line. All of them are ordinary lines now (spiritualBlockDecoration.ts), so
   // `.cm-ritual-away` lands on them directly and the adjacency rules are gone.
   // Readable on demand — the same bargain focus mode strikes.
-  '.cm-ritual-away:hover': {
-    opacity: '1',
+  // Pointer hover only — on touch `:hover` latches on the last tap.
+  '@media (hover: hover)': {
+    '.cm-ritual-away:hover': {
+      opacity: '1',
+    },
   },
   '@media (prefers-reduced-motion: reduce)': {
     '.cm-ritual-away': {

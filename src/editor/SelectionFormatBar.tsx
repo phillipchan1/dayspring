@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import type { EditorView } from '@codemirror/view'
 import {
@@ -23,6 +31,7 @@ import { HIGHLIGHT_LABELS, HIGHLIGHT_ORDER } from '@/lib/highlightColors'
 import { isIOSTauri } from '@/lib/platform'
 import { iosSelectionAction } from '@/lib/iosSelection'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
+import { useMenuExit } from '@/hooks/useMenuKeyboard'
 import {
   copySelection,
   cutSelection,
@@ -37,7 +46,16 @@ export interface FormatBarAnchor {
   view: EditorView
   rect: DOMRect
   state: FormatState
+  /**
+   * Summoned at a collapsed caret with ⌘⇧F rather than raised by a selection.
+   * The caret keeps focus in the text, so the bar takes ←/→ for a roving
+   * highlight and Return to apply (N4: a toolbar the keyboard can drive).
+   */
+  caret?: boolean
 }
+
+/** Keys the editor hands to the bar first (see Editor.tsx). True = consumed. */
+export type FormatBarKeyHandler = (e: KeyboardEvent) => boolean
 
 interface Props {
   anchor: FormatBarAnchor | null
@@ -62,8 +80,14 @@ interface Props {
    * what you can do to somebody else's sentence.
    */
   markOnly?: boolean | undefined
-  /** Dismiss a caret-summoned bar (Escape on the last page). */
+  /** Dismiss the bar (Escape on the formatting page). The selection stays. */
   onDismiss?: (() => void) | undefined
+  /**
+   * Where the bar puts its key handler for the editor to call. The editor's
+   * window listener is registered at mount, ahead of the app's own Esc
+   * handlers, so the bar's Esc is decided before anything else hears it.
+   */
+  keyHandlerRef?: MutableRefObject<FormatBarKeyHandler | null> | undefined
 }
 
 type Page = 'format' | 'swatches' | 'system' | 'replace'
@@ -71,7 +95,11 @@ type Page = 'format' | 'swatches' | 'system' | 'replace'
 /** Breathing room between the bar and the viewport's edges. */
 const EDGE_PAD = 12
 
-function clampPosition(rect: DOMRect, bar: DOMRect) {
+/**
+ * Place a floating control above `rect` (below it when there's no room),
+ * inside the VISUAL viewport. Shared with the link popover.
+ */
+export function clampPosition(rect: DOMRect, bar: DOMRect) {
   const pad = EDGE_PAD
   const gap = 10
   // Clamp to the visual viewport: on iOS the on-screen keyboard shrinks
@@ -122,7 +150,13 @@ export function SelectionFormatBar({
   marked,
   markOnly,
   onDismiss,
+  keyHandlerRef,
 }: Props) {
+  // The bar fades when it goes (N3) — it stays mounted, click-through, on the
+  // last anchor until the fade is done. It arrives in one piece.
+  const exit = useMenuExit(anchor)
+  const live = exit.shown
+  const leaving = exit.leaving
   const barRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
@@ -148,11 +182,79 @@ export function SelectionFormatBar({
   const [guesses, setGuesses] = useState<string[]>([])
   const [fade, setFade] = useState({ left: false, right: false })
 
-  // A fresh selection always returns to the formatting row.
+  // A fresh selection always returns to the formatting row. (Not on the way
+  // out: the fading bar keeps the page it was on.)
   useEffect(() => {
+    if (!anchor) return
     setPage('format')
     setGuesses([])
   }, [anchor])
+
+  /*
+   * Keys. Esc steps back a page, then dismisses — keeping the selection.
+   * Summoned at the caret, ←/→ rove across the buttons and Return presses the
+   * lit one; the highlight starts on the first. The handler is read by the
+   * editor's own early window listener (keyHandlerRef).
+   */
+  const roveRef = useRef(0)
+  const pageRef = useRef<Page>(page)
+  pageRef.current = page
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
+  // Back to the first button when the bar is summoned anew or turns a page —
+  // not each time it follows the caret, or Return would lose its place after
+  // every press. Before the effect below that paints the highlight.
+  const summoned = anchor ? (anchor.caret ? 'caret' : 'selection') : null
+  useLayoutEffect(() => {
+    roveRef.current = 0
+  }, [summoned, page])
+  const buttons = () =>
+    Array.from(barRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
+  useLayoutEffect(() => {
+    const caret = !!anchor?.caret
+    buttons().forEach((b, i) => {
+      if (caret && i === roveRef.current) b.setAttribute('data-highlighted', 'true')
+      else b.removeAttribute('data-highlighted')
+    })
+  })
+  // Nothing drawn (see the markOnly guard below): no keys either.
+  const drawn = anchor != null && !(markOnly && !onMark)
+  useEffect(() => {
+    if (!keyHandlerRef) return
+    if (!anchor || !drawn) {
+      keyHandlerRef.current = null
+      return
+    }
+    const caret = !!anchor.caret
+    keyHandlerRef.current = (e) => {
+      if (e.isComposing) return false
+      if (e.key === 'Escape') {
+        if (pageRef.current !== 'format') setPage('format')
+        else onDismissRef.current?.()
+        return true
+      }
+      if (!caret || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return false
+      const list = buttons()
+      if (list.length === 0) return false
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const dir = e.key === 'ArrowRight' ? 1 : -1
+        roveRef.current = (roveRef.current + dir + list.length) % list.length
+        list.forEach((b, i) =>
+          i === roveRef.current ? b.setAttribute('data-highlighted', 'true') : b.removeAttribute('data-highlighted'),
+        )
+        list[roveRef.current]?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+        return true
+      }
+      if (e.key === 'Enter') {
+        list[Math.min(roveRef.current, list.length - 1)]?.click()
+        return true
+      }
+      return false
+    }
+    return () => {
+      keyHandlerRef.current = null
+    }
+  }, [anchor, drawn, keyHandlerRef])
 
   const measureFade = useCallback(() => {
     const el = scrollRef.current
@@ -212,6 +314,7 @@ export function SelectionFormatBar({
   }, [anchor, positionBar])
 
   useLayoutEffect(() => {
+    if (!anchor) return
     const el = scrollRef.current
     if (el) el.scrollLeft = 0
     measureFade()
@@ -233,7 +336,7 @@ export function SelectionFormatBar({
     }
   }, [anchor, page, measureFade])
 
-  if (!anchor) return null
+  if (!live) return null
   // Borrowed words with nowhere to hang a mark — an entry that has not been
   // saved yet, so there is no id for `marks` to key on. The bar would be a
   // single button that does nothing, and the honest version of that is no bar.
@@ -248,7 +351,7 @@ export function SelectionFormatBar({
         : FORMAT_BAR_ACTIONS
 
   const runSystem = async (action: SystemAction) => {
-    const view = anchor.view
+    const view = live.view
     const text = selectedText(view)
     if (action === 'cut') {
       cutSelection(view)
@@ -286,14 +389,14 @@ export function SelectionFormatBar({
       return
     }
     if (action === 'mark') {
-      onMark?.(anchor.view)
+      onMark?.(live.view)
       return
     }
     if (action === 'link') {
-      onRequestLink(anchor.view)
+      onRequestLink(live.view)
       return
     }
-    applyFormat(anchor.view, action)
+    applyFormat(live.view, action)
   }
 
   const pageLabel =
@@ -330,10 +433,12 @@ export function SelectionFormatBar({
           .join(' ')}
         role="toolbar"
         aria-label={pageLabel}
+        data-leaving={leaving ? 'true' : undefined}
         style={{ left: pos.left, top: pos.top, ...(touch ? { maxWidth } : null) }}
         onMouseDown={(e) => e.preventDefault()}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
+          // Focus inside the bar (a click on iOS, Tab): the same Esc as the editor's.
           if (e.key !== 'Escape') return
           e.stopPropagation()
           if (page !== 'format') {
@@ -365,7 +470,7 @@ export function SelectionFormatBar({
   )
 
   if (page === 'swatches') {
-    const current = anchor.state.inline.highlight
+    const current = live.state.inline.highlight
     return shell({
       leading: (
         <>
@@ -373,19 +478,18 @@ export function SelectionFormatBar({
           <span className="format-bar__sep" aria-hidden />
         </>
       ),
-      children: HIGHLIGHT_ORDER.map((color, i) => (
+      children: HIGHLIGHT_ORDER.map((color) => (
         <button
           key={color}
           type="button"
           className="format-bar__swatch"
           data-color={color}
           data-active={current === color ? 'true' : undefined}
-          style={{ animationDelay: `${i * 0.008}s` }}
           title={HIGHLIGHT_LABELS[color]}
           aria-label={HIGHLIGHT_LABELS[color]}
           aria-pressed={current === color}
           onClick={() => {
-            applyHighlight(anchor.view, color)
+            applyHighlight(live.view, color)
             setPage('format')
           }}
         />
@@ -410,9 +514,8 @@ export function SelectionFormatBar({
               key={`${guess}-${i}`}
               type="button"
               className="format-bar__guess"
-              style={{ animationDelay: `${i * 0.008}s` }}
               onClick={() => {
-                replaceSelection(anchor.view, guess)
+                replaceSelection(live.view, guess)
                 setPage('format')
               }}
             >
@@ -431,13 +534,12 @@ export function SelectionFormatBar({
           <span className="format-bar__sep" aria-hidden />
         </>
       ),
-      children: IOS_MORE_ACTIONS.map(({ action, label, title }, i) => (
+      children: IOS_MORE_ACTIONS.map(({ action, label, title }) => (
         <button
           key={action}
           type="button"
           className="format-bar__btn"
           data-action={action}
-          style={{ animationDelay: `${i * 0.008}s` }}
           title={title}
           aria-label={label}
           onClick={() => run(action)}
@@ -475,8 +577,8 @@ export function SelectionFormatBar({
         ? false
         : isMark
           ? !!marked
-          : isFormatActive(anchor.state, action as FormatAction)
-      const color = action === 'highlight' ? anchor.state.inline.highlight : null
+          : isFormatActive(live.state, action as FormatAction)
+      const color = action === 'highlight' ? live.state.inline.highlight : null
       return (
         <span key={action} className="format-bar__group">
           {sep && i > 0 ? <span className="format-bar__sep" aria-hidden /> : null}
@@ -488,10 +590,7 @@ export function SelectionFormatBar({
             // An active highlight shows WHICH colour, so the button doubles as
             // the readout the swatch row would otherwise have to provide.
             style={
-              {
-                animationDelay: `${i * 0.008}s`,
-                ...(color ? { '--hl-hue': `var(--hl-${color})` } : null),
-              } as React.CSSProperties
+              color ? ({ '--hl-hue': `var(--hl-${color})` } as React.CSSProperties) : undefined
             }
             title={isMark && marked ? 'Unmark this passage' : title}
             aria-label={isMark && marked ? 'Unmark' : label}
@@ -519,8 +618,8 @@ export function SelectionFormatBar({
   })
 }
 
-export function anchorFromView(view: EditorView): FormatBarAnchor | null {
+export function anchorFromView(view: EditorView, caret = false): FormatBarAnchor | null {
   const rect = selectionAnchorRect(view)
   if (!rect) return null
-  return { view, rect, state: getFormatState(view) }
+  return { view, rect, state: getFormatState(view), ...(caret ? { caret: true } : null) }
 }
