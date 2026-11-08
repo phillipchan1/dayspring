@@ -9,6 +9,7 @@ import { JournalEditorView } from './journalView'
 import { editorInvariant } from './invariant'
 import { proseHighlighting } from './proseHighlighting'
 import { nativeTyping, rearmNativeTypingAfterPaint } from './nativeTyping'
+import { markerTidy } from './markerTidy'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
 import { highlightDecoration } from './highlightDecoration'
 import { concealMarkersExtension } from './concealMarkers'
@@ -811,6 +812,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // autocorrect never loses the word.
           highlightActiveLine(),
           nativeTyping(),
+          // `**text **` typed by hand → `**text** ` as the closer lands, so a
+          // phone's auto-space never leaves literal asterisks (markerTidy.ts).
+          markerTidy(),
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
           dimCompartment.current.of(dimming ? dimmingExtension : []),

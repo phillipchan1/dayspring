@@ -243,3 +243,19 @@ test.describe('autosave', () => {
     expect(result).toEqual({ mutations: 0, sameEditor: true })
   })
 })
+
+test.describe('Typed markers', () => {
+  test('a closer typed after a space hugs the words, caret after the space', async ({ page }, testInfo) => {
+    const doc = 'Morning\n\n'
+    await open(page, doc)
+    await setCaret(page, doc.length)
+    await page.keyboard.type('**Can we? **')
+    void testInfo
+    expect(await editorState(page)).toMatchObject({
+      doc: `${doc}**Can we?** `,
+      head: doc.length + '**Can we?** '.length,
+    })
+    await page.keyboard.type('next')
+    expect((await editorState(page)).doc).toBe(`${doc}**Can we?** next`)
+  })
+})

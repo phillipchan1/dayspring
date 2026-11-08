@@ -194,6 +194,14 @@ export function highlightMarkers(color: HighlightColor): { open: string; close: 
  * than `**==x==**`, and it matches how the parser resolves the delimiters.
  */
 export function buildInline(plain: string, marks: InlineMarks): string {
+  // Markers must hug the words. `**text **` is not bold in CommonMark (a
+  // closer can't follow a space), so any edge whitespace — a phone's
+  // double-tap grabs the trailing space, a line selection grabs its end —
+  // goes OUTSIDE the pair: `**text** `. Whitespace-only text stays as is.
+  const ws = /^(\s*)([\s\S]*?)(\s*)$/.exec(plain)
+  if (ws && ws[2] && (ws[1] || ws[3])) {
+    return `${ws[1]}${buildInline(ws[2], marks)}${ws[3]}`
+  }
   if (marks.code) return `\`${plain}\``
 
   let s = plain
@@ -505,6 +513,9 @@ function enclosingFormatRange(
   }
   if (best) return best
 
+  const pair = textualPairAround(state, pos)
+  if (pair) return pair
+
   const doc = state.doc.toString()
   const word = wordRangeAt(state, pos)
   if (word) {
@@ -515,6 +526,39 @@ function enclosingFormatRange(
   // Caret in a marker run next to a formatted word (`**|**hello****`).
   const snapped = adjacentWrappedWord(doc, pos)
   if (snapped) return snapped
+  return null
+}
+
+/**
+ * A same-line `**…**` / `~~…~~` / `==…==` / `++…++` pair around `pos` that the
+ * parser did NOT read as a span — almost always edge whitespace inside it
+ * (`**text **`). Finding it lets a press repair the whole span rather than
+ * wrapping one word inside it and making the soup worse.
+ */
+function textualPairAround(state: EditorState, pos: number): { from: number; to: number } | null {
+  const line = state.doc.lineAt(pos)
+  const text = line.text
+  const at = pos - line.from
+  for (const ch of ['*', '~', '=', '+']) {
+    const runs: { from: number; to: number }[] = []
+    for (let i = 0; i < text.length; ) {
+      if (text[i] !== ch) {
+        i++
+        continue
+      }
+      let j = i
+      while (j < text.length && text[j] === ch) j++
+      if (j - i === 2) runs.push({ from: i, to: j })
+      i = j
+    }
+    for (let k = 0; k + 1 < runs.length; k += 2) {
+      const open = runs[k]!
+      const close = runs[k + 1]!
+      if (open.from <= at && at <= close.to && text.slice(open.to, close.from).trim()) {
+        return { from: line.from + open.from, to: line.from + close.to }
+      }
+    }
+  }
   return null
 }
 
@@ -567,7 +611,20 @@ export function getFormatState(view: EditorView): FormatState {
   const span = formatTargetRange(view)
   const text = view.state.sliceDoc(span.from, span.to)
   const linkParsed = span.from === span.to ? null : parseLink(text)
-  const { marks } = linkParsed ? parseInlineMarks(linkParsed.plain) : parseInlineMarks(text)
+
+  // Report what the writer SEES, read the same way a press will write: per
+  // line for a selection, and a broken span (`**text **`) as unmarked.
+  let marks: InlineMarks
+  const ranges = sel.empty
+    ? span.from === span.to || emptyMarksAt(view.state.doc.toString(), sel.from)
+      ? null
+      : [span]
+    : selectionSegments(view.state, sel.from, sel.to)
+  if (ranges && ranges.length) {
+    marks = commonMarks(ranges.map((r) => readSegment(view.state, r.from, r.to)))
+  } else {
+    marks = (linkParsed ? parseInlineMarks(linkParsed.plain) : parseInlineMarks(text)).marks
+  }
 
   const doc = view.state.doc
   const fromLine = doc.lineAt(sel.from).number
@@ -611,13 +668,182 @@ export function toggleHighlight(marks: InlineMarks, color: HighlightColor): Inli
 }
 
 /**
+ * The block syntax a line opens with — indentation, quote `>`s, a heading's
+ * `#`s, a bullet / number, a task box. Inline marks must start AFTER it: a
+ * bold that swallows `- ` turns the bullet into literal text (`**- item**`),
+ * which is exactly how selecting a whole list line and pressing B used to
+ * break both the list and the bold.
+ */
+const LINE_PREFIX_RE =
+  /^[ \t]*(?:(?:>[ \t]?)+[ \t]*)?(?:#{1,6}[ \t]+|(?:[-*+]|\d{1,9}[.)])[ \t]+(?:\[[ xX]\][ \t]+)?)?/
+
+export function linePrefixLength(text: string): number {
+  return LINE_PREFIX_RE.exec(text)?.[0].length ?? 0
+}
+
+function hasAnyMark(marks: InlineMarks): boolean {
+  return (
+    marks.bold || marks.italic || marks.underline || marks.strike || marks.code || marks.highlight !== null
+  )
+}
+
+/**
+ * The ranges a non-empty selection formats: one per line, each starting after
+ * the line's block prefix and trimmed of edge whitespace, then widened to any
+ * span it exactly covers. Inline marks can't cross list items or paragraphs,
+ * so a multi-line selection is formatted line by line — never one pair whose
+ * closer lands on another line and renders as nothing.
+ */
+export function selectionSegments(
+  state: EditorState,
+  from: number,
+  to: number,
+): { from: number; to: number }[] {
+  const doc = state.doc
+  const out: { from: number; to: number }[] = []
+  const first = doc.lineAt(from).number
+  const last = doc.lineAt(to).number
+  for (let n = first; n <= last; n++) {
+    const line = doc.line(n)
+    let a = Math.max(from, line.from + linePrefixLength(line.text))
+    let b = Math.min(to, line.to)
+    while (a < b && /\s/.test(doc.sliceString(a, a + 1))) a++
+    while (b > a && /\s/.test(doc.sliceString(b - 1, b))) b--
+    if (a < b) out.push(expandToInlineSpans(state, a, b))
+  }
+  return out
+}
+
+interface SegmentRead {
+  from: number
+  to: number
+  url: string | null
+  /** Block prefix a mark wrongly swallowed (`**- item**`), to set back outside. */
+  prefix: string
+  lead: string
+  trail: string
+  core: string
+  marks: InlineMarks
+  /**
+   * Marked in the text but not rendering: edge whitespace inside the pair
+   * (`**text **`) or a swallowed bullet. Such a span LOOKS plain, so pressing
+   * the mark repairs it instead of toggling it off.
+   */
+  broken: boolean
+}
+
+function readSegment(state: EditorState, from: number, to: number): SegmentRead {
+  const raw = state.sliceDoc(from, to)
+  const link = parseLink(raw)
+  const { plain, marks } = parseInlineMarks(link ? link.plain : raw)
+  let body = plain
+  let prefix = ''
+  if (!link && hasAnyMark(marks) && from === state.doc.lineAt(from).from) {
+    const n = linePrefixLength(body)
+    if (n > 0 && body.slice(n).trim()) {
+      prefix = body.slice(0, n)
+      body = body.slice(n)
+    }
+  }
+  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(body)
+  const lead = m?.[1] ?? ''
+  const core = m?.[2] ?? body
+  const trail = m?.[3] ?? ''
+  const broken = hasAnyMark(marks) && core !== '' && (prefix !== '' || lead !== '' || trail !== '')
+  return { from, to, url: link?.url ?? null, prefix, lead, trail, core, marks, broken }
+}
+
+/** The marks a writer actually SEES on a segment — a broken span shows none. */
+function visibleMarks(seg: SegmentRead): InlineMarks {
+  return seg.broken ? { ...EMPTY_INLINE } : seg.marks
+}
+
+/** Marks every segment shares: a mark is on only when it is on everywhere. */
+function commonMarks(segs: SegmentRead[]): InlineMarks {
+  const all = segs.map(visibleMarks)
+  const first = all[0] ?? EMPTY_INLINE
+  return {
+    bold: all.every((m) => m.bold),
+    italic: all.every((m) => m.italic),
+    underline: all.every((m) => m.underline),
+    strike: all.every((m) => m.strike),
+    code: all.every((m) => m.code),
+    highlight: all.every((m) => m.highlight === first.highlight) ? first.highlight : null,
+  }
+}
+
+function writeSegment(seg: SegmentRead, marks: InlineMarks): { insert: string; start: number } {
+  const label = buildInline(seg.core, marks)
+  const body = seg.url ? `[${label}](${seg.url})` : label
+  return { insert: `${seg.prefix}${seg.lead}${body}${seg.trail}`, start: seg.prefix.length + seg.lead.length }
+}
+
+/**
+ * Format a live selection. A broken span (marked but not rendering) is
+ * repaired in place; otherwise the mark toggles as one: on everywhere unless
+ * every line already has it, then off everywhere.
+ */
+function applyToSegments(
+  view: EditorView,
+  ranges: { from: number; to: number }[],
+  transform: (marks: InlineMarks) => InlineMarks,
+): boolean {
+  const state = view.state
+  const segs = ranges.map((r) => readSegment(state, r.from, r.to))
+  const repairing = segs.some((s) => s.broken)
+
+  const shared = commonMarks(segs)
+  const target = transform(shared)
+  const keys = ['bold', 'italic', 'underline', 'strike', 'code', 'highlight'] as const
+
+  const writes = segs.map((seg) => {
+    if (repairing) return seg.broken ? writeSegment(seg, seg.marks) : null
+    const next: InlineMarks = { ...seg.marks }
+    for (const k of keys) {
+      if (target[k] !== shared[k]) (next as unknown as Record<string, unknown>)[k] = target[k]
+    }
+    // Code excludes every other mark (see toggleInlineMark).
+    if (target.code && !shared.code) Object.assign(next, { ...EMPTY_INLINE, code: true })
+    else if (!target.code && keys.some((k) => k !== 'code' && target[k] !== shared[k])) next.code = false
+    return writeSegment(seg, next)
+  })
+
+  const specs: ChangeSpec[] = []
+  segs.forEach((seg, i) => {
+    const w = writes[i]
+    if (w) specs.push({ from: seg.from, to: seg.to, insert: w.insert })
+  })
+  if (!specs.length) {
+    view.focus()
+    return true
+  }
+  const changes = state.changes(specs)
+
+  // Select what was formatted (not the whitespace or bullet set back outside),
+  // so the bar stays put and a second press undoes the first.
+  const firstSeg = segs[0]!
+  const lastSeg = segs[segs.length - 1]!
+  const firstWrite = writes[0]
+  const lastWrite = writes[writes.length - 1]
+  const anchor = changes.mapPos(firstSeg.from, -1) + (firstWrite ? firstWrite.start : 0)
+  const lastEnd = changes.mapPos(lastSeg.to, 1)
+  const head = lastEnd - (lastWrite ? lastSeg.trail.length : 0)
+
+  view.dispatch({ changes, selection: { anchor, head: Math.max(anchor, head) } })
+  view.focus()
+  return true
+}
+
+/**
  * The one write path for inline marks: find the target range, peel, transform,
  * rebuild, dispatch. Everything (bar, keymap, slash palette, mobile toolbar)
  * routes through here so a mark is always a toggle — never a second wrap.
  *
- * Empty caret, in order: take off an empty pair (`**|**`), toggle the
- * enclosing span, wrap (or unwrap) the word at the caret, or insert a fresh
- * empty pair. A second press of the same button always undoes the first.
+ * A live selection is formatted line by line, inside each line's block prefix
+ * and edge whitespace (see `selectionSegments`). Empty caret, in order: take
+ * off an empty pair (`**|**`), toggle the enclosing span, wrap (or unwrap) the
+ * word at the caret, or insert a fresh empty pair. A second press of the same
+ * button always undoes the first.
  */
 function applyInlineTransform(
   view: EditorView,
@@ -625,12 +851,27 @@ function applyInlineTransform(
   emptyMarkers: { open: string; close: string },
 ): boolean {
   const sel = view.state.selection.main
-  const empty = sel.empty ? emptyMarksAt(view.state.doc.toString(), sel.from) : null
+
+  if (!sel.empty) {
+    const ranges = selectionSegments(view.state, sel.from, sel.to)
+    if (ranges.length) return applyToSegments(view, ranges, transform)
+    // Only whitespace / a bullet selected: nothing to wrap, so open an empty
+    // pair where the selection ends, as an empty caret would.
+    const { open, close } = emptyMarkers
+    view.dispatch({
+      changes: { from: sel.to, insert: open + close },
+      selection: { anchor: sel.to + open.length },
+    })
+    view.focus()
+    return true
+  }
+
+  const empty = emptyMarksAt(view.state.doc.toString(), sel.from)
   const span = formatTargetRange(view)
   const from = span.from
   const to = span.to
 
-  if (sel.empty && from === to) {
+  if (from === to) {
     const { open, close } = emptyMarkers
     view.dispatch({
       changes: { from, insert: open + close },
@@ -640,24 +881,13 @@ function applyInlineTransform(
     return true
   }
 
-  const raw = view.state.sliceDoc(from, to)
-  const linkParsed = empty ? null : parseLink(raw)
-  const { plain, marks } = empty
-    ? { plain: '', marks: empty.marks }
-    : linkParsed
-      ? parseInlineMarks(linkParsed.plain)
-      : parseInlineMarks(raw)
+  if (!empty) return applyToSegments(view, [{ from, to }], transform)
 
-  const next = transform(marks)
-  const label = buildInline(plain, next)
-  const insert = linkParsed ? `[${label}](${linkParsed.url})` : label
-  const placedEmpty = sel.empty && plain === ''
-
+  const next = transform(empty.marks)
+  const insert = buildInline('', next)
   view.dispatch({
     changes: { from, to, insert },
-    selection: placedEmpty
-      ? { anchor: from + openingMarkerLength(next) }
-      : { anchor: from, head: from + insert.length },
+    selection: { anchor: from + openingMarkerLength(next) },
   })
   view.focus()
   return true
