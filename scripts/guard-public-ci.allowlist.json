@@ -179,7 +179,7 @@
       "file": "migrate-neon.yml",
       "job": "migrate",
       "id": "migrate",
-      "sha256": "460b1472308d82f7213c3242b53bcde5ddd5eb70cb6fa6e85f4a419755525ce1"
+      "sha256": "9dc497e89994d81a2a2c158132cd9a528798e5ddc4eea2016a25713f7e322545"
     },
     {
       "file": "native-check.yml",

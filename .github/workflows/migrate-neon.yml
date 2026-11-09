@@ -46,4 +46,5 @@ jobs:
           TARGET_PGUSER: ${{ secrets.NEON_PROD_USER }}
           TARGET_PGDATABASE: ${{ secrets.NEON_PROD_DB }}
           TARGET_PGPASSWORD: ${{ secrets.NEON_PROD_PASSWORD }}
+          NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/scripts/certs/supabase-prod-ca-2021.crt
         run: node scripts/migrate-neon.mjs --${{ inputs.mode }}
