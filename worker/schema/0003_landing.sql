@@ -2,6 +2,9 @@
 -- 0001_init / 0002_occ_updated_at. Additive. No functions, triggers, indexes,
 -- or constraints — copied rows insert without them. No storage_objects:
 -- photo metadata is public.attachments.
+--
+-- Nullability: DROP NOT NULL where Neon is NOT NULL and the matching
+-- Supabase column is nullable. Defaults stay. Copy does not COALESCE.
 
 -- echo_candidates
 ALTER TABLE echo_candidates ADD COLUMN IF NOT EXISTS id UUID DEFAULT gen_random_uuid();
@@ -121,3 +124,9 @@ ALTER TABLE marks ADD COLUMN IF NOT EXISTS char_start INTEGER;
 
 -- welcome_drip_enrollments
 ALTER TABLE welcome_drip_enrollments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Target NOT NULL / source nullable (information_schema over supabase/schema.sql
+-- + migrations vs 0001+0002+0003). Keep defaults.
+ALTER TABLE spiritual_items ALTER COLUMN metadata DROP NOT NULL;
+ALTER TABLE profiles ALTER COLUMN acked_processing_completion DROP NOT NULL;
+ALTER TABLE "user" ALTER COLUMN email DROP NOT NULL;

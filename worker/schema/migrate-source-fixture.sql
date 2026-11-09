@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.spiritual_items (
   entry_id UUID REFERENCES public.entries(id),
   type TEXT NOT NULL,
   content TEXT NOT NULL DEFAULT '',
-  metadata JSONB NOT NULL DEFAULT '{}',
+  metadata JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   subject_tags JSONB
 );

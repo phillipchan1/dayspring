@@ -103,6 +103,23 @@ try {
     console.error('jsonb NULL did not round-trip', ben.subject_tags)
     process.exit(1)
   }
+  if (ben.metadata !== null) {
+    console.error('nullable metadata NULL did not round-trip', ben.metadata)
+    process.exit(1)
+  }
+  const metaCol = await client.query(
+    `SELECT is_nullable, column_default
+       FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'spiritual_items' AND column_name = 'metadata'`,
+  )
+  if (metaCol.rows[0]?.is_nullable !== 'YES') {
+    console.error('spiritual_items.metadata should be nullable', metaCol.rows[0])
+    process.exit(1)
+  }
+  if (!String(metaCol.rows[0]?.column_default ?? '').includes('{}')) {
+    console.error('spiritual_items.metadata default should stay {}', metaCol.rows[0])
+    process.exit(1)
+  }
   const entry = await client.query(
     `SELECT tags FROM entries WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1'`,
   )
