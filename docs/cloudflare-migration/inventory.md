@@ -286,6 +286,8 @@ in this PR stores embeddings as optional `text` so CI does not need the extensio
 → same-origin `/api`; Tauri defaults to `https://dayspring-eosin.vercel.app`),
 PostHog, onboarding flags, Apple product ids, `VITE_BACKEND` (**new**, default unset).
 
+Worker production env names (no values): see [production.md](./production.md).
+
 ### Server (Vercel today)
 
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`,
