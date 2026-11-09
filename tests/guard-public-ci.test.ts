@@ -978,6 +978,7 @@ describe("public-repo CI guard", () => {
     for (const name of [
       "checks.yml",
       "ios-release.yml",
+      "migrate-neon.yml",
       "native-check.yml",
       "release.yml",
       "release-stable.yml",

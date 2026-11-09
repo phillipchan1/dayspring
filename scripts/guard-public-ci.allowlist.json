@@ -158,6 +158,30 @@
       "sha256": "2ee7b771d53414acf78ab198c4157d6614072dfd731b21eb0d6a0ef0adb6eb42"
     },
     {
+      "file": "migrate-neon.yml",
+      "job": "migrate",
+      "id": "checkout",
+      "sha256": "1fae4ba9a547bd3c1924628291085a81203cad3151ae04a1a1b249cb22457d59"
+    },
+    {
+      "file": "migrate-neon.yml",
+      "job": "migrate",
+      "id": "setup-node",
+      "sha256": "779c6cc66a3c84dd6cd5765a87b9959e4b7fb0ab3878d89b43c8b7e924c5721a"
+    },
+    {
+      "file": "migrate-neon.yml",
+      "job": "migrate",
+      "id": "npm-ci",
+      "sha256": "25d54fbc6d7ef122f39f900bea77cbf466e1a2407f3c1db2333ddd58f2d315f6"
+    },
+    {
+      "file": "migrate-neon.yml",
+      "job": "migrate",
+      "id": "migrate",
+      "sha256": "460b1472308d82f7213c3242b53bcde5ddd5eb70cb6fa6e85f4a419755525ce1"
+    },
+    {
       "file": "native-check.yml",
       "job": "check",
       "id": "checkout",
@@ -447,6 +471,17 @@
       "sha256": "067bf8d85af2aa8ec4236dda6c206e697b6ebff34243279bd94ad1e16bcdace8"
     },
     {
+      "file": "migrate-neon.yml",
+      "job": "migrate",
+      "ids": [
+        "checkout",
+        "setup-node",
+        "npm-ci",
+        "migrate"
+      ],
+      "sha256": "968a3b532d23237d1236282116f7b3354775307e8d19870a9d08f6813a54c6f7"
+    },
+    {
       "file": "native-check.yml",
       "job": "check",
       "ids": [
@@ -544,6 +579,13 @@
         "testflight"
       ],
       "sha256": "5e6d515a56fd7d6f72a4c42f6d27540da7a6100ffda75545c5fe8d07015860c8"
+    },
+    {
+      "file": "migrate-neon.yml",
+      "jobs": [
+        "migrate"
+      ],
+      "sha256": "7ebb53c1c877f87b553b96d49dea280b69b49701ae464a9da2eff7cfd6bb61cc"
     },
     {
       "file": "native-check.yml",
