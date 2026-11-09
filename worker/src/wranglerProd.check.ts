@@ -28,8 +28,8 @@ ok(
   'top-level Hyperdrive id is the named placeholder',
 )
 ok(
-  config.env?.production?.hyperdrive?.[0]?.id === HYPERDRIVE_ID_PLACEHOLDER,
-  'production Hyperdrive id is the named placeholder',
+  /^[0-9a-f]{32}$/.test(config.env?.production?.hyperdrive?.[0]?.id ?? ''),
+  'production Hyperdrive id is a real config id',
 )
 ok(
   (config.env?.preview?.hyperdrive ?? []).length === 0,
