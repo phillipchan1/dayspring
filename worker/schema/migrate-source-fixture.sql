@@ -41,7 +41,19 @@ CREATE TABLE IF NOT EXISTS public.entries (
   title TEXT,
   word_count INTEGER NOT NULL DEFAULT 0,
   source TEXT NOT NULL DEFAULT 'native',
-  tags TEXT[] NOT NULL DEFAULT '{}'
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  circumstances JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS public.spiritual_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner UUID NOT NULL REFERENCES auth.users(id),
+  entry_id UUID REFERENCES public.entries(id),
+  type TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  metadata JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  subject_tags JSONB
 );
 
 CREATE TABLE IF NOT EXISTS public.echo_candidates (

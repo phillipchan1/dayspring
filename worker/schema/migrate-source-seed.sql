@@ -14,10 +14,15 @@ VALUES
   ('11111111-1111-1111-1111-111111111111', TRUE, 'active'),
   ('22222222-2222-2222-2222-222222222222', TRUE, 'trialing');
 
-INSERT INTO public.entries (id, owner, body_markdown, title, word_count, source)
+INSERT INTO public.entries (id, owner, body_markdown, title, word_count, source, tags, circumstances)
 VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', '11111111-1111-1111-1111-111111111111', 'Ada wrote this.', 'Ada day', 3, 'native'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', '22222222-2222-2222-2222-222222222222', 'Ben wrote this.', 'Ben day', 3, 'native');
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', '11111111-1111-1111-1111-111111111111', 'Ada wrote this.', 'Ada day', 3, 'native', ARRAY['mercy','hope'], '{"mood":"quiet"}'::jsonb),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', '22222222-2222-2222-2222-222222222222', 'Ben wrote this.', 'Ben day', 3, 'native', ARRAY['grace'], '{}'::jsonb);
+
+INSERT INTO public.spiritual_items (id, owner, entry_id, type, content, metadata, subject_tags)
+VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa51', '11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', 'prayer', 'Ada prayed', '{"kind":"intercession","ok":true}'::jsonb, '["mercy","hope"]'::jsonb),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb51', '22222222-2222-2222-2222-222222222222', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 'prayer', 'Ben prayed', '{"kind":"thanks"}'::jsonb, NULL);
 
 INSERT INTO public.echo_candidates (id, owner, entry_id, text, entry_date)
 VALUES

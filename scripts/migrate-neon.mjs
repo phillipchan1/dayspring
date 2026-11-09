@@ -189,9 +189,34 @@ async function overlappingColumns(src, tgt, srcSchema, srcTable, tgtTable) {
   for (const row of a.rows) {
     const t = target.get(row.column_name)
     if (!t) continue
-    cols.push({ name: row.column_name, srcType: row.udt_name, tgtType: t.udt_name })
+    cols.push({
+      name: row.column_name,
+      srcType: row.udt_name,
+      tgtType: t.udt_name,
+      srcDataType: row.data_type,
+      tgtDataType: t.data_type,
+    })
   }
   return cols
+}
+
+/** json/jsonb scalars — not ARRAY (text[], uuid[], jsonb[], …). Types from information_schema. */
+export function isJsonColumn(col) {
+  if (String(col.tgtDataType || '').toLowerCase() === 'array') return false
+  const t = String(col.tgtType || '').toLowerCase()
+  const d = String(col.tgtDataType || '').toLowerCase()
+  return t === 'json' || t === 'jsonb' || d === 'json' || d === 'jsonb'
+}
+
+/** node-pg binds JS arrays as Postgres arrays; jsonb must be JSON text. NULLs stay NULL. */
+export function bindCopyValue(col, value) {
+  if (!isJsonColumn(col)) return value
+  if (value === null || value === undefined) return null
+  return JSON.stringify(value)
+}
+
+export function insertPlaceholder(col, index) {
+  return isJsonColumn(col) ? `$${index}::jsonb` : `$${index}`
 }
 
 function selectExpr(col, kind) {
@@ -217,7 +242,7 @@ async function copyTable(src, tgt, spec, kind) {
   const srcName = spec.source.split('.')[1]
   if (!(await tableExists(src, srcSchema, srcName))) return { table: spec.target, source: 0, target: 0, skipped: true }
   const cols = await overlappingColumns(src, tgt, srcSchema, srcName, spec.target)
-  const pairs = cols.map((c) => ({ name: c.name, expr: selectExpr(c, kind) })).filter((p) => p.expr)
+  const pairs = cols.map((c) => ({ ...c, expr: selectExpr(c, kind) })).filter((p) => p.expr)
   if (!pairs.length) fail(`no overlapping columns for ${spec.target}`)
   const names = pairs.map((p) => p.name)
   const rows = await src.query(`SELECT ${pairs.map((p) => p.expr).join(', ')} FROM ${spec.source}`)
@@ -228,8 +253,8 @@ async function copyTable(src, tgt, spec, kind) {
     .map((c) => `"${c}" = EXCLUDED."${c}"`)
     .join(', ')
   for (const row of rows.rows) {
-    const values = names.map((c) => row[c])
-    const placeholders = names.map((_, i) => `$${i + 1}`).join(', ')
+    const values = pairs.map((c) => bindCopyValue(c, row[c.name]))
+    const placeholders = pairs.map((c, i) => insertPlaceholder(c, i + 1)).join(', ')
     const conflict = pk.length ? pk.map((c) => `"${c}"`).join(', ') : null
     const sql = conflict && updateSet
       ? `INSERT INTO ${spec.target} (${colSql}) VALUES (${placeholders})
