@@ -17,6 +17,7 @@ import {
   listEntriesSince,
   listProcessingJobs,
   makeStore,
+  upsertAttachment,
   upsertEntryChecked,
 } from './store.ts'
 
@@ -215,6 +216,80 @@ app.post('/api/feedback', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
   return json({ error: 'feedback stays on Vercel until cutover' }, 501)
+})
+
+const ATTACHMENTS_BUCKET = 'attachments'
+const SIGNED_URL_TTL_S = 3600
+
+function ownerStorageKey(ownerId: string, storageKey: string): string | null {
+  const prefix = `${ownerId}/`
+  if (!storageKey.startsWith(prefix) || storageKey.includes('..') || storageKey.includes('//')) return null
+  if (storageKey.slice(prefix.length).includes('/')) return null
+  return storageKey
+}
+
+async function supabaseSign(
+  env: Env,
+  action: 'download' | 'upload',
+  storageKey: string,
+  transform?: { width?: number; quality?: number; resize?: string },
+): Promise<{ signedUrl: string } | { error: string; status: number }> {
+  const base = env.SUPABASE_URL?.trim().replace(/\/$/, '')
+  const secret = env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!base || !secret) return { error: 'storage not configured', status: 501 }
+  const encoded = storageKey.split('/').map(encodeURIComponent).join('/')
+  const path = action === 'upload'
+    ? `/storage/v1/object/upload/sign/${ATTACHMENTS_BUCKET}/${encoded}`
+    : `/storage/v1/object/sign/${ATTACHMENTS_BUCKET}/${encoded}`
+  const body: Record<string, unknown> = { expiresIn: SIGNED_URL_TTL_S }
+  if (action === 'download' && transform) body.transform = transform
+  const res = await fetch(`${base}${path}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${secret}`,
+      apikey: secret,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  const payload = await res.json().catch(() => ({})) as { signedURL?: string; signedUrl?: string; url?: string; token?: string }
+  if (!res.ok) return { error: 'sign failed', status: 502 }
+  if (action === 'upload') {
+    const rel = payload.url ?? ''
+    const token = payload.token ?? ''
+    const signedUrl = rel.startsWith('http') ? (token ? `${rel}${rel.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : rel) : `${base}/storage/v1${rel}${token ? (rel.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token) : ''}`
+    return { signedUrl }
+  }
+  const rel = payload.signedURL ?? payload.signedUrl ?? ''
+  const signedUrl = rel.startsWith('http') ? rel : `${base}/storage/v1${rel}`
+  return { signedUrl }
+}
+
+app.post('/api/storage/sign', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const body = await c.req.json<{
+    action?: string
+    storageKey?: string
+    hash?: string
+    mime?: string
+    bytes?: number
+    transform?: { width?: number; quality?: number; resize?: string }
+  }>()
+  const storageKey = ownerStorageKey(user.id, String(body.storageKey ?? ''))
+  if (!storageKey) return json({ error: 'forbidden key' }, 403)
+  const action = body.action === 'upload' ? 'upload' : 'download'
+  const signed = await supabaseSign(c.env, action, storageKey, body.transform)
+  if ('error' in signed) return json({ error: signed.error }, signed.status)
+  if (action === 'upload' && body.hash) {
+    await upsertAttachment(makeStore(sqlOf(c), user.id), {
+      hash: body.hash,
+      storage_key: storageKey,
+      mime: body.mime ?? null,
+      bytes: body.bytes ?? null,
+    })
+  }
+  return json(signed)
 })
 
 app.post('/api/stripe/checkout', () => json({ error: 'billing stays on Vercel; do not move webhooks' }, 501))

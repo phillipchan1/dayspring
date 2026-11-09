@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { resolveAttachmentDisplayUrl } from '@/lib/attachments'
+import { attachmentOwnerId, resolveAttachmentDisplayUrl } from '@/lib/attachments'
 import { usePhotoLooks } from '@/lib/photoLooks'
 import { PHOTO_ROW_GAP, photoRatio } from '@/lib/photoSet'
 import { supabase } from '@/lib/supabase'
@@ -81,13 +81,10 @@ function usePhotoUrls(photos: readonly PagePhoto[]): (string | null)[] {
     let live = true
     setUrls([])
     void (async () => {
-      if (!supabase) return
-      const { data } = await supabase.auth.getSession()
-      const owner = data.session?.user?.id
+      const owner = await attachmentOwnerId(supabase)
       if (!owner || !live) return
-      const sb = supabase
       const resolved = await Promise.all(
-        photos.map((p) => resolveAttachmentDisplayUrl(sb, owner, p.hash, p.ext).catch(() => null)),
+        photos.map((p) => resolveAttachmentDisplayUrl(supabase, owner, p.hash, p.ext).catch(() => null)),
       )
       if (live) setUrls(resolved)
     })()

@@ -46,6 +46,14 @@ export async function getWorkersToken(): Promise<string | null> {
   return readWorkersBearer()
 }
 
+export async function getWorkersUserId(): Promise<string | null> {
+  if (!readWorkersBearer()) return null
+  const auth = await workersAuthClient()
+  const { data } = await auth.getSession()
+  const row = data as { user?: { id?: string }; session?: { user?: { id?: string } } } | null
+  return row?.user?.id ?? row?.session?.user?.id ?? null
+}
+
 export async function signInWorkersEmailOtp(email: string, otp: string): Promise<void> {
   const auth = await workersAuthClient()
   const result = await auth.signIn.emailOtp({ email, otp })

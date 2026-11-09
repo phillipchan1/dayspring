@@ -21,7 +21,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react'
 import { analyzeImage } from './imageCompress'
-import { resolveAttachmentUrl } from './attachments'
+import { attachmentOwnerId, resolveAttachmentUrl } from './attachments'
 import { supabase } from './supabase'
 
 export interface PhotoLook {
@@ -247,9 +247,7 @@ const SMALL = { width: 48, quality: 60, resize: 'contain' as const }
 
 const defaultDeps: PhotoLookDeps = {
   async owner() {
-    if (!supabase) return null
-    const { data } = await supabase.auth.getSession()
-    return data.session?.user?.id ?? null
+    return attachmentOwnerId(supabase)
   },
   async read(owner, hashes) {
     if (!supabase) return []
@@ -262,7 +260,6 @@ const defaultDeps: PhotoLookDeps = {
     return (data ?? []) as StoredMeta[]
   },
   async measure(owner, ref) {
-    if (!supabase) return null
     const url = await resolveAttachmentUrl(supabase, owner, ref.hash, ref.ext, SMALL)
     if (!url) return null
     const res = await fetch(url)

@@ -19,6 +19,7 @@
 // removes the placeholder as before.
 
 import { supabase } from './supabase'
+import { isWorkersBackend } from './env'
 import { uploadImageAttachment, formatAttachmentMarkdown } from './attachments'
 import { PENDING_ATTACHMENT_REF_RE } from './attachments'
 import type { AttachmentPhotoMeta } from './attachmentCaption'
@@ -101,7 +102,7 @@ export async function uploadOrQueue(
   meta?: AttachmentPhotoMeta,
 ): Promise<UploadedRef | null> {
   const sb = supabase
-  if (!sb) throw new Error('Supabase is not configured')
+  if (!isWorkersBackend && !sb) throw new Error('Supabase is not configured')
   setArrivalStage(pendingId, 'preparing')
   const exif = await readPhotoExif(file)
   const metaWithExif: AttachmentPhotoMeta | undefined = (() => {

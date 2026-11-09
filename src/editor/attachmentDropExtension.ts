@@ -3,9 +3,10 @@
 import type { Extension } from '@codemirror/state'
 import { EditorView, ViewPlugin } from '@codemirror/view'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
-import { extFromImageFile } from '@/lib/attachments'
+import { attachmentOwnerId, extFromImageFile } from '@/lib/attachments'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { beginArrivals } from '@/lib/photoArrival'
+import { isWorkersBackend } from '@/lib/env'
 import { supabase } from '@/lib/supabase'
 import {
   ATTACHMENT_DND_MIME,
@@ -76,7 +77,7 @@ async function uploadFiles(
   focus = true,
 ): Promise<void> {
   if (files.length === 0) return
-  if (!supabase) {
+  if (!supabase && !isWorkersBackend) {
     console.warn('[images] drop ignored — supabase not configured')
     return
   }
@@ -99,7 +100,7 @@ async function uploadFiles(
     insertBlockPendingAttachmentsAt(view, target.pos, placeholders)
   }
 
-  const ownerId = (await supabase.auth.getSession()).data.session?.user?.id
+  const ownerId = await attachmentOwnerId(supabase)
   if (!ownerId) return
 
   for (const item of pending) {

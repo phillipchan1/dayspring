@@ -20,6 +20,9 @@ export interface Env {
   CRON_SECRET?: string
   ESV_API_KEY?: string
   WELCOME_DRIP_SENDS_ENABLED?: string
+  /** Supabase Storage stays the photo bucket; service role mints signed URLs. */
+  SUPABASE_URL?: string
+  SUPABASE_SERVICE_ROLE_KEY?: string
 }
 
 const HYPERDRIVE_PLACEHOLDERS = [

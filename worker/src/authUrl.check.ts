@@ -188,13 +188,15 @@ try {
   ok(!/hyperdrive\.local/i.test(message), 'Hyperdrive TLS errors do not leak the host')
 }
 
-ok(nextMigrationVersions([]).join(',') === '0001,0002', 'fresh DB applies 0001 then 0002')
-ok(nextMigrationVersions(['0001']).join(',') === '0002', '0001 applied continues at 0002')
-ok(nextMigrationVersions(['0002']).join(',') === '', 'never re-run 0001 after 0002')
-ok(nextMigrationVersions(['0001', '0002']).join(',') === '', 'fully applied migrations are no-ops')
+ok(nextMigrationVersions([]).join(',') === '0001,0002,0003', 'fresh DB applies 0001 then 0002 then 0003')
+ok(nextMigrationVersions(['0001']).join(',') === '0002,0003', '0001 applied continues at 0002')
+ok(nextMigrationVersions(['0002']).join(',') === '0003', 'never re-run 0001 after 0002; continue at 0003')
+ok(nextMigrationVersions(['0001', '0002']).join(',') === '0003', '0001+0002 continues at 0003')
+ok(nextMigrationVersions(['0001', '0002', '0003']).join(',') === '', 'fully applied migrations are no-ops')
 ok(
   schemaFileVersion('0002_occ_updated_at.sql') === 2
     && schemaFileVersion('0001_init.sql') === 1
+    && schemaFileVersion('0003_landing.sql') === 3
     && schemaFileVersion('0002_occ_updated_at.sql') > schemaFileVersion('0001_init.sql'),
   'schema files are ordered numerically',
 )
