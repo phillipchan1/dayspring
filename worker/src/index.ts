@@ -303,12 +303,94 @@ app.post('/api/storage/sign', async (c) => {
   return json(signed)
 })
 
-app.post('/api/stripe/checkout', () => json({ error: 'billing stays on Vercel; do not move webhooks' }, 501))
-app.get('/api/stripe/portal', () => json({ error: 'billing stays on Vercel; do not move webhooks' }, 501))
-app.post('/api/apple/verify', () => json({ error: 'StoreKit stays on Vercel; do not move webhooks' }, 501))
-app.post('/api/webhooks/stripe', () => json({ error: 'billing webhook stays on Vercel' }, 501))
-app.post('/api/webhooks/apple', () => json({ error: 'StoreKit webhook stays on Vercel' }, 501))
-app.post('/api/webhooks/revenuecat', () => json({ error: 'billing webhook stays on Vercel' }, 501))
+function waitUntilOf(c: WorkerContext): (task: Promise<unknown>) => void {
+  return (task) => {
+    try {
+      c.executionCtx.waitUntil(task)
+    } catch {
+      void task
+    }
+  }
+}
+
+// Dynamic import so Node strip-types checks that load `app` do not have to
+// resolve api/_lib/apple.ts's .js imports (Vercel extension). Wrangler still bundles this.
+async function billing() {
+  const [
+    { bindBillingEnv },
+    { liveApple },
+    { handleAppleWebhook },
+    { handleStripeCheckout },
+    { handleStripePortal },
+    { handleStripeWebhook, stripeClientFromEnv },
+    { handleAppleVerify },
+    { handleRevenuecatWebhook },
+  ] = await Promise.all([
+    import('./billing/bindEnv.ts'),
+    import('./billing/apple.ts'),
+    import('./billing/appleWebhook.ts'),
+    import('./billing/checkout.ts'),
+    import('./billing/portal.ts'),
+    import('./billing/stripeWebhook.ts'),
+    import('./billing/verify.ts'),
+    import('./billing/revenuecatWebhook.ts'),
+  ])
+  return {
+    bindBillingEnv,
+    liveApple,
+    handleAppleWebhook,
+    handleStripeCheckout,
+    handleStripePortal,
+    handleStripeWebhook,
+    stripeClientFromEnv,
+    handleAppleVerify,
+    handleRevenuecatWebhook,
+  }
+}
+
+app.post('/api/stripe/checkout', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  const stripe = b.stripeClientFromEnv(c.env)
+  return b.handleStripeCheckout(c.req.raw, sqlOf(c), c.env, user, stripe)
+})
+
+app.get('/api/stripe/portal', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  const stripe = b.stripeClientFromEnv(c.env)
+  return b.handleStripePortal(sqlOf(c), c.env, user, stripe)
+})
+
+app.post('/api/apple/verify', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleAppleVerify(c.req.raw, sqlOf(c), c.env, user, b.liveApple, waitUntilOf(c))
+})
+
+app.post('/api/webhooks/stripe', async (c) => {
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleStripeWebhook(c.req.raw, sqlOf(c), c.env, waitUntilOf(c))
+})
+
+app.post('/api/webhooks/apple', async (c) => {
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleAppleWebhook(c.req.raw, sqlOf(c), c.env, b.liveApple, waitUntilOf(c))
+})
+
+app.post('/api/webhooks/revenuecat', async (c) => {
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleRevenuecatWebhook(c.req.raw, sqlOf(c), c.env, waitUntilOf(c))
+})
 
 app.all('/api/cron/welcome-drip', async (c) => {
   if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)

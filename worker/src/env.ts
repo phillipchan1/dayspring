@@ -30,6 +30,23 @@ export interface Env {
   /** Supabase Storage stays the photo bucket; service role mints signed URLs. */
   SUPABASE_URL?: string
   SUPABASE_SERVICE_ROLE_KEY?: string
+  /** Billing. Secrets only — never put these in wrangler `vars`. */
+  STRIPE_SECRET_KEY?: string
+  STRIPE_WEBHOOK_SECRET?: string
+  STRIPE_ANNUAL_PRICE_ID?: string
+  STRIPE_MONTHLY_PRICE_ID?: string
+  APPLE_BUNDLE_ID?: string
+  APPLE_ISSUER_ID?: string
+  APPLE_KEY_ID?: string
+  APPLE_PRIVATE_KEY?: string
+  APPLE_APP_APPLE_ID?: string
+  APP_URL?: string
+  ONBOARDING_REQUIRE_CARD?: string
+  VITE_POSTHOG_KEY?: string
+  VITE_POSTHOG_HOST?: string
+  META_PIXEL_ID?: string
+  META_CAPI_ACCESS_TOKEN?: string
+  REVENUECAT_WEBHOOK_SECRET?: string
 }
 
 const HYPERDRIVE_PLACEHOLDERS = [

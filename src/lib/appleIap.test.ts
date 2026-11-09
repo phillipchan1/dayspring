@@ -15,10 +15,10 @@ vi.mock('@spicavi/tauri-plugin-purchases', () => ({
   onPurchaseUpdated: vi.fn(),
 }))
 
-let onAppleDevice = true
+const platform = vi.hoisted(() => ({ onAppleDevice: true }))
 vi.mock('./platform', () => ({
-  isMobileTauri: () => onAppleDevice,
-  isTauri: () => onAppleDevice,
+  isMobileTauri: () => platform.onAppleDevice,
+  isTauri: () => platform.onAppleDevice,
   isDesktopTauri: () => false,
 }))
 
@@ -76,7 +76,7 @@ function mockVerify(replies: Reply[]): void {
 const purchases = (n: number) => Array.from({ length: n }, (_, i) => ({ jws: `jws-${i}` }))
 
 beforeEach(() => {
-  onAppleDevice = true
+  platform.onAppleDevice = true
   restorePurchases.mockReset()
   purchase.mockReset()
 })
@@ -162,7 +162,7 @@ describe('restoreApplePurchases', () => {
   })
 
   it('is inert off an Apple device', async () => {
-    onAppleDevice = false
+    platform.onAppleDevice = false
     const out = await restoreApplePurchases()
     expect(out.found).toBe(0)
     expect(restorePurchases).not.toHaveBeenCalled()

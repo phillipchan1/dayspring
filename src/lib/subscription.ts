@@ -1,6 +1,7 @@
 import { requireSupabase } from './supabase'
-import { apiUrl } from './api'
+import { apiGet, apiUrl } from './api'
 import { track } from './analytics'
+import { isWorkersBackend } from './env'
 
 export type Plan = 'none' | 'trialing' | 'active' | 'cancelled' | 'past_due'
 
@@ -257,8 +258,56 @@ export function writeCachedSubscription(sub: Subscription): void {
   }
 }
 
+function subscriptionFromProfile(data: {
+  plan: Plan | null
+  plan_source: PlanSource | null
+  trial_ends_at: string | null
+  plan_expires_at: string | null
+  onboarded_at: string | null
+  feature_flags: string[] | null
+}): Subscription {
+  return {
+    plan: data.plan ?? 'none',
+    plan_source: data.plan_source ?? null,
+    trial_ends_at: data.trial_ends_at ?? null,
+    plan_expires_at: data.plan_expires_at ?? null,
+    onboarded_at: data.onboarded_at ?? null,
+    featureFlags: data.feature_flags ?? [],
+  }
+}
+
+async function billingAccessToken(): Promise<string> {
+  if (isWorkersBackend) {
+    const { getWorkersToken } = await import('./authClient')
+    const token = await getWorkersToken()
+    if (!token) throw new Error('not authenticated')
+    return token
+  }
+  const sb = requireSupabase()
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
+  if (!session) throw new Error('not authenticated')
+  return session.access_token
+}
+
 /** Fetch the current user's subscription state from their profile row. */
 export async function fetchSubscription(): Promise<Subscription> {
+  if (isWorkersBackend) {
+    const data = await apiGet<{
+      profile: {
+        plan: Plan | null
+        plan_source: PlanSource | null
+        trial_ends_at: string | null
+        plan_expires_at: string | null
+        onboarded_at: string | null
+        feature_flags: string[] | null
+      } | null
+    }>('/api/data/profile')
+    if (!data.profile) throw new Error('No profile row')
+    return subscriptionFromProfile(data.profile)
+  }
+
   const sb = requireSupabase()
   const { data, error } = await sb
     .from('profiles')
@@ -271,14 +320,14 @@ export async function fetchSubscription(): Promise<Subscription> {
   // cached entitlement (or stay loading) until a real row arrives.
   if (!data) throw new Error('No profile row')
 
-  return {
+  return subscriptionFromProfile({
     plan: (data.plan as Plan | null) ?? 'none',
     plan_source: (data.plan_source as PlanSource | null) ?? null,
     trial_ends_at: data.trial_ends_at ?? null,
     plan_expires_at: data.plan_expires_at ?? null,
     onboarded_at: data.onboarded_at ?? null,
-    featureFlags: (data.feature_flags as string[] | null) ?? [],
-  }
+    feature_flags: (data.feature_flags as string[] | null) ?? [],
+  })
 }
 
 /**
@@ -294,17 +343,13 @@ export async function fetchSubscription(): Promise<Subscription> {
 export async function startCheckout(plan: 'annual' | 'monthly'): Promise<string> {
   track('checkout_started', { store: 'stripe' })
   try {
-    const sb = requireSupabase()
-    const {
-      data: { session },
-    } = await sb.auth.getSession()
-    if (!session) throw new Error('not authenticated')
+    const token = await billingAccessToken()
 
     const res = await fetch(apiUrl('/api/stripe/checkout'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ plan }),
     })
@@ -324,15 +369,11 @@ export async function startCheckout(plan: 'annual' | 'monthly'): Promise<string>
 
 /** POST /api/trial/extend — one-time +7 day self-serve extension. */
 export async function extendTrial(): Promise<void> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not authenticated')
+  const token = await billingAccessToken()
 
   const res = await fetch(apiUrl('/api/trial/extend'), {
     method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` },
+    headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: string }
@@ -377,14 +418,10 @@ export async function fetchJournalHolding(): Promise<JournalHolding> {
 
 /** GET /api/stripe/portal and return the Stripe Customer Portal URL. */
 export async function fetchPortalUrl(): Promise<string> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not authenticated')
+  const token = await billingAccessToken()
 
   const res = await fetch(apiUrl('/api/stripe/portal'), {
-    headers: { Authorization: `Bearer ${session.access_token}` },
+    headers: { Authorization: `Bearer ${token}` },
   })
 
   if (!res.ok) {

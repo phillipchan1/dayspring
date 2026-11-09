@@ -25,9 +25,8 @@ async function bearerToken(): Promise<string> {
 }
 
 /**
- * POST JSON to a user-authed `/api/*` endpoint, attaching the current Supabase
- * access token as a Bearer (the server validates it via getAuthedUser). Throws
- * on a non-2xx response.
+ * GET JSON from a user-authed `/api/*` endpoint, attaching the current session
+ * as a Bearer. Throws on a non-2xx response.
  */
 export async function apiGet<T = unknown>(path: string): Promise<T> {
   const token = await bearerToken()
@@ -41,6 +40,10 @@ export async function apiGet<T = unknown>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+/**
+ * POST JSON to a user-authed `/api/*` endpoint, attaching the current session
+ * as a Bearer. Throws on a non-2xx response.
+ */
 export async function apiPost<T = unknown>(path: string, body: unknown): Promise<T> {
   const token = await bearerToken()
 
