@@ -22,11 +22,22 @@ export interface Env {
   WELCOME_DRIP_SENDS_ENABLED?: string
 }
 
+const HYPERDRIVE_PLACEHOLDERS = [
+  'HYPERDRIVE_ID_PLACEHOLDER',
+  '00000000000000000000000000000000',
+] as const
+
+function isPlaceholderHyperdrive(connectionString: string): boolean {
+  return HYPERDRIVE_PLACEHOLDERS.some((token) => connectionString.includes(token))
+}
+
 export function databaseUrl(env: Env): string | null {
   const bound = env.HYPERDRIVE?.connectionString
   const fromHyperdrive = bound?.trim() ?? ''
+  // Prefer the Hyperdrive binding when it is a real connection string.
+  // Preview / local / a still-unfilled placeholder fall back to DATABASE_URL.
   // Return the exact binding string so TLS can identity-match it.
-  if (bound && fromHyperdrive && !fromHyperdrive.includes('00000000000000000000000000000000')) {
+  if (bound && fromHyperdrive && !isPlaceholderHyperdrive(fromHyperdrive)) {
     return bound
   }
   const fallback = env.DATABASE_URL?.trim() ?? ''

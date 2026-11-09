@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { shouldLogOtp } from './auth.ts'
 import { databaseUrl } from './env.ts'
 import { isBoundHyperdrive, pgClientOptions, postgresSslOption, withPgSslMode } from './db.ts'
+import { HYPERDRIVE_ID_PLACEHOLDER, asWranglerFile, parseJsonc } from './wranglerProd.ts'
 import { nextMigrationVersions, schemaFileVersion } from './isolationDb.ts'
 import { app } from './index.ts'
 import { authConfigErrorResponse, beginAuthCors } from './cors.ts'
@@ -116,6 +117,22 @@ ok(postgresSslOption(`${neon}?sslmode=disable`) === false, 'explicit sslmode=dis
 const hyperdriveLocal = 'postgresql://neondb:secret@deadbeef01234567.hyperdrive.local:5432/neondb'
 const hyperdriveEnv = { HYPERDRIVE: { connectionString: hyperdriveLocal } }
 ok(databaseUrl(hyperdriveEnv) === hyperdriveLocal, 'databaseUrl returns the exact Hyperdrive binding')
+ok(databaseUrl({ DATABASE_URL: neon }) === neon, 'missing Hyperdrive falls back to DATABASE_URL')
+ok(
+  databaseUrl({ HYPERDRIVE: { connectionString: HYPERDRIVE_ID_PLACEHOLDER }, DATABASE_URL: neon }) === neon,
+  'named placeholder Hyperdrive falls back to DATABASE_URL',
+)
+ok(
+  databaseUrl({
+    HYPERDRIVE: { connectionString: 'postgresql://x@y/z?id=00000000000000000000000000000000' },
+    DATABASE_URL: neon,
+  }) === neon,
+  'zeros placeholder Hyperdrive falls back to DATABASE_URL',
+)
+ok(
+  databaseUrl({ HYPERDRIVE: { connectionString: hyperdriveLocal }, DATABASE_URL: neon }) === hyperdriveLocal,
+  'bound Hyperdrive wins over DATABASE_URL',
+)
 ok(
   isBoundHyperdrive(hyperdriveEnv, hyperdriveLocal),
   'bound Hyperdrive matches the exact connection string',
@@ -198,6 +215,7 @@ ok(!timingSafeEqualString('', 'Bearer secret'), 'cron compare rejects empty head
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const wrangler = readFileSync(join(root, 'wrangler.jsonc'), 'utf8')
+const wranglerConfig = asWranglerFile(parseJsonc(wrangler))
 ok(
   wrangler.includes('ENVIRONMENT=local'),
   'wrangler.jsonc documents ENVIRONMENT=local',
@@ -206,14 +224,18 @@ ok(
   wrangler.includes('https://dayspring-preview.nq-morning-briefing.workers.dev'),
   'preview BETTER_AUTH_URL is the workers.dev origin',
 )
-const previewBlock = wrangler.slice(wrangler.indexOf('"preview"'))
 ok(
-  !previewBlock.includes('00000000000000000000000000000000'),
+  (wranglerConfig.env?.preview?.hyperdrive ?? []).length === 0,
   'preview env does not bind a placeholder Hyperdrive id',
 )
 ok(
-  wrangler.includes('"id": "00000000000000000000000000000000"'),
-  'top-level production still has a Hyperdrive placeholder',
+  wranglerConfig.hyperdrive?.[0]?.id === HYPERDRIVE_ID_PLACEHOLDER
+    && wranglerConfig.env?.production?.hyperdrive?.[0]?.id === HYPERDRIVE_ID_PLACEHOLDER,
+  'top-level and production still have a named Hyperdrive placeholder',
+)
+ok(
+  wranglerConfig.env?.production?.name === 'dayspring',
+  'production env deploys the dayspring Worker',
 )
 ok(
   !readFileSync(join(root, 'worker/src/db.ts'), 'utf8').includes('fetch_types: false'),

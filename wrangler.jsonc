@@ -24,21 +24,44 @@
     // AI_GATEWAY_API_KEY — secret (wrangler secret put). Do not set a value here.
     // AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS — unset here so the flag stays off.
   },
-  // Replace `id` with a real Hyperdrive config before any paid deploy.
-  // Hyperdrive is a Workers Paid feature. Local / Free preview uses DATABASE_URL.
+  // HYPERDRIVE_ID_PLACEHOLDER — replace with a real Hyperdrive config id before
+  // any paid deploy. Hyperdrive is a Workers Paid feature and is NOT inherited
+  // by named envs; each env that needs it must declare this binding.
   // Local `wrangler dev` uses localConnectionString (or DATABASE_URL in .dev.vars).
+  // Operator steps: docs/cloudflare-migration/production.md
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "00000000000000000000000000000000",
+      "id": "HYPERDRIVE_ID_PLACEHOLDER",
       "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
     },
   ],
   "observability": {
     "enabled": true,
   },
-  // workers.dev only. No routes, no custom domain. Do not deploy from CI.
+  // Named envs only. Do not deploy from CI. No routes / custom domain in this PR.
   "env": {
+    "production": {
+      "name": "dayspring",
+      // Public origin is not known yet — do not set BETTER_AUTH_URL here.
+      // workers.dev and localhost in production vars fail check:worker.
+      "vars": {
+        "OPENAI_MODEL": "gpt-5.4-nano",
+        "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
+        "WELCOME_DRIP_SENDS_ENABLED": "false",
+        // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
+      },
+      // HYPERDRIVE_ID_PLACEHOLDER — fill in from the Cloudflare API create
+      // in docs/cloudflare-migration/production.md (curl --data @file).
+      // Do not wrangler hyperdrive create: that puts the Neon password in argv.
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "HYPERDRIVE_ID_PLACEHOLDER",
+          "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
+        },
+      ],
+    },
     "preview": {
       "name": "dayspring-preview",
       "workers_dev": true,

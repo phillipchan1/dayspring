@@ -22,6 +22,10 @@ Pattern matches [phillipchan1/zeroed#11–#13](https://github.com/phillipchan1/z
 | Realtime | `entries`, `processing_jobs` | Unchanged | Poll / SSE |
 | Billing webhooks | Vercel | Worker returns 501 on purpose | Keep Vercel until ASC/Stripe URLs are moved |
 
+Production Worker config (`--env production`, Worker name `dayspring`, Hyperdrive
+placeholder, secret/var names, operator create steps) lives in
+[production.md](./production.md). Do not create Hyperdrive or deploy from here.
+
 ## Secrets and bindings (workers.dev preview only)
 
 None of these belong in the Vite bundle. Do not put localhost in `wrangler.jsonc`
@@ -29,13 +33,13 @@ None of these belong in the Vite bundle. Do not put localhost in `wrangler.jsonc
 
 | Name | Kind | Required | Cost |
 |---|---|---|---|
-| `HYPERDRIVE` | Worker binding | Prod-shaped deploys | **Workers Paid** ($5/mo) — Hyperdrive is not on Free. Preview can skip it and use `DATABASE_URL`. |
+| `HYPERDRIVE` | Worker binding | `--env production` (id is `HYPERDRIVE_ID_PLACEHOLDER`) | **Workers Paid** ($5/mo) — Hyperdrive is not on Free. Preview can skip it and use `DATABASE_URL`. |
 | `DATABASE_URL` | secret | Yes for `wrangler dev` / preview without Hyperdrive | Neon Free (0.5 GB, autosuspend). First query after suspend is ~300–500 ms. |
 | `BETTER_AUTH_SECRET` | secret | Yes (32+ random bytes) | Free |
 | `BETTER_AUTH_URL` | Worker var | Preview is committed as `https://dayspring-preview.nq-morning-briefing.workers.dev`. Unset throws outside local. | Free |
 | `ENVIRONMENT` | `.dev.vars` only | `local` allows a localhost auth fallback | Never set in preview/prod |
 | `CRON_SECRET` | secret | Cron routes | Free |
-| `AI_GATEWAY_API_KEY` | secret | Worker AI (text / vision / embeddings). Omit → those routes 501 | Same gateway key Vercel uses as an override. **Do not set a value in wrangler.jsonc.** Do not use `OPENAI_API_KEY` on the Worker — that path bypasses ZDR. |
+| `AI_GATEWAY_API_KEY` | secret | Worker AI (text / vision / embeddings). Omit → those routes 501 | Same gateway key Vercel uses as an override. **Do not set a value in wrangler.jsonc.** Do not use `OPENAI_API_KEY` on the Worker — that path bypasses ZDR. Names only; see [production.md](./production.md). |
 | `AI_GATEWAY_ZDR` | var | Worker AI. Unset / anything other than `on`/`true` → 501 | Names only. Do **not** set `on` in this PR (paid AI Gateway credits). |
 | `AI_GATEWAY_ZDR_PROVIDERS` | var | Default `azure` when unset | Same pin as Vercel. Do not commit a value. |
 | `OPENAI_MODEL` | var | Default `gpt-5.4-nano` (Worker only; Vercel unchanged) | — |
@@ -53,7 +57,9 @@ the canonical hostname), never a substring match on the connection string.
 
 ## Free-tier costs and CPU
 
-This PR targets **Workers Free** + **Neon Free**. Things that cost money:
+Preview targets **Workers Free** + **Neon Free** (direct `DATABASE_URL`, no
+Hyperdrive). The committed `--env production` block assumes **Workers Paid**
+for Hyperdrive; do not create that resource from this PR. Things that cost money:
 
 | Item | Why it would cost |
 |---|---|
@@ -107,6 +113,15 @@ uses `DATABASE_URL`). `wrangler deploy --env preview` may warn that top-level
 `HYPERDRIVE` is missing on preview — that is expected; do not add a placeholder
 id (error 10157).
 
+`wrangler.jsonc` `env.production` names the Worker `dayspring` and binds
+`HYPERDRIVE` to `HYPERDRIVE_ID_PLACEHOLDER`. Fill the id later with the
+Cloudflare API create in [production.md](./production.md) (`curl --data @file`,
+not `wrangler hyperdrive create`). Dry-run only:
+
+```bash
+npx wrangler deploy --env production --dry-run
+```
+
 ## iOS
 
 `.github/workflows/ios-release.yml` reads `VITE_API_BASE_URL` from
@@ -143,6 +158,8 @@ npm run typecheck
 npm test
 npm run check:worker
 npm run check:isolation-mutation
+npx wrangler deploy --env preview --dry-run
+npx wrangler deploy --env production --dry-run
 ```
 
 Isolation applies numbered `worker/schema/NNNN_*.sql` files in numeric order
