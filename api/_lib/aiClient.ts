@@ -18,6 +18,19 @@ export const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1'
 export type GatewayRequestOpts = {
   /** Self-test forces the gateway path even when AI_GATEWAY_ZDR is off. */
   forceGateway?: boolean
+  /**
+   * Worker bindings. When set, this helper reads AI_GATEWAY_* from here and
+   * never falls through to OPENAI_API_KEY or Vercel OIDC. Omit on Vercel —
+   * flag off stays process.env / api.openai.com.
+   */
+  bindings?: AiGatewayBindings
+}
+
+/** Names the Worker reads. Values come from secrets/vars at deploy, not source. */
+export type AiGatewayBindings = {
+  AI_GATEWAY_ZDR?: string
+  AI_GATEWAY_ZDR_PROVIDERS?: string
+  AI_GATEWAY_API_KEY?: string
 }
 
 export type CreateAiClientOpts = GatewayRequestOpts & {
@@ -38,12 +51,28 @@ export type GatewayProviderOptions = {
 
 const cache = new Map<string, OpenAI>()
 
-export function aiGatewayZdrEnabled(): boolean {
+function flagOn(raw: string | undefined): boolean {
+  const v = (raw ?? '').trim().toLowerCase()
+  return v === 'on' || v === 'true'
+}
+
+function parseProviders(raw: string | undefined): string[] {
+  const parsed = (raw ?? 'azure').split(',').map((s) => s.trim()).filter(Boolean)
+  return parsed.length > 0 ? parsed : ['azure']
+}
+
+export function aiGatewayZdrEnabled(opts?: GatewayRequestOpts): boolean {
+  if (opts?.bindings) return flagOn(opts.bindings.AI_GATEWAY_ZDR)
   return env.aiGatewayZdr()
 }
 
 export function useAiGateway(opts?: GatewayRequestOpts): boolean {
-  return Boolean(opts?.forceGateway) || aiGatewayZdrEnabled()
+  return Boolean(opts?.forceGateway) || aiGatewayZdrEnabled(opts)
+}
+
+function zdrProviders(opts?: GatewayRequestOpts): string[] {
+  if (opts?.bindings) return parseProviders(opts.bindings.AI_GATEWAY_ZDR_PROVIDERS)
+  return env.aiGatewayZdrProviders()
 }
 
 /** Prefix a bare OpenAI model id for the gateway (`gpt-6-luna` → `openai/gpt-6-luna`). */
@@ -64,13 +93,18 @@ export function gatewayBody(opts?: GatewayRequestOpts): GatewayProviderOptions |
     providerOptions: {
       gateway: {
         zeroDataRetention: true,
-        only: env.aiGatewayZdrProviders(),
+        only: zdrProviders(opts),
       },
     },
   }
 }
 
-function gatewayApiKey(): string | (() => Promise<string>) {
+function gatewayApiKey(opts: CreateAiClientOpts): string | (() => Promise<string>) {
+  if (opts.bindings) {
+    const key = opts.bindings.AI_GATEWAY_API_KEY?.trim() || ''
+    if (!key) throw new Error('Missing required server env: AI_GATEWAY_API_KEY')
+    return key
+  }
   const override = env.aiGatewayApiKey()
   if (override) return override
   // Function form: the SDK invokes this before each request so a ~90 min OIDC
@@ -82,13 +116,16 @@ export function createAiClient(opts: CreateAiClientOpts = {}): OpenAI {
   const maxRetries = opts.maxRetries ?? 8
   const timeout = opts.timeout ?? 60_000
   const gateway = useAiGateway(opts)
+  if (opts.bindings && !gateway) {
+    throw new Error('Worker AI must use the AI Gateway ZDR client')
+  }
   const key = `${gateway ? 'gw' : 'oa'}:${maxRetries}:${timeout}:${opts.forceGateway ? 'force' : 'flag'}`
   const hit = cache.get(key)
-  if (hit && !opts.fetch) return hit
+  if (hit && !opts.fetch && !opts.bindings) return hit
 
   const client = gateway
     ? new OpenAI({
-        apiKey: gatewayApiKey(),
+        apiKey: gatewayApiKey(opts),
         baseURL: AI_GATEWAY_BASE_URL,
         maxRetries,
         timeout,
@@ -101,7 +138,7 @@ export function createAiClient(opts: CreateAiClientOpts = {}): OpenAI {
         ...(opts.fetch ? { fetch: opts.fetch } : {}),
       })
 
-  if (!opts.fetch) cache.set(key, client)
+  if (!opts.fetch && !opts.bindings) cache.set(key, client)
   return client
 }
 

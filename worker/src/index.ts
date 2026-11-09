@@ -174,22 +174,33 @@ app.post('/api/trial/extend', async (c) => {
   return json({ trial_ends_at: result.trial_ends_at })
 })
 
-function llmOr501(c: { env: Env }, route: string): Response {
-  if (!c.env.OPENAI_API_KEY) {
-    return json({ error: 'OPENAI_API_KEY is not set', ...cpuHeavyPayload(route) }, 501)
+async function llmOr501(c: { env: Env }, route: string): Promise<Response> {
+  // Dynamic import so Node strip-types checks that load `app` do not have to
+  // resolve api/_lib/*.js (Vercel extension). Wrangler still bundles this.
+  const { workerAiClient, workerAiGatewayReady } = await import('./ai.ts')
+  if (!workerAiGatewayReady(c.env)) {
+    return json(
+      { error: 'AI_GATEWAY_ZDR is off or AI_GATEWAY_API_KEY is not set', ...cpuHeavyPayload(route) },
+      501,
+    )
   }
+  // Same client as Vercel (api/_lib/aiClient.ts). Construction only — these
+  // routes still 501 on Workers Free so merging stays inert (no model call).
+  workerAiClient(c.env)
   return json({ error: 'not implemented on Workers Free', ...cpuHeavyPayload(route) }, 501)
 }
 
 app.post('/api/ask', (c) => llmOr501(c, 'POST /api/ask'))
 app.post('/api/keeping/read', (c) => llmOr501(c, 'POST /api/keeping/read'))
 app.post('/api/pages/interpret', (c) => llmOr501(c, 'POST /api/pages/interpret'))
-app.post('/api/transcribe', (c) => llmOr501(c, 'POST /api/transcribe'))
 app.post('/api/transcribe-image', (c) => llmOr501(c, 'POST /api/transcribe-image'))
 app.post('/api/onboarding/backfill', (c) => llmOr501(c, 'POST /api/onboarding/backfill'))
 app.post('/api/spiritual/notice', (c) => llmOr501(c, 'POST /api/spiritual/notice'))
 app.post('/api/reflections/generate', (c) => llmOr501(c, 'POST /api/reflections/generate'))
 app.post('/api/concordance/rebuild', (c) => llmOr501(c, 'POST /api/concordance/rebuild'))
+app.post('/api/transcribe', () =>
+  json({ error: 'OpenAI transcription stays on Vercel until cutover (no ZDR speech-to-text)' }, 501),
+)
 
 app.post('/api/spiritual/scripture', (c) => json({ error: 'ESV stays on Vercel until cutover', configured: Boolean(c.env.ESV_API_KEY) }, 501))
 app.post('/api/spiritual/scripture-resolve', () => json({ error: 'ESV stays on Vercel until cutover' }, 501))

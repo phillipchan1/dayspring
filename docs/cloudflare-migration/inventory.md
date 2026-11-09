@@ -289,9 +289,14 @@ PostHog, onboarding flags, Apple product ids, `VITE_BACKEND` (**new**, default u
 ### Server (Vercel today)
 
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`,
+`AI_GATEWAY_ZDR`, `AI_GATEWAY_ZDR_PROVIDERS`, `AI_GATEWAY_API_KEY`,
 `ESV_API_KEY`, `CRON_SECRET`, `RESEND_*`, `WELCOME_DRIP_*`, `GITHUB_TOKEN`,
 `ONBOARDING_REQUIRE_CARD`, Apple IAP (`APPLE_*` — **In-App Purchase** key, not
 the ASC upload key), `REVENUECAT_WEBHOOK_SECRET`, `META_*`, Stripe keys.
+
+Worker AI (inert until the client flag is on) reads `AI_GATEWAY_API_KEY` and
+`AI_GATEWAY_ZDR` by name only — never `OPENAI_API_KEY`. See
+[cutover.md](./cutover.md).
 
 ### iOS / desktop CI
 

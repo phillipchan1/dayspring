@@ -35,7 +35,9 @@ None of these belong in the Vite bundle. Do not put localhost in `wrangler.jsonc
 | `BETTER_AUTH_URL` | Worker var | Preview is committed as `https://dayspring-preview.nq-morning-briefing.workers.dev`. Unset throws outside local. | Free |
 | `ENVIRONMENT` | `.dev.vars` only | `local` allows a localhost auth fallback | Never set in preview/prod |
 | `CRON_SECRET` | secret | Cron routes | Free |
-| `OPENAI_API_KEY` | secret | AI routes; omit → those routes 501 | Existing key; **do not change gateway config** |
+| `AI_GATEWAY_API_KEY` | secret | Worker AI (text / vision / embeddings). Omit → those routes 501 | Same gateway key Vercel uses as an override. **Do not set a value in wrangler.jsonc.** Do not use `OPENAI_API_KEY` on the Worker — that path bypasses ZDR. |
+| `AI_GATEWAY_ZDR` | var | Worker AI. Unset / anything other than `on`/`true` → 501 | Names only. Do **not** set `on` in this PR (paid AI Gateway credits). |
+| `AI_GATEWAY_ZDR_PROVIDERS` | var | Default `azure` when unset | Same pin as Vercel. Do not commit a value. |
 | `OPENAI_MODEL` | var | Default `gpt-5.4-nano` (Worker only; Vercel unchanged) | — |
 | `RESEND_API_KEY` / `RESEND_FROM` | secret / var | OTP + drip sends | Resend free tier |
 | `WELCOME_DRIP_SENDS_ENABLED` | var | Must stay `false` until an explicit enable | — |
@@ -93,6 +95,8 @@ npx wrangler deploy --env preview
 #   npx wrangler secret put DATABASE_URL --env preview
 #   npx wrangler secret put BETTER_AUTH_SECRET --env preview
 #   npx wrangler secret put CRON_SECRET --env preview
+#   npx wrangler secret put AI_GATEWAY_API_KEY --env preview
+# Do not put AI_GATEWAY_ZDR=on in wrangler.jsonc (paid credits). Leave it unset.
 # BETTER_AUTH_URL is a committed preview var:
 #   https://dayspring-preview.nq-morning-briefing.workers.dev
 ```

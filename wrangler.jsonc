@@ -21,6 +21,8 @@
     "OPENAI_MODEL": "gpt-5.4-nano",
     "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
     "WELCOME_DRIP_SENDS_ENABLED": "false",
+    // AI_GATEWAY_API_KEY — secret (wrangler secret put). Do not set a value here.
+    // AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS — unset here so the flag stays off.
   },
   // Replace `id` with a real Hyperdrive config before any paid deploy.
   // Hyperdrive is a Workers Paid feature. Local / Free preview uses DATABASE_URL.
@@ -46,6 +48,7 @@
         "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
         "WELCOME_DRIP_SENDS_ENABLED": "false",
         "BETTER_AUTH_URL": "https://dayspring-preview.nq-morning-briefing.workers.dev",
+        // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
       },
       // Empty on purpose: Hyperdrive is not inherited. Preview uses DATABASE_URL.
       // A placeholder id here fails deploy with error 10157.

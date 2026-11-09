@@ -9,7 +9,10 @@ ENVIRONMENT=local
 # Dev-only. Preview/prod must set this as a Worker var/secret to the public origin.
 BETTER_AUTH_URL=http://localhost:8787
 CRON_SECRET=replace-me
-# OPENAI_API_KEY=
+# Worker AI (names only — unset here so the gateway flag stays off).
+# AI_GATEWAY_API_KEY=
+# AI_GATEWAY_ZDR=
+# AI_GATEWAY_ZDR_PROVIDERS=
 # OPENAI_MODEL=gpt-5.4-nano
 # RESEND_API_KEY=
 # ESV_API_KEY=
