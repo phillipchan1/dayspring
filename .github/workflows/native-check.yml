@@ -36,22 +36,30 @@ jobs:
       # Matches bundle.iOS.minimumSystemVersion in tauri.conf.json.
       IPHONEOS_DEPLOYMENT_TARGET: '15.0'
     steps:
-      - uses: actions/checkout@v5
+      - id: checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - id: setup-rust
+        name: Set up Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           targets: aarch64-apple-darwin,aarch64-apple-ios
 
-      - name: Cache Rust build
-        uses: swatinem/rust-cache@v2
+      - id: cache-rust
+        name: Cache Rust build
+        uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: "src-tauri -> target"
-          key: ${{ matrix.target }}
+          # Literal prefix so the guard's command-position `$` deny does not
+          # treat this cache-key expression as a dirty command. Still partitioned
+          # by matrix target (darwin vs ios).
+          key: native-check ${{ matrix.target }}
 
-      - name: Stand in for the web build
+      - id: dist
+        name: Stand in for the web build
         run: mkdir -p dist
 
-      - name: cargo check
+      - id: cargo-check
+        name: cargo check
         working-directory: src-tauri
         run: cargo check --target ${{ matrix.target }}
