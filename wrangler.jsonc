@@ -59,7 +59,7 @@
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
-          "id": "HYPERDRIVE_ID_PLACEHOLDER",
+          "id": "e531860b19f74e49a798aa1f2364937b",
           "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
         },
       ],

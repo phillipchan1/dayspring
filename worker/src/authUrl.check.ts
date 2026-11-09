@@ -234,8 +234,8 @@ ok(
 )
 ok(
   wranglerConfig.hyperdrive?.[0]?.id === HYPERDRIVE_ID_PLACEHOLDER
-    && wranglerConfig.env?.production?.hyperdrive?.[0]?.id === HYPERDRIVE_ID_PLACEHOLDER,
-  'top-level and production still have a named Hyperdrive placeholder',
+    && /^[0-9a-f]{32}$/.test(wranglerConfig.env?.production?.hyperdrive?.[0]?.id ?? ''),
+  'top-level keeps the named placeholder; production has a real Hyperdrive id',
 )
 ok(
   wranglerConfig.env?.production?.name === 'dayspring',
