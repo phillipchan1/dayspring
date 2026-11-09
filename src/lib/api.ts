@@ -9,6 +9,18 @@ export function apiUrl(path: string): string {
   return `${base.replace(/\/$/, '')}${normalized}`
 }
 
+export async function apiGet<T = unknown>(path: string): Promise<T> {
+  const token = await bearerToken()
+  const res = await fetch(apiUrl(path), {
+    headers: { authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`${path} → ${res.status} ${text}`)
+  }
+  return res.json() as Promise<T>
+}
+
 async function bearerToken(): Promise<string> {
   if (isWorkersBackend) {
     const { getWorkersToken } = await import('./authClient')

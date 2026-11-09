@@ -96,6 +96,19 @@ ok(
 
 ok(
   productionEnvProblems({
+    env: {
+      production: {
+        name: 'dayspring',
+        vars: { STRIPE_SECRET_KEY: 'sk_test_x' },
+        hyperdrive: [{ binding: 'HYPERDRIVE', id: HYPERDRIVE_ID_PLACEHOLDER }],
+      },
+    },
+  }).some((p) => p.includes('STRIPE_SECRET_KEY')),
+  'STRIPE_SECRET_KEY in vars fails',
+)
+
+ok(
+  productionEnvProblems({
     vars: { AI_GATEWAY_API_KEY: 'gw-test' },
     env: {
       production: {
@@ -159,6 +172,10 @@ ok(!/^\| `OPENAI_API_KEY`/m.test(docs), 'production.md does not list OPENAI_API_
 ok(docs.includes('BETTER_AUTH_SECRET') && docs.includes('CRON_SECRET'), 'docs list Better Auth and cron secrets')
 ok(docs.includes('APPLE_CLIENT_SECRET') && docs.includes('GOOGLE_CLIENT_SECRET'), 'docs list Apple and Google social secrets')
 ok(docs.includes('APPLE_CLIENT_ID') && docs.includes('APPLE_APP_BUNDLE_IDENTIFIER') && docs.includes('GOOGLE_CLIENT_ID'), 'docs list Apple and Google social vars')
+ok(
+  docs.includes('STRIPE_SECRET_KEY') && docs.includes('STRIPE_WEBHOOK_SECRET') && docs.includes('APPLE_PRIVATE_KEY'),
+  'docs list Stripe and Apple billing secrets',
+)
 ok(!/postgresql:\/\/[^/\s]+:[^@\s]+@/.test(docs), 'docs do not embed a user:password URL')
 
 mkdirSync(join(root, 'dist'), { recursive: true })

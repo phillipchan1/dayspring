@@ -37,6 +37,13 @@ Do not put values in this file. Do not commit values in `wrangler.jsonc` `vars`.
 | `AI_GATEWAY_ZDR_PROVIDERS` |
 | `OPENAI_VISION_MODEL` |
 | `OPENAI_EMBED_MODEL` |
+| `APPLE_BUNDLE_ID` |
+| `APPLE_APP_APPLE_ID` |
+| `APP_URL` |
+| `ONBOARDING_REQUIRE_CARD` |
+| `VITE_POSTHOG_KEY` |
+| `VITE_POSTHOG_HOST` |
+| `META_PIXEL_ID` |
 
 `BETTER_AUTH_URL` is required at runtime outside `ENVIRONMENT=local`. Leave it
 **unset** in committed production vars until the public origin exists. It must
@@ -58,6 +65,14 @@ read `OPENAI_API_KEY`.
 | `ESV_API_KEY` | Scripture routes |
 | `AI_GATEWAY_API_KEY` | Worker AI (no Vercel OIDC). Needed if `AI_GATEWAY_ZDR` is on |
 | `DATABASE_URL` | Fallback only. Prod uses `HYPERDRIVE`. Preview / `wrangler dev` without Hyperdrive still need this. |
+| `STRIPE_SECRET_KEY` | Stripe **test** mode (`sk_test_…`). Checkout, portal, webhooks |
+| `STRIPE_WEBHOOK_SECRET` | Stripe **test** webhook signing secret (`whsec_…`) |
+| `STRIPE_ANNUAL_PRICE_ID` | Stripe test-mode annual price |
+| `STRIPE_MONTHLY_PRICE_ID` | Stripe test-mode monthly price |
+| `APPLE_ISSUER_ID` | App Store Connect IAP key issuer |
+| `APPLE_KEY_ID` | App Store Connect IAP key id |
+| `APPLE_PRIVATE_KEY` | `.p8` contents (`\n` or real newlines). Sandbox |
+| `META_CAPI_ACCESS_TOKEN` | Optional. Growth ledger (Purchase/Cancel/StartTrial) |
 
 Never list those secret names under `vars`. `npm run check:worker` fails if
 production vars contain `localhost`, a `workers.dev` `BETTER_AUTH_URL`, or a
