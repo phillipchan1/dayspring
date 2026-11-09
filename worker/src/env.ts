@@ -13,6 +13,13 @@ export interface Env {
   OPENAI_MODEL?: string
   BETTER_AUTH_SECRET?: string
   BETTER_AUTH_URL?: string
+  /** Apple Services ID. Public; not a secret. */
+  APPLE_CLIENT_ID?: string
+  APPLE_CLIENT_SECRET?: string
+  /** iOS bundle id — Better Auth apple idToken audience. */
+  APPLE_APP_BUNDLE_IDENTIFIER?: string
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
   /** wrangler / `.dev.vars` only: `local` allows a localhost auth fallback. */
   ENVIRONMENT?: string
   RESEND_API_KEY?: string
@@ -20,6 +27,9 @@ export interface Env {
   CRON_SECRET?: string
   ESV_API_KEY?: string
   WELCOME_DRIP_SENDS_ENABLED?: string
+  /** Supabase Storage stays the photo bucket; service role mints signed URLs. */
+  SUPABASE_URL?: string
+  SUPABASE_SERVICE_ROLE_KEY?: string
 }
 
 const HYPERDRIVE_PLACEHOLDERS = [

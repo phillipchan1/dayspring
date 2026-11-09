@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import { resolveAttachmentDisplayUrl } from '@/lib/attachments'
+import { attachmentOwnerId, resolveAttachmentDisplayUrl } from '@/lib/attachments'
 import { supabase } from '@/lib/supabase'
 import type { SpanPhoto } from './extras'
 import { fmtDay } from './Passage'
 
 let ownerPromise: Promise<string | null> | null = null
 function owner(): Promise<string | null> {
-  if (!supabase) return Promise.resolve(null)
-  ownerPromise ??= supabase.auth.getSession().then((r) => r.data.session?.user?.id ?? null)
+  ownerPromise ??= attachmentOwnerId(supabase)
   return ownerPromise
 }
 
@@ -26,7 +25,7 @@ export function SpanPhotoTile({
   useEffect(() => {
     let alive = true
     void owner().then((id) => {
-      if (!id || !supabase) return null
+      if (!id) return null
       return resolveAttachmentDisplayUrl(supabase, id, photo.hash, photo.ext).then((u) => {
         if (alive) setUrl(u)
       })

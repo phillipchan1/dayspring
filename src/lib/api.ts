@@ -29,6 +29,18 @@ async function bearerToken(): Promise<string> {
  * access token as a Bearer (the server validates it via getAuthedUser). Throws
  * on a non-2xx response.
  */
+export async function apiGet<T = unknown>(path: string): Promise<T> {
+  const token = await bearerToken()
+  const res = await fetch(apiUrl(path), {
+    headers: { authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`${path} → ${res.status} ${text}`)
+  }
+  return res.json() as Promise<T>
+}
+
 export async function apiPost<T = unknown>(path: string, body: unknown): Promise<T> {
   const token = await bearerToken()
 

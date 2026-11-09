@@ -10,6 +10,8 @@ export const PROD_SECRET_NAMES = [
   'ESV_API_KEY',
   'AI_GATEWAY_API_KEY',
   'PGPASSWORD',
+  'APPLE_CLIENT_SECRET',
+  'GOOGLE_CLIENT_SECRET',
 ] as const
 
 const SECRET_NAME_SET = new Set<string>(PROD_SECRET_NAMES)

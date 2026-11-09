@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { resolveAttachmentDisplayUrl } from '@/lib/attachments'
+import { attachmentOwnerId, resolveAttachmentDisplayUrl } from '@/lib/attachments'
 import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/hooks/useSettings'
 import type { SpanPhoto } from '@/features/ascent/ledger/extras'
@@ -7,8 +7,7 @@ import { volumeColour, type Volume } from './volumes'
 
 let ownerPromise: Promise<string | null> | null = null
 function owner(): Promise<string | null> {
-  if (!supabase) return Promise.resolve(null)
-  ownerPromise ??= supabase.auth.getSession().then((r) => r.data.session?.user?.id ?? null)
+  ownerPromise ??= attachmentOwnerId(supabase)
   return ownerPromise
 }
 
@@ -38,7 +37,7 @@ export function CoverArt({ volume, photo }: { volume: Pick<Volume, 'n'>; photo: 
     if (!photo || style !== 'covers') return
     let alive = true
     void owner().then((id) => {
-      if (!id || !supabase) return null
+      if (!id) return null
       return resolveAttachmentDisplayUrl(supabase, id, photo.hash, photo.ext).then((u) => {
         if (alive) setUrl(u)
       })
