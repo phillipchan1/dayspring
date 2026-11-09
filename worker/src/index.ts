@@ -324,6 +324,7 @@ async function billing() {
     { handleStripePortal },
     { handleStripeWebhook, stripeClientFromEnv },
     { handleAppleVerify },
+    { handleRevenuecatWebhook },
   ] = await Promise.all([
     import('./billing/bindEnv.ts'),
     import('./billing/apple.ts'),
@@ -332,6 +333,7 @@ async function billing() {
     import('./billing/portal.ts'),
     import('./billing/stripeWebhook.ts'),
     import('./billing/verify.ts'),
+    import('./billing/revenuecatWebhook.ts'),
   ])
   return {
     bindBillingEnv,
@@ -342,6 +344,7 @@ async function billing() {
     handleStripeWebhook,
     stripeClientFromEnv,
     handleAppleVerify,
+    handleRevenuecatWebhook,
   }
 }
 
@@ -383,7 +386,11 @@ app.post('/api/webhooks/apple', async (c) => {
   return b.handleAppleWebhook(c.req.raw, sqlOf(c), c.env, b.liveApple, waitUntilOf(c))
 })
 
-app.post('/api/webhooks/revenuecat', () => json({ error: 'billing webhook stays on Vercel' }, 501))
+app.post('/api/webhooks/revenuecat', async (c) => {
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleRevenuecatWebhook(c.req.raw, sqlOf(c), c.env, waitUntilOf(c))
+})
 
 app.all('/api/cron/welcome-drip', async (c) => {
   if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)

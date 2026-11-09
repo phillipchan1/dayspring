@@ -19,6 +19,7 @@ export function bindBillingEnv(env: Env): void {
     ['VITE_POSTHOG_HOST', env.VITE_POSTHOG_HOST],
     ['META_PIXEL_ID', env.META_PIXEL_ID],
     ['META_CAPI_ACCESS_TOKEN', env.META_CAPI_ACCESS_TOKEN],
+    ['REVENUECAT_WEBHOOK_SECRET', env.REVENUECAT_WEBHOOK_SECRET],
   ]
   for (const [name, value] of pairs) {
     if (value !== undefined) process.env[name] = value

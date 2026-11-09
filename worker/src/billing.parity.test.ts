@@ -9,9 +9,11 @@ import { handleAppleWebhook } from './billing/appleWebhook.ts'
 import { handleAppleVerify } from './billing/verify.ts'
 import { handleStripeCheckout } from './billing/checkout.ts'
 import { handleStripePortal } from './billing/portal.ts'
+import { handleRevenuecatWebhook } from './billing/revenuecatWebhook.ts'
 import type { AppleFns } from './billing/apple.ts'
 
 const WEBHOOK_SECRET = 'whsec_test_dayspring_parity'
+const RC_SECRET = 'rc_test_dayspring_parity'
 const USER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1'
 const OTHER = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2'
 
@@ -77,6 +79,7 @@ import { POST as vercelAppleWebhook } from '../../api/webhooks/apple.ts'
 import { POST as vercelAppleVerify } from '../../api/apple/verify.ts'
 import { POST as vercelCheckout } from '../../api/stripe/checkout.ts'
 import { GET as vercelPortal } from '../../api/stripe/portal.ts'
+import { POST as vercelRevenuecat } from '../../api/webhooks/revenuecat.ts'
 
 const FILTERS = new Set(['owner', 'stripe_customer_id', 'apple_original_txn'])
 const COLS = new Set([
@@ -203,6 +206,7 @@ const billingEnv: Env = {
   APP_URL: 'https://dayspring-eosin.vercel.app',
   ONBOARDING_REQUIRE_CARD: 'false',
   APPLE_BUNDLE_ID: 'com.phillipchan.dayspring',
+  REVENUECAT_WEBHOOK_SECRET: RC_SECRET,
 }
 
 function workerStripe(): StripeBillingClient {
@@ -248,6 +252,7 @@ beforeAll(async () => {
   process.env.STRIPE_MONTHLY_PRICE_ID = billingEnv.STRIPE_MONTHLY_PRICE_ID
   process.env.APP_URL = billingEnv.APP_URL
   process.env.ONBOARDING_REQUIRE_CARD = 'false'
+  process.env.REVENUECAT_WEBHOOK_SECRET = RC_SECRET
   const wire = await openWireSql()
   sql = wire.sql
   close = wire.close
@@ -682,5 +687,95 @@ describe('Checkout and portal parity', () => {
     const worker = await jsonOf(await handleStripePortal(sql, billingEnv, { id: USER }, portal))
     expect(vercel).toEqual({ status: 200, body: { url: 'https://billing.stripe.test/p' } })
     expect(worker).toEqual(vercel)
+  })
+})
+
+const RC_EXPIRES_MS = Date.parse('2027-06-01T00:00:00.000Z')
+
+function rcRenewal() {
+  return {
+    event: {
+      type: 'RENEWAL',
+      app_user_id: USER,
+      expiration_at_ms: RC_EXPIRES_MS,
+      period_type: 'NORMAL',
+      original_transaction_id: '1001',
+      transaction_id: '1002',
+    },
+  }
+}
+
+function rcRequest(body: object, authorization: string | null): Request {
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  if (authorization != null) headers.authorization = authorization
+  return new Request('https://worker.test/api/webhooks/revenuecat', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+}
+
+describe('RevenueCat webhook parity', () => {
+  it('authorized RENEWAL writes the same profile row', async () => {
+    const req = () => rcRequest(rcRenewal(), `Bearer ${RC_SECRET}`)
+    const vercel = await jsonOf(await vercelRevenuecat(req()))
+    const afterVercel = await profileOf(USER)
+    await resetAccounts()
+    const worker = await jsonOf(await handleRevenuecatWebhook(req(), sql, billingEnv))
+    const afterWorker = await profileOf(USER)
+
+    expect(vercel).toEqual({ status: 200, body: { received: true } })
+    expect(worker).toEqual(vercel)
+    expect(afterWorker).toEqual(afterVercel)
+    expect(afterWorker?.plan).toBe('active')
+    expect(afterWorker?.plan_source).toBe('apple')
+    expect(afterWorker?.apple_original_txn).toBe('1001')
+    expect(afterWorker?.plan_expires_at).toBe(new Date(RC_EXPIRES_MS).toISOString())
+  })
+
+  it('returns 401 when the secret is missing or wrong and writes nothing', async () => {
+    const before = await profileOf(USER)
+    const wrong = rcRequest(rcRenewal(), 'Bearer nope')
+    const vercelWrong = await jsonOf(await vercelRevenuecat(wrong.clone()))
+    const workerWrong = await jsonOf(await handleRevenuecatWebhook(wrong, sql, billingEnv))
+
+    const prev = process.env.REVENUECAT_WEBHOOK_SECRET
+    delete process.env.REVENUECAT_WEBHOOK_SECRET
+    const vercelNoSecret = await jsonOf(await vercelRevenuecat(rcRequest(rcRenewal(), `Bearer ${RC_SECRET}`)))
+    process.env.REVENUECAT_WEBHOOK_SECRET = prev
+    const workerNoSecret = await jsonOf(
+      await handleRevenuecatWebhook(rcRequest(rcRenewal(), `Bearer ${RC_SECRET}`), sql, {
+        ...billingEnv,
+        REVENUECAT_WEBHOOK_SECRET: undefined,
+      }),
+    )
+
+    expect(vercelWrong).toEqual({ status: 401, body: { error: 'unauthorized' } })
+    expect(workerWrong).toEqual(vercelWrong)
+    expect(vercelNoSecret).toEqual(vercelWrong)
+    expect(workerNoSecret).toEqual(vercelWrong)
+    expect(await profileOf(USER)).toEqual(before)
+  })
+
+  it('replays of an authorized RENEWAL are idempotent on both sides', async () => {
+    const req = () => rcRequest(rcRenewal(), `Bearer ${RC_SECRET}`)
+    const firstV = await jsonOf(await vercelRevenuecat(req()))
+    const rowV1 = await profileOf(USER)
+    const secondV = await jsonOf(await vercelRevenuecat(req()))
+    const rowV2 = await profileOf(USER)
+
+    await resetAccounts()
+    const firstW = await jsonOf(await handleRevenuecatWebhook(req(), sql, billingEnv))
+    const rowW1 = await profileOf(USER)
+    const secondW = await jsonOf(await handleRevenuecatWebhook(req(), sql, billingEnv))
+    const rowW2 = await profileOf(USER)
+
+    expect(firstV).toEqual({ status: 200, body: { received: true } })
+    expect(secondV).toEqual(firstV)
+    expect(firstW).toEqual(firstV)
+    expect(secondW).toEqual(firstV)
+    expect(rowV2).toEqual(rowV1)
+    expect(rowW2).toEqual(rowW1)
+    expect(rowW1).toEqual(rowV1)
   })
 })

@@ -46,6 +46,7 @@ export interface Env {
   VITE_POSTHOG_HOST?: string
   META_PIXEL_ID?: string
   META_CAPI_ACCESS_TOKEN?: string
+  REVENUECAT_WEBHOOK_SECRET?: string
 }
 
 const HYPERDRIVE_PLACEHOLDERS = [

@@ -176,6 +176,7 @@ ok(
   docs.includes('STRIPE_SECRET_KEY') && docs.includes('STRIPE_WEBHOOK_SECRET') && docs.includes('APPLE_PRIVATE_KEY'),
   'docs list Stripe and Apple billing secrets',
 )
+ok(docs.includes('REVENUECAT_WEBHOOK_SECRET'), 'docs list REVENUECAT_WEBHOOK_SECRET')
 ok(!/postgresql:\/\/[^/\s]+:[^@\s]+@/.test(docs), 'docs do not embed a user:password URL')
 
 mkdirSync(join(root, 'dist'), { recursive: true })

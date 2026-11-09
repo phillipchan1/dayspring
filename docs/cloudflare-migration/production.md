@@ -73,6 +73,7 @@ read `OPENAI_API_KEY`.
 | `APPLE_KEY_ID` | App Store Connect IAP key id |
 | `APPLE_PRIVATE_KEY` | `.p8` contents (`\n` or real newlines). Sandbox |
 | `META_CAPI_ACCESS_TOKEN` | Optional. Growth ledger (Purchase/Cancel/StartTrial) |
+| `REVENUECAT_WEBHOOK_SECRET` | Legacy Apple IAP webhook. 401 if unset or wrong |
 
 Never list those secret names under `vars`. `npm run check:worker` fails if
 production vars contain `localhost`, a `workers.dev` `BETTER_AUTH_URL`, or a
