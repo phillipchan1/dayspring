@@ -2,4 +2,8 @@
 # will have compiled files and executables
 /target/
 /gen/schemas
-/gen/apple
+# Most of gen/apple is Tauri output (the committed project is already tracked).
+# ci_scripts/ is ours — Xcode Cloud only runs scripts next to app.xcodeproj.
+/gen/apple/*
+!/gen/apple/ci_scripts/
+!/gen/apple/ci_scripts/**
