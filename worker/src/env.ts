@@ -6,7 +6,10 @@ export interface Env {
   ASSETS?: Fetcher
   HYPERDRIVE?: HyperdriveBinding
   DATABASE_URL?: string
-  OPENAI_API_KEY?: string
+  /** Worker AI. Read by name only — do not put a value in wrangler.jsonc. */
+  AI_GATEWAY_API_KEY?: string
+  AI_GATEWAY_ZDR?: string
+  AI_GATEWAY_ZDR_PROVIDERS?: string
   OPENAI_MODEL?: string
   BETTER_AUTH_SECRET?: string
   BETTER_AUTH_URL?: string

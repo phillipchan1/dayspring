@@ -231,6 +231,44 @@ describe('AI Gateway ZDR client helper', () => {
     expect(getToken).not.toHaveBeenCalled()
   })
 
+  it('Worker bindings: gateway ZDR, no OIDC, OPENAI_API_KEY cannot sneak in', async () => {
+    process.env.OPENAI_API_KEY = 'sk-must-not-be-sent'
+    const captured: { url?: string; auth?: string | null; body?: Record<string, unknown> } = {}
+    const fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      captured.url = String(url)
+      captured.auth = new Headers(init?.headers).get('authorization')
+      captured.body = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return jsonResponse(CHAT_OK)
+    })
+    const opts = {
+      forceGateway: true,
+      bindings: { AI_GATEWAY_ZDR: 'on', AI_GATEWAY_API_KEY: 'gw-bindings' },
+    }
+    const client = createAiClient({ ...opts, maxRetries: 0, fetch })
+    expect(client.baseURL).toBe(AI_GATEWAY_BASE_URL)
+    await client.chat.completions.create({
+      model: resolveModelId('gpt-6-luna', opts),
+      messages: [{ role: 'user', content: 'hi' }],
+      ...gatewayBody(opts),
+    })
+    expect(captured.url).toBe(`${AI_GATEWAY_BASE_URL}/chat/completions`)
+    expect(captured.auth).toBe('Bearer gw-bindings')
+    expect(captured.body?.providerOptions).toEqual({
+      gateway: { zeroDataRetention: true, only: ['azure'] },
+    })
+    expect(getToken).not.toHaveBeenCalled()
+  })
+
+  it('Worker bindings without the gateway flag never fall through to OPENAI_API_KEY', () => {
+    expect(() =>
+      createAiClient({
+        bindings: { AI_GATEWAY_API_KEY: 'gw-test' },
+        maxRetries: 0,
+      }),
+    ).toThrow(/must use the AI Gateway ZDR client/)
+    expect(getToken).not.toHaveBeenCalled()
+  })
+
   it('reads chat provider from choices[0].message.provider_metadata.gateway', () => {
     const data = {
       choices: [

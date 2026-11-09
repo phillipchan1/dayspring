@@ -54,6 +54,17 @@ Protection Bypass for Automation secret is needed to reach the URL.
 Unset `AI_GATEWAY_ZDR` (or set it to anything other than `on`/`true`) and
 redeploy. Keep `OPENAI_API_KEY` in place. Direct OpenAI is the only path again.
 
+## Cloudflare Worker
+
+The Worker reuses `api/_lib/aiClient.ts` and never reads `OPENAI_API_KEY`.
+It looks up **`AI_GATEWAY_API_KEY`** and **`AI_GATEWAY_ZDR`** by name
+(optional **`AI_GATEWAY_ZDR_PROVIDERS`**, default `azure`). Values are not
+committed in `wrangler.jsonc`; OIDC (`getVercelOidcToken`) is Vercel-only.
+
+Unset / off → those routes 501. Do **not** set `AI_GATEWAY_ZDR=on` on the
+Worker until paid gateway credits exist. Audio transcription and realtime
+stay 501 on the Worker (no ZDR speech-to-text).
+
 ## What is not covered
 
 - `api/transcribe.ts` (gpt-4o-mini-transcribe) — no ZDR speech-to-text on OpenAI
@@ -61,3 +72,4 @@ redeploy. Keep `OPENAI_API_KEY` in place. Direct OpenAI is the only path again.
 - Local `scripts/*` that construct their own OpenAI client (most import
   `api/_lib` and follow the flag automatically; they need
   `AI_GATEWAY_API_KEY` or `vercel env pull` locally)
+- Worker `/api/transcribe` and `/api/realtime-token` — 501 until cutover
