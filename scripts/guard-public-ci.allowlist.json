@@ -158,6 +158,36 @@
       "sha256": "2ee7b771d53414acf78ab198c4157d6614072dfd731b21eb0d6a0ef0adb6eb42"
     },
     {
+      "file": "native-check.yml",
+      "job": "check",
+      "id": "checkout",
+      "sha256": "507f6bcce4103b3e845cac4e0d0f123a243d8ecb42a235e681f0a919ba4eb87c"
+    },
+    {
+      "file": "native-check.yml",
+      "job": "check",
+      "id": "setup-rust",
+      "sha256": "fd14d30a4aafcfb3ab9bcbec2164403ddd93683aaef3af675f08fe0e3b1724ab"
+    },
+    {
+      "file": "native-check.yml",
+      "job": "check",
+      "id": "cache-rust",
+      "sha256": "c0dc66e3323f9c773aad0e22e19a48e40053ddc3501650955094741a11e1b1a2"
+    },
+    {
+      "file": "native-check.yml",
+      "job": "check",
+      "id": "dist",
+      "sha256": "60f17119b53237e19910e76331f70d43e4866be008982e98972d8f6a4409b545"
+    },
+    {
+      "file": "native-check.yml",
+      "job": "check",
+      "id": "cargo-check",
+      "sha256": "c0c4dd379533606b98c33c72961222458c6993f7682d867d990caac52aa7704b"
+    },
+    {
       "file": "release-stable.yml",
       "job": "check",
       "id": "diff",
@@ -417,6 +447,18 @@
       "sha256": "067bf8d85af2aa8ec4236dda6c206e697b6ebff34243279bd94ad1e16bcdace8"
     },
     {
+      "file": "native-check.yml",
+      "job": "check",
+      "ids": [
+        "checkout",
+        "setup-rust",
+        "cache-rust",
+        "dist",
+        "cargo-check"
+      ],
+      "sha256": "69d013de95257a5f7f87619c9cbe0fb319610b6e75bcca6ff7f83313236f5885"
+    },
+    {
       "file": "release-stable.yml",
       "job": "check",
       "ids": [
@@ -502,6 +544,13 @@
         "testflight"
       ],
       "sha256": "5e6d515a56fd7d6f72a4c42f6d27540da7a6100ffda75545c5fe8d07015860c8"
+    },
+    {
+      "file": "native-check.yml",
+      "jobs": [
+        "check"
+      ],
+      "sha256": "24b6ad85e70bbbdf9b45502ab0110fcf01d82d6e2a5c950f0588e9afc9a32b95"
     },
     {
       "file": "release-stable.yml",

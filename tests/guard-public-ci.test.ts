@@ -978,6 +978,7 @@ describe("public-repo CI guard", () => {
     for (const name of [
       "checks.yml",
       "ios-release.yml",
+      "native-check.yml",
       "release.yml",
       "release-stable.yml",
       "support-manifest.yml",
@@ -1000,6 +1001,7 @@ describe("public-repo CI guard", () => {
     expect(owners).toMatch(/vite\.config\.ts\s+@phillipchan1/);
     for (const name of [
       "ios-release.yml",
+      "native-check.yml",
       "release.yml",
       "release-stable.yml",
     ]) {
