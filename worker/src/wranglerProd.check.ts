@@ -157,6 +157,8 @@ ok(docs.includes('PGPASSWORD'), 'docs pass psql the password via PGPASSWORD')
 ok(docs.includes('AI_GATEWAY_API_KEY') && docs.includes('AI_GATEWAY_ZDR'), 'docs list AI Gateway names')
 ok(!/^\| `OPENAI_API_KEY`/m.test(docs), 'production.md does not list OPENAI_API_KEY as a Worker secret')
 ok(docs.includes('BETTER_AUTH_SECRET') && docs.includes('CRON_SECRET'), 'docs list Better Auth and cron secrets')
+ok(docs.includes('APPLE_CLIENT_SECRET') && docs.includes('GOOGLE_CLIENT_SECRET'), 'docs list Apple and Google social secrets')
+ok(docs.includes('APPLE_CLIENT_ID') && docs.includes('APPLE_APP_BUNDLE_IDENTIFIER') && docs.includes('GOOGLE_CLIENT_ID'), 'docs list Apple and Google social vars')
 ok(!/postgresql:\/\/[^/\s]+:[^@\s]+@/.test(docs), 'docs do not embed a user:password URL')
 
 mkdirSync(join(root, 'dist'), { recursive: true })

@@ -3,6 +3,8 @@
 // settings (so font/size/etc match on both desktop and web).
 
 import { requireSupabase } from './supabase'
+import { isWorkersBackend } from './env'
+import { apiGet, apiPost } from './api'
 import type { Settings } from './settings'
 
 /** Read the account's `has_seen_welcome`. Returns false when no row exists yet. */
@@ -56,6 +58,11 @@ export async function setOnboarded(): Promise<void> {
 
 /** Read the account's last-acked processing-completion key, or null if none. */
 export async function getAckedCompletion(): Promise<string | null> {
+  if (isWorkersBackend) {
+    const data = await apiGet<{ profile: { acked_processing_completion?: string | null } | null }>('/api/data/profile')
+    const value = data.profile?.acked_processing_completion
+    return typeof value === 'string' && value.length > 0 ? value : null
+  }
   const sb = requireSupabase()
   const { data, error } = await sb
     .from('profiles')
@@ -67,6 +74,10 @@ export async function getAckedCompletion(): Promise<string | null> {
 
 /** Persist that the account has acked this processing completion. Idempotent upsert. */
 export async function setAckedCompletion(key: string): Promise<void> {
+  if (isWorkersBackend) {
+    await apiPost('/api/profile/ack-completion', { key })
+    return
+  }
   const sb = requireSupabase()
   const {
     data: { session },

@@ -1,4 +1,4 @@
-import { betterAuth } from 'better-auth'
+import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { bearer, emailOTP } from 'better-auth/plugins'
 import { Pool } from 'pg'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
@@ -103,6 +103,32 @@ export type AuthDatabase = Pool | {
   options: object
 }
 
+const DEEP_LINK_ORIGIN = 'https://dayspring-eosin.vercel.app'
+
+/** Apple + Google only when client id and secret are both set. */
+export function socialProvidersFromEnv(env: Env): BetterAuthOptions['socialProviders'] {
+  const appleId = env.APPLE_CLIENT_ID?.trim()
+  const appleSecret = env.APPLE_CLIENT_SECRET?.trim()
+  const googleId = env.GOOGLE_CLIENT_ID?.trim()
+  const googleSecret = env.GOOGLE_CLIENT_SECRET?.trim()
+  const bundle = env.APPLE_APP_BUNDLE_IDENTIFIER?.trim()
+  const apple = appleId && appleSecret
+    ? {
+        clientId: appleId,
+        clientSecret: appleSecret,
+        ...(bundle ? { appBundleIdentifier: bundle } : {}),
+      }
+    : undefined
+  const google = googleId && googleSecret
+    ? { clientId: googleId, clientSecret: googleSecret }
+    : undefined
+  if (!apple && !google) return undefined
+  return {
+    ...(apple ? { apple } : {}),
+    ...(google ? { google } : {}),
+  }
+}
+
 export function createAuth(
   env: Env,
   database?: AuthDatabase,
@@ -130,9 +156,10 @@ export function createAuth(
     session: authModels.session,
     account: authModels.account,
     verification: authModels.verification,
+    socialProviders: socialProvidersFromEnv(env),
     trustedOrigins: isLocalAuthHost(baseURL)
-      ? [baseURL, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
-      : [baseURL],
+      ? [baseURL, DEEP_LINK_ORIGIN, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
+      : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://'],
     advanced: {
       database: {
         generateId: () => crypto.randomUUID(),

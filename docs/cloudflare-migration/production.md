@@ -30,6 +30,9 @@ Do not put values in this file. Do not commit values in `wrangler.jsonc` `vars`.
 | `RESEND_FROM` |
 | `WELCOME_DRIP_SENDS_ENABLED` |
 | `BETTER_AUTH_URL` |
+| `APPLE_CLIENT_ID` |
+| `APPLE_APP_BUNDLE_IDENTIFIER` |
+| `GOOGLE_CLIENT_ID` |
 | `AI_GATEWAY_ZDR` |
 | `AI_GATEWAY_ZDR_PROVIDERS` |
 | `OPENAI_VISION_MODEL` |
@@ -48,6 +51,8 @@ read `OPENAI_API_KEY`.
 | Name | Notes |
 |---|---|
 | `BETTER_AUTH_SECRET` | Better Auth |
+| `APPLE_CLIENT_SECRET` | Sign in with Apple (JWT) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `CRON_SECRET` | Cron routes |
 | `RESEND_API_KEY` | OTP + drip |
 | `ESV_API_KEY` | Scripture routes |

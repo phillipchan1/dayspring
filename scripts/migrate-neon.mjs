@@ -30,6 +30,14 @@ const ciMode = argv.includes('--ci')
 const apply = argv.includes('--apply') || ciMode
 const dryRun = !apply
 
+/** Target-only columns the Worker still SELECTs. Source name → target name. */
+export const DERIVE = {
+  scripture_refs: [{ target: 'canonical', from: 'osis_ref' }],
+  concordance: [{ target: 'term', from: 'canonical' }],
+  threads: [{ target: 'title', from: 'label' }],
+  prayer_threads: [{ target: 'label', from: 'title' }],
+}
+
 const COPY_TABLES = [
   { target: 'profiles', source: 'public.profiles', pk: ['id'] },
   { target: 'entries', source: 'public.entries', pk: ['id'] },
@@ -172,7 +180,7 @@ async function applyNeonSchema(client) {
   }
 }
 
-async function overlappingColumns(src, tgt, srcSchema, srcTable, tgtTable) {
+async function tableColumns(client, schema, table) {
   const q = `
     SELECT column_name, data_type, udt_name
       FROM information_schema.columns
@@ -180,24 +188,48 @@ async function overlappingColumns(src, tgt, srcSchema, srcTable, tgtTable) {
        AND is_generated = 'NEVER'
      ORDER BY ordinal_position
   `
-  const [a, b] = await Promise.all([
-    src.query(q, [srcSchema, srcTable]),
-    tgt.query(q, ['public', tgtTable]),
-  ])
-  const target = new Map(b.rows.map((r) => [r.column_name, r]))
-  const cols = []
-  for (const row of a.rows) {
-    const t = target.get(row.column_name)
-    if (!t) continue
-    cols.push({
-      name: row.column_name,
-      srcType: row.udt_name,
-      tgtType: t.udt_name,
-      srcDataType: row.data_type,
-      tgtDataType: t.data_type,
+  const r = await client.query(q, [schema, table])
+  return new Map(r.rows.map((row) => [row.column_name, row]))
+}
+
+function colPair(name, src, tgt) {
+  return {
+    name,
+    srcType: src.udt_name,
+    tgtType: tgt.udt_name,
+    srcDataType: src.data_type,
+    tgtDataType: tgt.data_type,
+  }
+}
+
+/** Overlapping same-name columns plus DERIVE aliases the Worker still reads. */
+export function derivedPairs(tgtTable, srcCols, tgtCols, existingNames) {
+  const extra = []
+  for (const rule of DERIVE[tgtTable] ?? []) {
+    if (existingNames.has(rule.target)) continue
+    const from = srcCols.get(rule.from)
+    const to = tgtCols.get(rule.target)
+    if (!from || !to) continue
+    extra.push({
+      ...colPair(rule.target, from, to),
+      expr: `"${rule.from}" AS "${rule.target}"`,
     })
   }
-  return cols
+  return extra
+}
+
+async function overlappingColumns(src, tgt, srcSchema, srcTable, tgtTable) {
+  const [srcCols, tgtCols] = await Promise.all([
+    tableColumns(src, srcSchema, srcTable),
+    tableColumns(tgt, 'public', tgtTable),
+  ])
+  const cols = []
+  for (const [name, row] of srcCols) {
+    const t = tgtCols.get(name)
+    if (!t) continue
+    cols.push(colPair(name, row, t))
+  }
+  return { cols, srcCols, tgtCols }
 }
 
 /** json/jsonb scalars — not ARRAY (text[], uuid[], jsonb[], …). Types from information_schema. */
@@ -241,8 +273,9 @@ async function copyTable(src, tgt, spec, kind) {
   const srcSchema = spec.source.split('.')[0]
   const srcName = spec.source.split('.')[1]
   if (!(await tableExists(src, srcSchema, srcName))) return { table: spec.target, source: 0, target: 0, skipped: true }
-  const cols = await overlappingColumns(src, tgt, srcSchema, srcName, spec.target)
+  const { cols, srcCols, tgtCols } = await overlappingColumns(src, tgt, srcSchema, srcName, spec.target)
   const pairs = cols.map((c) => ({ ...c, expr: selectExpr(c, kind) })).filter((p) => p.expr)
+  pairs.push(...derivedPairs(spec.target, srcCols, tgtCols, new Set(pairs.map((p) => p.name))))
   if (!pairs.length) fail(`no overlapping columns for ${spec.target}`)
   const names = pairs.map((p) => p.name)
   const rows = await src.query(`SELECT ${pairs.map((p) => p.expr).join(', ')} FROM ${spec.source}`)

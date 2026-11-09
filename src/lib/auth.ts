@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { requireSupabase } from './supabase'
+import { isWorkersBackend } from './env'
 import { isDesktopTauri, isIOSTauri, isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
 import { beginExternalTrip } from './appLockSuppress'
@@ -32,6 +33,11 @@ interface OAuthUrlResult {
 
 /** Exchange a PKCE `code` from an OAuth callback URL for a persisted session. */
 export async function exchangeOAuthCode(code: string): Promise<void> {
+  if (isWorkersBackend) {
+    const { completeWorkersOAuthCallback } = await import('./authClient')
+    await completeWorkersOAuthCallback(`?code=${encodeURIComponent(code)}`)
+    return
+  }
   const sb = requireSupabase()
   const { error } = await sb.auth.exchangeCodeForSession(code)
   if (error) throw error
@@ -115,8 +121,24 @@ async function signInWithProvider(provider: OAuthProvider): Promise<OAuthHandoff
     await new Promise((r) => setTimeout(r, 1600))
     throw new Error('Preview: the in-app OAuth sheet would open here')
   }
+  if (isWorkersBackend) {
+    const { signInWorkersSocial } = await import('./authClient')
+    return runOAuth((options) =>
+      signInWorkersSocial({
+        provider,
+        callbackURL: options.redirectTo,
+        ...(options.skipBrowserRedirect ? { disableRedirect: true } : {}),
+      }),
+    )
+  }
   const sb = requireSupabase()
   return runOAuth((options) => sb.auth.signInWithOAuth({ provider, options }))
+}
+
+/** iOS native Sign in with Apple identity token (Better Auth idToken). */
+export async function signInWithAppleIdToken(token: string, nonce?: string): Promise<void> {
+  const { signInWorkersSocialIdToken } = await import('./authClient')
+  await signInWorkersSocialIdToken('apple', token, nonce)
 }
 
 export async function signInWithGoogle(): Promise<OAuthHandoff> {

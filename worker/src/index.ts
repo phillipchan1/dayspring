@@ -13,6 +13,7 @@ import {
   extendTrialOnce,
   getEntry,
   getProfile,
+  setAckedCompletion,
   listEntries,
   listEntriesSince,
   listProcessingJobs,
@@ -152,6 +153,16 @@ app.post('/api/profile/ensure', async (c) => {
   if (!user) return json({ error: 'not authenticated' }, 401)
   const profile = await ensureProfile(makeStore(sqlOf(c), user.id))
   return json({ profile })
+})
+
+app.post('/api/profile/ack-completion', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const body = await c.req.json<{ key?: string }>()
+  const key = typeof body.key === 'string' ? body.key.trim() : ''
+  if (!key) return json({ error: 'key required' }, 400)
+  await setAckedCompletion(makeStore(sqlOf(c), user.id), key)
+  return json({ ok: true })
 })
 
 app.delete('/api/account/delete', async (c) => {

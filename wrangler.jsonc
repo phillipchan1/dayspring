@@ -23,6 +23,8 @@
     "WELCOME_DRIP_SENDS_ENABLED": "false",
     // AI_GATEWAY_API_KEY — secret (wrangler secret put). Do not set a value here.
     // AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS — unset here so the flag stays off.
+    // APPLE_CLIENT_ID / APPLE_APP_BUNDLE_IDENTIFIER / GOOGLE_CLIENT_ID — dashboard vars.
+    // APPLE_CLIENT_SECRET / GOOGLE_CLIENT_SECRET — wrangler secret put. Never vars.
   },
   // HYPERDRIVE_ID_PLACEHOLDER — replace with a real Hyperdrive config id before
   // any paid deploy. Hyperdrive is a Workers Paid feature and is NOT inherited

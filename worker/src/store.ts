@@ -277,12 +277,13 @@ export interface ProfileRow {
   feature_flags: string[]
   stripe_customer_id: string | null
   apple_original_txn: string | null
+  acked_processing_completion: string | null
 }
 
 export async function getProfile(store: ConnectedStore): Promise<ProfileRow | null> {
   const rows = await store.sql<ProfileRow[]>`
     SELECT id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
-           feature_flags, stripe_customer_id, apple_original_txn
+           feature_flags, stripe_customer_id, apple_original_txn, acked_processing_completion
     FROM profiles
     WHERE owner = ${store.ownerId}
   `
@@ -310,11 +311,20 @@ export async function upsertProfile(
       trial_ends_at = COALESCE(${patch.trial_ends_at ?? null}, profiles.trial_ends_at),
       onboarded_at = COALESCE(${patch.onboarded_at ?? null}, profiles.onboarded_at)
     RETURNING id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
-              feature_flags, stripe_customer_id, apple_original_txn
+              feature_flags, stripe_customer_id, apple_original_txn, acked_processing_completion
   `
   const row = rows[0]
   if (!row) throw new Error('upsertProfile returned no row')
   return row
+}
+
+/** Persist the ProcessingBanner completion key (text, same as Supabase). */
+export async function setAckedCompletion(store: ConnectedStore, key: string): Promise<void> {
+  await store.sql`
+    INSERT INTO profiles (owner, acked_processing_completion)
+    VALUES (${store.ownerId}, ${key})
+    ON CONFLICT (owner) DO UPDATE SET acked_processing_completion = EXCLUDED.acked_processing_completion
+  `
 }
 
 /** Reverse trial only for a brand-new, never-paid account. Never overwrite a plan. */
@@ -363,7 +373,7 @@ export async function extendTrialOnce(store: ConnectedStore): Promise<TrialExten
         OR (plan = 'trialing' AND (plan_source IS NULL OR plan_source = ''))
       )
     RETURNING id, owner, has_seen_welcome, plan, plan_source, trial_ends_at, plan_expires_at, settings, onboarded_at,
-              feature_flags, stripe_customer_id, apple_original_txn
+              feature_flags, stripe_customer_id, apple_original_txn, acked_processing_completion
   `
   const updated = rows[0]
   if (updated) {
