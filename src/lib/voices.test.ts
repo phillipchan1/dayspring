@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { THEMES, resolveTheme, type ThemeId } from './resolveTheme'
 import { DEFAULT_SETTINGS, migrateSettings, reconcileVoice, type Settings } from './settings'
-import { VOICES, getVoice, isNightOnly, voiceForPalettes } from './voices'
+import { VOICES, getVoice, isNightOnly, voiceForPalettes, voicePalette } from './voices'
 
 const themesCss = readFileSync(new URL('../styles/themes.css', import.meta.url), 'utf8')
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
@@ -54,6 +54,27 @@ describe('the voice registry', () => {
     }
   })
 
+  it('offers palettes that are real, on the right side, led by its own, and claimed once', () => {
+    const family = Object.fromEntries(THEMES.map((t) => [t.id, t.family]))
+    const own = new Set(VOICES.flatMap((v) => [v.light, v.dark]).filter(Boolean))
+    const offered = new Set<string>()
+    for (const v of VOICES) {
+      if (!v.palettes) continue
+      expect(v.palettes.light[0], `${v.id}: own light first`).toBe(v.light)
+      expect(v.palettes.dark[0], `${v.id}: own dark first`).toBe(v.dark)
+      for (const side of ['light', 'dark'] as const) {
+        for (const id of v.palettes[side]) {
+          expect(family[id], `${v.id}: ${id}`).toBe(side)
+          if (id === v[side]) continue
+          // A borrowed palette belongs to one voice, and is never another's own.
+          expect(own.has(id), `${id} is another voice's own palette`).toBe(false)
+          expect(offered.has(id), `${id} offered twice`).toBe(false)
+          offered.add(id)
+        }
+      }
+    }
+  })
+
   it('has exactly one night-only voice', () => {
     expect(VOICES.filter((v) => v.light === null).map((v) => v.id)).toEqual(['vigil'])
   })
@@ -79,6 +100,22 @@ describe('a voice owns its typography', () => {
     for (const v of VOICES) {
       if (!v.light) continue
       expect(face(blocksFor(v.light)), `${v.id}`).toBe(face(blocksFor(v.dark)))
+    }
+  })
+
+  it('keeps the voice\'s face, scale and caret under every palette it offers', () => {
+    // A borrowed palette changes colour only. The face, the scale and the
+    // block caret come from the voice's grouped rules, which must list it.
+    const token = (css: string, name: string) => new RegExp(`${name}:\\s*([^;]+);`).exec(css)?.[1]?.trim()
+    for (const v of VOICES) {
+      if (!v.palettes) continue
+      const own = blocksFor(v.dark)
+      for (const id of [...v.palettes.light, ...v.palettes.dark]) {
+        const css = blocksFor(id)
+        for (const name of ['--font-display', '--voice-scale', '--caret-width', '--h1-size']) {
+          expect(token(css, name), `${id}: ${name}`).toBe(token(own, name))
+        }
+      }
     }
   })
 })
@@ -127,6 +164,52 @@ describe('the pre-paint boot script', () => {
       expect(row, `${v.id} missing from the boot map`).not.toBe('')
       expect(row).toContain(v.light ? `'${v.light}'` : 'null')
       expect(row).toContain(`'${v.dark}'`)
+    }
+  })
+})
+
+describe('choosing a palette within a voice', () => {
+  const base = (patch: Partial<Settings>): Settings => ({ ...DEFAULT_SETTINGS, ...patch })
+
+  it('wears the chosen palette on its own side of the day', () => {
+    const s = base({ voice: 'plainsong', paletteLight: 'onelight', paletteDark: 'onedark', appearance: 'auto' })
+    expect(resolveTheme(s, false)).toBe('onelight')
+    expect(resolveTheme(s, true)).toBe('onedark')
+  })
+
+  it('falls back to the voice\'s own palette when nothing is chosen', () => {
+    const s = base({ voice: 'plainsong', paletteLight: null, appearance: 'light' })
+    expect(resolveTheme(s, false)).toBe('quire')
+  })
+
+  it('ignores a palette the voice does not offer, or one on the wrong side', () => {
+    expect(resolveTheme(base({ voice: 'dawn', paletteDark: 'onedark', appearance: 'dark' }), true)).toBe('ink')
+    expect(resolveTheme(base({ voice: 'plainsong', paletteDark: 'onelight', appearance: 'dark' }), true)).toBe('nocturne')
+    expect(voicePalette('plainsong', 'light', 'nocturne')).toBe('quire')
+  })
+
+  it('keeps projecting the voice\'s own palettes for the other release channel', () => {
+    // A stable client has never heard of One Dark and would coerce it to Ink;
+    // it must keep finding Quire / Nocturne in the shared row.
+    const s = reconcileVoice(base({ voice: 'plainsong', paletteLight: 'latte', paletteDark: 'gruvbox' }))
+    expect(s.lightTheme).toBe('quire')
+    expect(s.darkTheme).toBe('nocturne')
+    expect(s.paletteDark).toBe('gruvbox')
+  })
+
+  it('carries the choice through the migration untouched', () => {
+    const s = migrateSettings({ v: 4, voice: 'plainsong', paletteDark: 'tokyonight' } as Partial<Settings>)
+    expect(resolveTheme({ ...s, appearance: 'dark' }, true)).toBe('tokyonight')
+  })
+
+  it('lists the same palettes in the pre-paint boot script', () => {
+    const map = /var PALETTES = \{([\s\S]*?)\n {10}\}/.exec(indexHtml)?.[1] ?? ''
+    for (const v of VOICES) {
+      if (!v.palettes) continue
+      const row = new RegExp(`${v.id}: \\[([\\s\\S]*?)\\n {12}\\]`).exec(map)?.[1] ?? ''
+      expect(row, `${v.id} missing from PALETTES`).not.toBe('')
+      expect(row).toContain(`[${v.palettes.light.map((id) => `'${id}'`).join(', ')}]`)
+      expect(row).toContain(`[${v.palettes.dark.map((id) => `'${id}'`).join(', ')}]`)
     }
   })
 })

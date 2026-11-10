@@ -475,7 +475,11 @@
 [data-theme='vellum'],
 [data-theme='cloister'],
 [data-theme='sabbath'],
-[data-theme='quire'] {
+[data-theme='quire'],
+[data-theme='onelight'],
+[data-theme='ayulight'],
+[data-theme='solarized'],
+[data-theme='latte'] {
   --entry-row-hover-bg: rgba(0, 0, 0, 0.03);
   --entry-row-active-bg: rgba(0, 0, 0, 0.06);
   --entry-row-selected-bg: rgba(0, 0, 0, 0.04);
@@ -695,7 +699,13 @@
 [data-theme='compline'],
 [data-theme='nocturne'],
 [data-theme='vigil'],
-[data-theme='grove'] {
+[data-theme='grove'],
+[data-theme='onedark'],
+[data-theme='ayumirage'],
+[data-theme='palenight'],
+[data-theme='tokyonight'],
+[data-theme='gruvbox'],
+[data-theme='mocha'] {
   --hl-alpha: 0.24;
 }
 
@@ -913,11 +923,35 @@
 
 /* Nocturne — a tiny gold diamond. True black, keep the pixels down. */
 [data-theme='nocturne'] .cm-hr,
-[data-theme='nocturne'] .markdown-body hr {
+[data-theme='nocturne'] .markdown-body hr,
+[data-theme='onedark'] .cm-hr,
+[data-theme='ayumirage'] .cm-hr,
+[data-theme='palenight'] .cm-hr,
+[data-theme='tokyonight'] .cm-hr,
+[data-theme='gruvbox'] .cm-hr,
+[data-theme='mocha'] .cm-hr,
+[data-theme='onedark'] .markdown-body hr,
+[data-theme='ayumirage'] .markdown-body hr,
+[data-theme='palenight'] .markdown-body hr,
+[data-theme='tokyonight'] .markdown-body hr,
+[data-theme='gruvbox'] .markdown-body hr,
+[data-theme='mocha'] .markdown-body hr {
   --hr-gap: 0.7em;
 }
 [data-theme='nocturne'] .cm-hr::before,
-[data-theme='nocturne'] .markdown-body hr::before {
+[data-theme='nocturne'] .markdown-body hr::before,
+[data-theme='onedark'] .cm-hr::before,
+[data-theme='ayumirage'] .cm-hr::before,
+[data-theme='palenight'] .cm-hr::before,
+[data-theme='tokyonight'] .cm-hr::before,
+[data-theme='gruvbox'] .cm-hr::before,
+[data-theme='mocha'] .cm-hr::before,
+[data-theme='onedark'] .markdown-body hr::before,
+[data-theme='ayumirage'] .markdown-body hr::before,
+[data-theme='palenight'] .markdown-body hr::before,
+[data-theme='tokyonight'] .markdown-body hr::before,
+[data-theme='gruvbox'] .markdown-body hr::before,
+[data-theme='mocha'] .markdown-body hr::before {
   width: 4px;
   height: 4px;
   background: var(--accent);
@@ -1202,7 +1236,17 @@
    smallest of the six by a distance, and read that way. 0.84 (≈20px) puts it
    with Vellum, Cloister and Vigil, at ~55 characters a line. */
 [data-theme='quire'],
-[data-theme='nocturne'] {
+[data-theme='nocturne'],
+[data-theme='onelight'],
+[data-theme='ayulight'],
+[data-theme='solarized'],
+[data-theme='latte'],
+[data-theme='onedark'],
+[data-theme='ayumirage'],
+[data-theme='palenight'],
+[data-theme='tokyonight'],
+[data-theme='gruvbox'],
+[data-theme='mocha'] {
   --font-display: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --font-serif: var(--font-display);
   --font-editor: var(--font-display);
@@ -1470,13 +1514,53 @@
 [data-theme='quire'] .cm-dateline__text::before,
 [data-theme='nocturne'] .cm-dateline__text::before,
 [data-theme='quire'] .pg-read1__date-text::before,
-[data-theme='nocturne'] .pg-read1__date-text::before {
+[data-theme='nocturne'] .pg-read1__date-text::before,
+[data-theme='onelight'] .cm-dateline__text::before,
+[data-theme='ayulight'] .cm-dateline__text::before,
+[data-theme='solarized'] .cm-dateline__text::before,
+[data-theme='latte'] .cm-dateline__text::before,
+[data-theme='onedark'] .cm-dateline__text::before,
+[data-theme='ayumirage'] .cm-dateline__text::before,
+[data-theme='palenight'] .cm-dateline__text::before,
+[data-theme='tokyonight'] .cm-dateline__text::before,
+[data-theme='gruvbox'] .cm-dateline__text::before,
+[data-theme='mocha'] .cm-dateline__text::before,
+[data-theme='onelight'] .pg-read1__date-text::before,
+[data-theme='ayulight'] .pg-read1__date-text::before,
+[data-theme='solarized'] .pg-read1__date-text::before,
+[data-theme='latte'] .pg-read1__date-text::before,
+[data-theme='onedark'] .pg-read1__date-text::before,
+[data-theme='ayumirage'] .pg-read1__date-text::before,
+[data-theme='palenight'] .pg-read1__date-text::before,
+[data-theme='tokyonight'] .pg-read1__date-text::before,
+[data-theme='gruvbox'] .pg-read1__date-text::before,
+[data-theme='mocha'] .pg-read1__date-text::before {
   content: '[\00a0';
 }
 [data-theme='quire'] .cm-dateline__text::after,
 [data-theme='nocturne'] .cm-dateline__text::after,
 [data-theme='quire'] .pg-read1__date-text::after,
-[data-theme='nocturne'] .pg-read1__date-text::after {
+[data-theme='nocturne'] .pg-read1__date-text::after,
+[data-theme='onelight'] .cm-dateline__text::after,
+[data-theme='ayulight'] .cm-dateline__text::after,
+[data-theme='solarized'] .cm-dateline__text::after,
+[data-theme='latte'] .cm-dateline__text::after,
+[data-theme='onedark'] .cm-dateline__text::after,
+[data-theme='ayumirage'] .cm-dateline__text::after,
+[data-theme='palenight'] .cm-dateline__text::after,
+[data-theme='tokyonight'] .cm-dateline__text::after,
+[data-theme='gruvbox'] .cm-dateline__text::after,
+[data-theme='mocha'] .cm-dateline__text::after,
+[data-theme='onelight'] .pg-read1__date-text::after,
+[data-theme='ayulight'] .pg-read1__date-text::after,
+[data-theme='solarized'] .pg-read1__date-text::after,
+[data-theme='latte'] .pg-read1__date-text::after,
+[data-theme='onedark'] .pg-read1__date-text::after,
+[data-theme='ayumirage'] .pg-read1__date-text::after,
+[data-theme='palenight'] .pg-read1__date-text::after,
+[data-theme='tokyonight'] .pg-read1__date-text::after,
+[data-theme='gruvbox'] .pg-read1__date-text::after,
+[data-theme='mocha'] .pg-read1__date-text::after {
   content: '\00a0]';
 }
 
@@ -1520,7 +1604,17 @@
    Translucent, so the character under the block still reads, as in a
    terminal that draws its cursor over the cell rather than instead of it. */
 [data-theme='quire'],
-[data-theme='nocturne'] {
+[data-theme='nocturne'],
+[data-theme='onelight'],
+[data-theme='ayulight'],
+[data-theme='solarized'],
+[data-theme='latte'],
+[data-theme='onedark'],
+[data-theme='ayumirage'],
+[data-theme='palenight'],
+[data-theme='tokyonight'],
+[data-theme='gruvbox'],
+[data-theme='mocha'] {
   --caret-width: 1ch;
   --caret-offset: 0px;
   --caret-period: 1s;
@@ -1655,19 +1749,69 @@
    markdown syntax: the app conceals `#` and `**` by default because a real
    user hit them, and a theme is no place to hand them back. */
 [data-theme='quire'],
-[data-theme='nocturne'] {
+[data-theme='nocturne'],
+[data-theme='onelight'],
+[data-theme='ayulight'],
+[data-theme='solarized'],
+[data-theme='latte'],
+[data-theme='onedark'],
+[data-theme='ayumirage'],
+[data-theme='palenight'],
+[data-theme='tokyonight'],
+[data-theme='gruvbox'],
+[data-theme='mocha'] {
   --hr-gap: 1.2em;
 }
 [data-theme='quire'] .cm-scripture-cite::before,
 [data-theme='nocturne'] .cm-scripture-cite::before,
 [data-theme='quire'] .markdown-body .spiritual-cite::before,
-[data-theme='nocturne'] .markdown-body .spiritual-cite::before {
+[data-theme='nocturne'] .markdown-body .spiritual-cite::before,
+[data-theme='onelight'] .cm-scripture-cite::before,
+[data-theme='ayulight'] .cm-scripture-cite::before,
+[data-theme='solarized'] .cm-scripture-cite::before,
+[data-theme='latte'] .cm-scripture-cite::before,
+[data-theme='onedark'] .cm-scripture-cite::before,
+[data-theme='ayumirage'] .cm-scripture-cite::before,
+[data-theme='palenight'] .cm-scripture-cite::before,
+[data-theme='tokyonight'] .cm-scripture-cite::before,
+[data-theme='gruvbox'] .cm-scripture-cite::before,
+[data-theme='mocha'] .cm-scripture-cite::before,
+[data-theme='onelight'] .markdown-body .spiritual-cite::before,
+[data-theme='ayulight'] .markdown-body .spiritual-cite::before,
+[data-theme='solarized'] .markdown-body .spiritual-cite::before,
+[data-theme='latte'] .markdown-body .spiritual-cite::before,
+[data-theme='onedark'] .markdown-body .spiritual-cite::before,
+[data-theme='ayumirage'] .markdown-body .spiritual-cite::before,
+[data-theme='palenight'] .markdown-body .spiritual-cite::before,
+[data-theme='tokyonight'] .markdown-body .spiritual-cite::before,
+[data-theme='gruvbox'] .markdown-body .spiritual-cite::before,
+[data-theme='mocha'] .markdown-body .spiritual-cite::before {
   content: '[\00a0';
 }
 [data-theme='quire'] .cm-scripture-cite::after,
 [data-theme='nocturne'] .cm-scripture-cite::after,
 [data-theme='quire'] .markdown-body .spiritual-cite::after,
-[data-theme='nocturne'] .markdown-body .spiritual-cite::after {
+[data-theme='nocturne'] .markdown-body .spiritual-cite::after,
+[data-theme='onelight'] .cm-scripture-cite::after,
+[data-theme='ayulight'] .cm-scripture-cite::after,
+[data-theme='solarized'] .cm-scripture-cite::after,
+[data-theme='latte'] .cm-scripture-cite::after,
+[data-theme='onedark'] .cm-scripture-cite::after,
+[data-theme='ayumirage'] .cm-scripture-cite::after,
+[data-theme='palenight'] .cm-scripture-cite::after,
+[data-theme='tokyonight'] .cm-scripture-cite::after,
+[data-theme='gruvbox'] .cm-scripture-cite::after,
+[data-theme='mocha'] .cm-scripture-cite::after,
+[data-theme='onelight'] .markdown-body .spiritual-cite::after,
+[data-theme='ayulight'] .markdown-body .spiritual-cite::after,
+[data-theme='solarized'] .markdown-body .spiritual-cite::after,
+[data-theme='latte'] .markdown-body .spiritual-cite::after,
+[data-theme='onedark'] .markdown-body .spiritual-cite::after,
+[data-theme='ayumirage'] .markdown-body .spiritual-cite::after,
+[data-theme='palenight'] .markdown-body .spiritual-cite::after,
+[data-theme='tokyonight'] .markdown-body .spiritual-cite::after,
+[data-theme='gruvbox'] .markdown-body .spiritual-cite::after,
+[data-theme='mocha'] .markdown-body .spiritual-cite::after {
   content: '\00a0]';
 }
 /* A quotation's rule in characters' worth of dashes — written and read alike
@@ -1675,7 +1819,27 @@
 [data-theme='quire'] .cm-content .cm-line.cm-md-quote,
 [data-theme='nocturne'] .cm-content .cm-line.cm-md-quote,
 [data-theme='quire'] .markdown-body blockquote,
-[data-theme='nocturne'] .markdown-body blockquote {
+[data-theme='nocturne'] .markdown-body blockquote,
+[data-theme='onelight'] .cm-content .cm-line.cm-md-quote,
+[data-theme='ayulight'] .cm-content .cm-line.cm-md-quote,
+[data-theme='solarized'] .cm-content .cm-line.cm-md-quote,
+[data-theme='latte'] .cm-content .cm-line.cm-md-quote,
+[data-theme='onedark'] .cm-content .cm-line.cm-md-quote,
+[data-theme='ayumirage'] .cm-content .cm-line.cm-md-quote,
+[data-theme='palenight'] .cm-content .cm-line.cm-md-quote,
+[data-theme='tokyonight'] .cm-content .cm-line.cm-md-quote,
+[data-theme='gruvbox'] .cm-content .cm-line.cm-md-quote,
+[data-theme='mocha'] .cm-content .cm-line.cm-md-quote,
+[data-theme='onelight'] .markdown-body blockquote,
+[data-theme='ayulight'] .markdown-body blockquote,
+[data-theme='solarized'] .markdown-body blockquote,
+[data-theme='latte'] .markdown-body blockquote,
+[data-theme='onedark'] .markdown-body blockquote,
+[data-theme='ayumirage'] .markdown-body blockquote,
+[data-theme='palenight'] .markdown-body blockquote,
+[data-theme='tokyonight'] .markdown-body blockquote,
+[data-theme='gruvbox'] .markdown-body blockquote,
+[data-theme='mocha'] .markdown-body blockquote {
   box-shadow: none;
   background-image: repeating-linear-gradient(
     to bottom,
@@ -1688,7 +1852,27 @@
 [data-theme='quire'] .cm-content,
 [data-theme='nocturne'] .cm-content,
 [data-theme='quire'] .markdown-body,
-[data-theme='nocturne'] .markdown-body {
+[data-theme='nocturne'] .markdown-body,
+[data-theme='onelight'] .cm-content,
+[data-theme='ayulight'] .cm-content,
+[data-theme='solarized'] .cm-content,
+[data-theme='latte'] .cm-content,
+[data-theme='onedark'] .cm-content,
+[data-theme='ayumirage'] .cm-content,
+[data-theme='palenight'] .cm-content,
+[data-theme='tokyonight'] .cm-content,
+[data-theme='gruvbox'] .cm-content,
+[data-theme='mocha'] .cm-content,
+[data-theme='onelight'] .markdown-body,
+[data-theme='ayulight'] .markdown-body,
+[data-theme='solarized'] .markdown-body,
+[data-theme='latte'] .markdown-body,
+[data-theme='onedark'] .markdown-body,
+[data-theme='ayumirage'] .markdown-body,
+[data-theme='palenight'] .markdown-body,
+[data-theme='tokyonight'] .markdown-body,
+[data-theme='gruvbox'] .markdown-body,
+[data-theme='mocha'] .markdown-body {
   --scripture-rule-image: repeating-linear-gradient(
     to bottom,
     var(--scripture-rule) 0 4px,
@@ -1699,7 +1883,27 @@
 [data-theme='quire'] .cm-content,
 [data-theme='nocturne'] .cm-content,
 [data-theme='quire'] .markdown-body,
-[data-theme='nocturne'] .markdown-body {
+[data-theme='nocturne'] .markdown-body,
+[data-theme='onelight'] .cm-content,
+[data-theme='ayulight'] .cm-content,
+[data-theme='solarized'] .cm-content,
+[data-theme='latte'] .cm-content,
+[data-theme='onedark'] .cm-content,
+[data-theme='ayumirage'] .cm-content,
+[data-theme='palenight'] .cm-content,
+[data-theme='tokyonight'] .cm-content,
+[data-theme='gruvbox'] .cm-content,
+[data-theme='mocha'] .cm-content,
+[data-theme='onelight'] .markdown-body,
+[data-theme='ayulight'] .markdown-body,
+[data-theme='solarized'] .markdown-body,
+[data-theme='latte'] .markdown-body,
+[data-theme='onedark'] .markdown-body,
+[data-theme='ayumirage'] .markdown-body,
+[data-theme='palenight'] .markdown-body,
+[data-theme='tokyonight'] .markdown-body,
+[data-theme='gruvbox'] .markdown-body,
+[data-theme='mocha'] .markdown-body {
   font-variant-numeric: tabular-nums;
 }
 
@@ -1742,10 +1946,592 @@
 /* Quire takes Nocturne's diamond — Plainsong's one mark, in daylight. Slightly
    more present than the night version, which sits on true black and needs less. */
 [data-theme='quire'] .cm-hr::before,
-[data-theme='quire'] .markdown-body hr::before {
+[data-theme='quire'] .markdown-body hr::before,
+[data-theme='onelight'] .cm-hr::before,
+[data-theme='ayulight'] .cm-hr::before,
+[data-theme='solarized'] .cm-hr::before,
+[data-theme='latte'] .cm-hr::before,
+[data-theme='onelight'] .markdown-body hr::before,
+[data-theme='ayulight'] .markdown-body hr::before,
+[data-theme='solarized'] .markdown-body hr::before,
+[data-theme='latte'] .markdown-body hr::before {
   width: 4px;
   height: 4px;
   background: var(--accent);
   transform: translate(-50%, -50%) rotate(45deg);
   opacity: 0.8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Plainsong's palettes — the editor themes it borrows from
+   ───────────────────────────────────────────────────────────────────────────
+   Plainsong is the terminal voice, and the people who choose a mono face tend
+   to already have an editor palette they love. So Plainsong alone offers a
+   choice of ground underneath the same face, scale, brackets, block caret and
+   diamond: Quire / Nocturne (its own), or one of the palettes below, drawn
+   from the editor themes of the same names (all MIT-licensed colour sets).
+
+   Every Plainsong rule above lists these ids next to quire / nocturne, so they
+   take the voice's type and ornament from there; these blocks are colour only.
+   Marking tones keep the house arc (desire rose · scripture gold · story ochre
+   · prayer = accent · learned green · sense violet) using each theme's own
+   colours. Where a theme has no colour for a role, the nearest one stands in:
+   Palenight's accent is already its violet, so sense takes its blue; Gruvbox
+   has no violet, so sense takes its mauve; Ayu Mirage's accent is a gold, so
+   scripture and prayer separate by value, as they do in Quire.
+
+   Settings sync still writes quire / nocturne to the shared slots — the choice
+   lives in `paletteLight` / `paletteDark`. See voices.ts.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* One Light — Plainsong, by day. */
+[data-theme='onelight'] {
+  color-scheme: light;
+
+  --bg: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-input: #f0f0f1;
+  --bg-hover: #e5e5e6;
+
+  --border: #dbdbdc;
+  --border-subtle: #eaeaeb;
+
+  --text: #383a42;
+  --text-bright: #1f2026;
+  --text-dim: #696c77;
+  --text-faint: #a0a1a7;
+
+  --accent: #4078f2;
+  --accent-soft: rgba(64, 120, 242, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 26%, #ffffff);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #e45649;
+  --md-emphasis: #a626a4;
+  --md-strong: #986801;
+  --md-link: #4078f2;
+  --md-code: #50a14f;
+  --md-quote: #696c77;
+  --md-list: #0184bc;
+
+  --danger: #ca1243;
+  --success: #50a14f;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(64, 120, 242, 0.1), rgba(64, 120, 242, 0.02) 42%, transparent 66%);
+  --journal-horizon: #4078f2;
+  --scripture-cell-rest: rgba(56, 58, 66, 0.1);
+
+  --entry-list-bg: #ececed;
+  --entry-list-head-bg: #ececed;
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-nav-bg: rgba(250, 250, 250, 0.73);
+  --glass-border: rgba(56, 58, 66, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-scrim: rgba(31, 32, 38, 0.36);
+  --glass-shadow: 0 36px 64px -32px rgba(31, 32, 38, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(64, 120, 242, 0.2);
+  --glass-glow-spot: rgba(64, 120, 242, 0.16);
+
+  --k-desire: #e45649;
+  --k-scripture: #c18401;
+  --k-story: #986801;
+  --k-prayer: #4078f2;
+  --k-learned: #50a14f;
+  --k-sense: #a626a4;
+}
+
+/* Ayu Light — Plainsong, by day. */
+[data-theme='ayulight'] {
+  color-scheme: light;
+
+  --bg: #fcfcfc;
+  --bg-elevated: #ffffff;
+  --bg-input: #f3f4f5;
+  --bg-hover: #e7eaed;
+
+  --border: #e1e3e6;
+  --border-subtle: #eef0f2;
+
+  --text: #5c6166;
+  --text-bright: #2a2e33;
+  --text-dim: #8a9199;
+  --text-faint: #adaeb1;
+
+  --accent: #fa8d3e;
+  --accent-soft: rgba(250, 141, 62, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 26%, #ffffff);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #e0731c;
+  --md-emphasis: #a37acc;
+  --md-strong: #d07a1a;
+  --md-link: #2f8fd6;
+  --md-code: #86b300;
+  --md-quote: #8a9199;
+  --md-list: #55b4d4;
+
+  --danger: #e65050;
+  --success: #6cbf43;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(250, 141, 62, 0.1), rgba(250, 141, 62, 0.02) 42%, transparent 66%);
+  --journal-horizon: #fa8d3e;
+  --scripture-cell-rest: rgba(92, 97, 102, 0.1);
+
+  --entry-list-bg: #f0f1f2;
+  --entry-list-head-bg: #f0f1f2;
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-nav-bg: rgba(252, 252, 252, 0.73);
+  --glass-border: rgba(92, 97, 102, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-scrim: rgba(42, 46, 51, 0.36);
+  --glass-shadow: 0 36px 64px -32px rgba(42, 46, 51, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(250, 141, 62, 0.2);
+  --glass-glow-spot: rgba(250, 141, 62, 0.16);
+
+  --k-desire: #f07171;
+  --k-scripture: #d9a521;
+  --k-story: #b8835a;
+  --k-prayer: #fa8d3e;
+  --k-learned: #86b300;
+  --k-sense: #a37acc;
+}
+
+/* Solarized Light — Plainsong, by day. */
+[data-theme='solarized'] {
+  color-scheme: light;
+
+  --bg: #fdf6e3;
+  --bg-elevated: #fffbef;
+  --bg-input: #eee8d5;
+  --bg-hover: #e6dfc8;
+
+  --border: #ddd6c1;
+  --border-subtle: #eee8d5;
+
+  --text: #586e75;
+  --text-bright: #073642;
+  --text-dim: #839496;
+  --text-faint: #93a1a1;
+
+  --accent: #268bd2;
+  --accent-soft: rgba(38, 139, 210, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 26%, #fffbef);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #cb4b16;
+  --md-emphasis: #6c71c4;
+  --md-strong: #b58900;
+  --md-link: #268bd2;
+  --md-code: #859900;
+  --md-quote: #839496;
+  --md-list: #2aa198;
+
+  --danger: #dc322f;
+  --success: #859900;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(38, 139, 210, 0.1), rgba(38, 139, 210, 0.02) 42%, transparent 66%);
+  --journal-horizon: #268bd2;
+  --scripture-cell-rest: rgba(88, 110, 117, 0.1);
+
+  --entry-list-bg: #f5eedb;
+  --entry-list-head-bg: #f5eedb;
+
+  --glass-bg: rgba(255, 251, 239, 0.85);
+  --glass-nav-bg: rgba(253, 246, 227, 0.73);
+  --glass-border: rgba(88, 110, 117, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-scrim: rgba(7, 54, 66, 0.36);
+  --glass-shadow: 0 36px 64px -32px rgba(7, 54, 66, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(38, 139, 210, 0.2);
+  --glass-glow-spot: rgba(38, 139, 210, 0.16);
+
+  --k-desire: #d33682;
+  --k-scripture: #b58900;
+  --k-story: #cb4b16;
+  --k-prayer: #268bd2;
+  --k-learned: #859900;
+  --k-sense: #6c71c4;
+}
+
+/* Catppuccin Latte — Plainsong, by day. */
+[data-theme='latte'] {
+  color-scheme: light;
+
+  --bg: #eff1f5;
+  --bg-elevated: #f7f8fb;
+  --bg-input: #e6e9ef;
+  --bg-hover: #dce0e8;
+
+  --border: #ccd0da;
+  --border-subtle: #dce0e8;
+
+  --text: #4c4f69;
+  --text-bright: #2c2e43;
+  --text-dim: #6c6f85;
+  --text-faint: #9ca0b0;
+
+  --accent: #8839ef;
+  --accent-soft: rgba(136, 57, 239, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 26%, #f7f8fb);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #8839ef;
+  --md-emphasis: #ea76cb;
+  --md-strong: #fe640b;
+  --md-link: #1e66f5;
+  --md-code: #40a02b;
+  --md-quote: #7c7f93;
+  --md-list: #179299;
+
+  --danger: #d20f39;
+  --success: #40a02b;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(136, 57, 239, 0.1), rgba(136, 57, 239, 0.02) 42%, transparent 66%);
+  --journal-horizon: #8839ef;
+  --scripture-cell-rest: rgba(76, 79, 105, 0.1);
+
+  --entry-list-bg: #e6e9ef;
+  --entry-list-head-bg: #e6e9ef;
+
+  --glass-bg: rgba(247, 248, 251, 0.85);
+  --glass-nav-bg: rgba(239, 241, 245, 0.73);
+  --glass-border: rgba(76, 79, 105, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-scrim: rgba(44, 46, 67, 0.36);
+  --glass-shadow: 0 36px 64px -32px rgba(44, 46, 67, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(136, 57, 239, 0.2);
+  --glass-glow-spot: rgba(136, 57, 239, 0.16);
+
+  --k-desire: #d20f39;
+  --k-scripture: #df8e1d;
+  --k-story: #fe640b;
+  --k-prayer: #8839ef;
+  --k-learned: #40a02b;
+  --k-sense: #1e66f5;
+}
+
+/* One Dark — Plainsong, by night. */
+[data-theme='onedark'] {
+  color-scheme: dark;
+
+  --bg: #282c34;
+  --bg-elevated: #21252b;
+  --bg-input: #2c313a;
+  --bg-hover: #333842;
+
+  --border: #3e4451;
+  --border-subtle: #2c313a;
+
+  --text: #abb2bf;
+  --text-bright: #e6e9ef;
+  --text-dim: #7f848e;
+  --text-faint: #5c6370;
+
+  --accent: #61afef;
+  --accent-soft: rgba(97, 175, 239, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 40%, #21252b);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #e06c75;
+  --md-emphasis: #c678dd;
+  --md-strong: #d19a66;
+  --md-link: #61afef;
+  --md-code: #98c379;
+  --md-quote: #7f848e;
+  --md-list: #56b6c2;
+
+  --danger: #e06c75;
+  --success: #98c379;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(97, 175, 239, 0.09), rgba(97, 175, 239, 0.03) 42%, transparent 62%);
+  --journal-horizon: rgba(97, 175, 239, 0.45);
+
+  --glass-bg: rgba(33, 37, 43, 0.8);
+  --glass-nav-bg: rgba(40, 44, 52, 0.6);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(0, 0, 0, 0.62);
+  --glass-shadow-glow: 0 0 58px -28px rgba(97, 175, 239, 0.18);
+  --glass-glow-spot: rgba(97, 175, 239, 0.18);
+
+  --entry-list-head-border: rgba(97, 175, 239, 0.16);
+
+  --k-desire: #e06c75;
+  --k-scripture: #e5c07b;
+  --k-story: #d19a66;
+  --k-prayer: #61afef;
+  --k-learned: #98c379;
+  --k-sense: #c678dd;
+}
+
+/* Ayu Mirage — Plainsong, by night. */
+[data-theme='ayumirage'] {
+  color-scheme: dark;
+
+  --bg: #1f2430;
+  --bg-elevated: #1a1f29;
+  --bg-input: #242936;
+  --bg-hover: #2d3342;
+
+  --border: #343b4c;
+  --border-subtle: #272d3a;
+
+  --text: #cccac2;
+  --text-bright: #f3f1ea;
+  --text-dim: #8a9199;
+  --text-faint: #5c6773;
+
+  --accent: #ffcc66;
+  --accent-soft: rgba(255, 204, 102, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 40%, #1a1f29);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #ffcc66;
+  --md-emphasis: #dfbfff;
+  --md-strong: #ffad66;
+  --md-link: #73d0ff;
+  --md-code: #d5ff80;
+  --md-quote: #8a9199;
+  --md-list: #95e6cb;
+
+  --danger: #ff6666;
+  --success: #87d96c;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(255, 204, 102, 0.09), rgba(255, 204, 102, 0.03) 42%, transparent 62%);
+  --journal-horizon: rgba(255, 204, 102, 0.45);
+
+  --glass-bg: rgba(26, 31, 41, 0.8);
+  --glass-nav-bg: rgba(31, 36, 48, 0.6);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(0, 0, 0, 0.62);
+  --glass-shadow-glow: 0 0 58px -28px rgba(255, 204, 102, 0.18);
+  --glass-glow-spot: rgba(255, 204, 102, 0.18);
+
+  --entry-list-head-border: rgba(255, 204, 102, 0.16);
+
+  --k-desire: #f28779;
+  --k-scripture: #f6e2a8;
+  --k-story: #ffad66;
+  --k-prayer: #ffcc66;
+  --k-learned: #d5ff80;
+  --k-sense: #dfbfff;
+}
+
+/* Palenight — Plainsong, by night. */
+[data-theme='palenight'] {
+  color-scheme: dark;
+
+  --bg: #292d3e;
+  --bg-elevated: #232637;
+  --bg-input: #34394f;
+  --bg-hover: #3a3f58;
+
+  --border: #444a66;
+  --border-subtle: #32364a;
+
+  --text: #a6accd;
+  --text-bright: #eeffff;
+  --text-dim: #7c82a6;
+  --text-faint: #676e95;
+
+  --accent: #c792ea;
+  --accent-soft: rgba(199, 146, 234, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 40%, #232637);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #82aaff;
+  --md-emphasis: #c792ea;
+  --md-strong: #f78c6c;
+  --md-link: #82aaff;
+  --md-code: #c3e88d;
+  --md-quote: #7c82a6;
+  --md-list: #89ddff;
+
+  --danger: #ff5370;
+  --success: #c3e88d;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(199, 146, 234, 0.09), rgba(199, 146, 234, 0.03) 42%, transparent 62%);
+  --journal-horizon: rgba(199, 146, 234, 0.45);
+
+  --glass-bg: rgba(35, 38, 55, 0.8);
+  --glass-nav-bg: rgba(41, 45, 62, 0.6);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(0, 0, 0, 0.62);
+  --glass-shadow-glow: 0 0 58px -28px rgba(199, 146, 234, 0.18);
+  --glass-glow-spot: rgba(199, 146, 234, 0.18);
+
+  --entry-list-head-border: rgba(199, 146, 234, 0.16);
+
+  --k-desire: #f07178;
+  --k-scripture: #ffcb6b;
+  --k-story: #f78c6c;
+  --k-prayer: #c792ea;
+  --k-learned: #c3e88d;
+  --k-sense: #82aaff;
+}
+
+/* Tokyo Night — Plainsong, by night. */
+[data-theme='tokyonight'] {
+  color-scheme: dark;
+
+  --bg: #1a1b26;
+  --bg-elevated: #16161e;
+  --bg-input: #1f2335;
+  --bg-hover: #292e42;
+
+  --border: #292e42;
+  --border-subtle: #1f2335;
+
+  --text: #a9b1d6;
+  --text-bright: #c0caf5;
+  --text-dim: #737aa2;
+  --text-faint: #565f89;
+
+  --accent: #7aa2f7;
+  --accent-soft: rgba(122, 162, 247, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 40%, #16161e);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #7aa2f7;
+  --md-emphasis: #bb9af7;
+  --md-strong: #ff9e64;
+  --md-link: #7dcfff;
+  --md-code: #9ece6a;
+  --md-quote: #737aa2;
+  --md-list: #2ac3de;
+
+  --danger: #f7768e;
+  --success: #9ece6a;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(122, 162, 247, 0.09), rgba(122, 162, 247, 0.03) 42%, transparent 62%);
+  --journal-horizon: rgba(122, 162, 247, 0.45);
+
+  --glass-bg: rgba(22, 22, 30, 0.8);
+  --glass-nav-bg: rgba(26, 27, 38, 0.6);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(0, 0, 0, 0.62);
+  --glass-shadow-glow: 0 0 58px -28px rgba(122, 162, 247, 0.18);
+  --glass-glow-spot: rgba(122, 162, 247, 0.18);
+
+  --entry-list-head-border: rgba(122, 162, 247, 0.16);
+
+  --k-desire: #f7768e;
+  --k-scripture: #e0af68;
+  --k-story: #ff9e64;
+  --k-prayer: #7aa2f7;
+  --k-learned: #9ece6a;
+  --k-sense: #bb9af7;
+}
+
+/* Gruvbox — Plainsong, by night. */
+[data-theme='gruvbox'] {
+  color-scheme: dark;
+
+  --bg: #282828;
+  --bg-elevated: #1d2021;
+  --bg-input: #32302f;
+  --bg-hover: #3c3836;
+
+  --border: #504945;
+  --border-subtle: #32302f;
+
+  --text: #d5c4a1;
+  --text-bright: #fbf1c7;
+  --text-dim: #a89984;
+  --text-faint: #7c6f64;
+
+  --accent: #fe8019;
+  --accent-soft: rgba(254, 128, 25, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 40%, #1d2021);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #fabd2f;
+  --md-emphasis: #d3869b;
+  --md-strong: #fe8019;
+  --md-link: #83a598;
+  --md-code: #b8bb26;
+  --md-quote: #a89984;
+  --md-list: #8ec07c;
+
+  --danger: #fb4934;
+  --success: #b8bb26;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(254, 128, 25, 0.09), rgba(254, 128, 25, 0.03) 42%, transparent 62%);
+  --journal-horizon: rgba(254, 128, 25, 0.45);
+
+  --glass-bg: rgba(29, 32, 33, 0.8);
+  --glass-nav-bg: rgba(40, 40, 40, 0.6);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(0, 0, 0, 0.62);
+  --glass-shadow-glow: 0 0 58px -28px rgba(254, 128, 25, 0.18);
+  --glass-glow-spot: rgba(254, 128, 25, 0.18);
+
+  --entry-list-head-border: rgba(254, 128, 25, 0.16);
+
+  --k-desire: #fb4934;
+  --k-scripture: #fabd2f;
+  --k-story: #bdae93;
+  --k-prayer: #fe8019;
+  --k-learned: #b8bb26;
+  --k-sense: #d3869b;
+}
+
+/* Catppuccin Mocha — Plainsong, by night. */
+[data-theme='mocha'] {
+  color-scheme: dark;
+
+  --bg: #1e1e2e;
+  --bg-elevated: #181825;
+  --bg-input: #313244;
+  --bg-hover: #45475a;
+
+  --border: #313244;
+  --border-subtle: #26263a;
+
+  --text: #bac2de;
+  --text-bright: #cdd6f4;
+  --text-dim: #9399b2;
+  --text-faint: #6c7086;
+
+  --accent: #cba6f7;
+  --accent-soft: rgba(203, 166, 247, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 40%, #181825);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #cba6f7;
+  --md-emphasis: #f5c2e7;
+  --md-strong: #fab387;
+  --md-link: #89b4fa;
+  --md-code: #a6e3a1;
+  --md-quote: #9399b2;
+  --md-list: #94e2d5;
+
+  --danger: #f38ba8;
+  --success: #a6e3a1;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(203, 166, 247, 0.09), rgba(203, 166, 247, 0.03) 42%, transparent 62%);
+  --journal-horizon: rgba(203, 166, 247, 0.45);
+
+  --glass-bg: rgba(24, 24, 37, 0.8);
+  --glass-nav-bg: rgba(30, 30, 46, 0.6);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(0, 0, 0, 0.62);
+  --glass-shadow-glow: 0 0 58px -28px rgba(203, 166, 247, 0.18);
+  --glass-glow-spot: rgba(203, 166, 247, 0.18);
+
+  --entry-list-head-border: rgba(203, 166, 247, 0.16);
+
+  --k-desire: #f38ba8;
+  --k-scripture: #f9e2af;
+  --k-story: #fab387;
+  --k-prayer: #cba6f7;
+  --k-learned: #a6e3a1;
+  --k-sense: #89b4fa;
 }

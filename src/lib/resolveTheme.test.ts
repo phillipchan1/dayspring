@@ -34,11 +34,12 @@ describe('theme registry', () => {
     for (const t of THEMES) expect(isLightTheme(t.id)).toBe(t.family === 'light')
   })
 
-  it('ships five light and six dark palettes', () => {
+  it('ships nine light and twelve dark palettes', () => {
     // Was 4 and 5. D-028 drew two more — Quire (Plainsong's daylight) and Grove
-    // (Sabbath's night, which it had never had) — and deleted none.
-    expect(THEMES.filter((t) => t.family === 'light')).toHaveLength(5)
-    expect(THEMES.filter((t) => t.family === 'dark')).toHaveLength(6)
+    // (Sabbath's night, which it had never had) — and deleted none. Plainsong
+    // then took ten borrowed editor palettes (4 day, 6 night) as its own choice.
+    expect(THEMES.filter((t) => t.family === 'light')).toHaveLength(9)
+    expect(THEMES.filter((t) => t.family === 'dark')).toHaveLength(12)
   })
 
   it('gives every registered theme a matching [data-theme] block', () => {
@@ -56,7 +57,9 @@ describe('theme registry', () => {
       expect(themes).toContain(`--hl-${hue}:`)
       expect(global).toContain(`.cm-hl--${hue} { background-color: rgba(var(--hl-${hue}), var(--hl-alpha))`)
     }
-    const grouped = themes.slice(Math.max(0, themes.lastIndexOf('--hl-alpha: 0.24') - 280), themes.lastIndexOf('--hl-alpha: 0.24'))
+    // The selector list of the rule that sets the dark alpha (everything since the previous `}`).
+    const at = themes.lastIndexOf('--hl-alpha: 0.24')
+    const grouped = themes.slice(themes.lastIndexOf('}', at) + 1, at)
     for (const t of THEMES.filter((th) => th.family === 'dark')) {
       expect(grouped).toContain(`[data-theme='${t.id}']`)
     }

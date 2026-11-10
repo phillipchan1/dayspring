@@ -134,3 +134,90 @@
   content: '\00a0·\00a0now';
   color: var(--text-faint);
 }
+
+/*
+ * A voice's own palette choice — Plainsong's borrowed editor themes. Indented
+ * under the selected row so it reads as part of that choice, not a seventh row.
+ */
+.palette-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 6px 0 8px 52px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.palette-choice__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.palette-choice__name {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color: var(--text-bright);
+}
+
+.palette-choice__later {
+  color: var(--text-faint);
+}
+
+.palette-choice__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.palette-chip {
+  width: 30px;
+  height: 22px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition:
+    box-shadow var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
+}
+
+.palette-chip:active {
+  transform: scale(0.94);
+}
+
+.palette-chip[data-selected='true'] {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 3.5px var(--accent);
+}
+
+.palette-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .palette-chip:hover:not([data-selected='true']) {
+    box-shadow: 0 0 0 1.5px var(--text-faint);
+  }
+}
+
+.palette-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .palette-chip {
+    transition: none;
+  }
+}
