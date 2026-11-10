@@ -193,7 +193,15 @@
   transform: scale(0.94);
 }
 
+/* The pick on screen: a solid ring. The other side's pick: a faint dashed one,
+   so only one chip reads as "this is what you're looking at". */
 .palette-chip[data-selected='true'] {
+  outline: 1.5px dashed var(--text-faint);
+  outline-offset: 2px;
+}
+
+.palette-chip[data-showing='true'] {
+  outline: none;
   box-shadow:
     0 0 0 2px var(--bg),
     0 0 0 3.5px var(--accent);

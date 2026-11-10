@@ -1,4 +1,4 @@
-import { getTheme, type ThemeId } from '@/lib/resolveTheme'
+import { getTheme, isLightTheme, type ThemeId } from '@/lib/resolveTheme'
 import type { Settings } from '@/lib/settings'
 import { VOICES, isNightOnly, voicePalette, type Voice } from '@/lib/voices'
 import { track } from '@/lib/analytics'
@@ -91,8 +91,10 @@ export function ThemePicker({ settings, update, active }: Props) {
  * borrowed editor themes. Shown only under the selected voice, so the list of
  * voices stays six rows and everything else keeps its designed palette.
  *
- * Picking one never flips Light/Dark: the day palette waits for daylight. The
- * side that isn't on screen says so, rather than the click seeming to do nothing.
+ * Picking one always shows it. A day palette picked while the app is dark
+ * switches Mode to Light (as picking Vigil switches it to Dark): left on Auto at
+ * night, the click changed nothing anyone could see. Only the palette on screen
+ * gets the solid ring; the other side's pick is marked quietly.
  */
 function PaletteChoice({ voice, settings, update, active }: Props & { voice: Voice }) {
   const palettes = voice.palettes
@@ -106,7 +108,9 @@ function PaletteChoice({ voice, settings, update, active }: Props & { voice: Voi
     // The voice's own palette is stored as null, so it stays the default if the
     // voice's own palettes are ever redrawn under new ids.
     const value = id === voice[side] ? null : id
-    update(side === 'light' ? { paletteLight: value } : { paletteDark: value })
+    const patch: Partial<Settings> = side === 'light' ? { paletteLight: value } : { paletteDark: value }
+    if (side !== (isLightTheme(active) ? 'light' : 'dark')) patch.appearance = side
+    update(patch)
   }
   return (
     <div className="palette-choice">
@@ -134,6 +138,7 @@ function PaletteChoice({ voice, settings, update, active }: Props & { voice: Voi
                     title={t.label}
                     className="palette-chip"
                     data-selected={on}
+                    data-showing={on && showing}
                     style={{ background: t.swatch.bg }}
                     onClick={() => choose(side, id)}
                   >
