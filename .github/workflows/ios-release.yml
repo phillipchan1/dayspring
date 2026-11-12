@@ -24,6 +24,18 @@ on:
       - 'api/**'
       - 'supabase/**'
   workflow_dispatch:
+    inputs:
+      vite_backend:
+        description: Client backend for this IPA. Push builds ignore this and stay on Vercel.
+        type: choice
+        options:
+          - vercel
+          - workers
+        default: vercel
+      vite_api_base_url:
+        description: Worker origin. Used only when vite_backend is workers.
+        type: string
+        default: https://api.usedayspring.app
 
 permissions:
   contents: read
@@ -183,8 +195,8 @@ jobs:
           # Repo variable (Settings → Secrets and variables → Actions → Variables).
           # Empty → today's Vercel origin. Set to a workers.dev origin only for a
           # Workers preview IPA. See docs/cloudflare-migration/cutover.md.
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://dayspring-eosin.vercel.app' }}
-          VITE_BACKEND: ${{ vars.VITE_BACKEND }}
+          VITE_API_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers' && inputs.vite_api_base_url || vars.VITE_API_BASE_URL || 'https://dayspring-eosin.vercel.app' }}
+          VITE_BACKEND: ${{ github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers' && 'workers' || vars.VITE_BACKEND }}
           # The TestFlight IPA is the App Store binary if it is promoted in ASC.
           # Never stamp it as alpha or compile beta-testing UI into it.
           VITE_RELEASE_CHANNEL: appstore
