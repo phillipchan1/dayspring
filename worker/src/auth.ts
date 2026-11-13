@@ -18,29 +18,18 @@ async function sendOtpEmail(env: Env, email: string, otp: string, type: string):
     ? 'Reset your Dayspring sign-in'
     : 'Your Dayspring sign-in code'
   const text = `Your code is ${otp}. It expires in 5 minutes.\n\nIf you did not request this, ignore the email.`
-  if (!env.RESEND_API_KEY) {
+  if (!env.EMAIL) {
     if (shouldLogOtp(env)) {
       console.log(`[auth] OTP for ${email} (${type}): ${otp}`)
     }
     return
   }
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.RESEND_FROM || 'Dayspring <hello@usedayspring.app>',
-      to: email,
-      subject,
-      text,
-    }),
+  await env.EMAIL.send({
+    from: { name: 'Dayspring', email: 'hello@usedayspring.app' },
+    to: email,
+    subject,
+    text,
   })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`resend ${res.status}: ${body.slice(0, 200)}`)
-  }
 }
 
 /**

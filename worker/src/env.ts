@@ -23,6 +23,8 @@ export interface Env {
   /** wrangler / `.dev.vars` only: `local` allows a localhost auth fallback. */
   ENVIRONMENT?: string
   RESEND_API_KEY?: string
+  /** Cloudflare Email Sending binding (send_email in wrangler.jsonc). */
+  EMAIL?: SendEmail
   RESEND_FROM?: string
   CRON_SECRET?: string
   ESV_API_KEY?: string
