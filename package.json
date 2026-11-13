@@ -94,7 +94,7 @@
     "dompurify": "^3.4.7",
     "embla-carousel-react": "^8.6.0",
     "emojilib": "^4.0.3",
-    "hono": "^4.10.4",
+    "hono": "^4.13.16",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
     "marked": "^18.0.4",
