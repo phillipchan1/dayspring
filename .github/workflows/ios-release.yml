@@ -56,6 +56,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - id: guard-workers-url
+        name: Require Worker URL on workers dispatch
+        if: github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers'
+        env:
+          WORKER_URL: ${{ inputs.vite_api_base_url }}
+        run: |
+          if [ -z "$WORKER_URL" ]; then
+            echo "::error::vite_api_base_url is required when vite_backend is workers"
+            exit 1
+          fi
+
       - id: setup-node
         name: Set up Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0

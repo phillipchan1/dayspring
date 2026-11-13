@@ -94,6 +94,12 @@
     {
       "file": "ios-release.yml",
       "job": "testflight",
+      "id": "guard-workers-url",
+      "sha256": "083d55d246435b4c00d026afaefa5e738ee29bc2dd223bb70d6f661cbf8dc0bd"
+    },
+    {
+      "file": "ios-release.yml",
+      "job": "testflight",
       "id": "setup-node",
       "sha256": "b7c5d589905e7c268bd7891314524832ce79987e06356042fac49f68a338c28f"
     },
@@ -215,175 +221,187 @@
       "file": "release-stable.yml",
       "job": "check",
       "id": "diff",
-      "sha256": "650ddc6f27bc0d40ccc1a18ef01714334bbd8fd459fa6fdb5a2eef3eaee277ab"
+      "sha256": "22cd4071e2010bb16b4bf40a9a83ca407707981f4d71028ee8a7fab33229b78f"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "checkout",
-      "sha256": "840d576e3b97e37a7983463f3a7be29b4be776d41a964acf4c564a32dac83d12"
+      "sha256": "10358ab4d84b9dabd652d88164ca04193f5d9411bbdb4e6b948ebe2f76cbe549"
+    },
+    {
+      "file": "release-stable.yml",
+      "job": "release",
+      "id": "guard-workers-url",
+      "sha256": "75c1a5de84b30c047da60e3523376a838d25ea49c47e20b2a14c17e923d9d723"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "setup-node",
-      "sha256": "804669346f191d06dfc0674557dde9761983d7c27a02e3c72e6d171999c4ad13"
+      "sha256": "34e79bcfd8450a9e39fb97f5a17f0c1e56bfc102f0d8a7e2f5bd09ef8659a2e4"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "setup-rust",
-      "sha256": "a78a4540a5ce8aeb2c974b0be5c5e1e495630df835bcae71b491ceb6718a2e3a"
+      "sha256": "3dace0de0d8c9b5046eb9c6e63e10ebcee1fc2094d148fae0d5df09e12993194"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "cache-rust",
-      "sha256": "e36c9bcf8dc3e7827c88ce185d71c4f0f2ded4abbec576b4828c9b133bbe03a6"
+      "sha256": "5e4f5b1c4e297c691f646108d46baf087ff70abb72979d0e1d9f3c02da7e8af0"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "install",
-      "sha256": "75a314c8e55010e7608d66b04fca6d4f1c36f06d717e0a7b93087b2a69171101"
+      "sha256": "c3f2b49821d2014f30b149d2c950d459baed974270d828b325904a996a853619"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "version",
-      "sha256": "f8eb75c3b8788c86bc60a26807ef14217c83b099b7da86c7ce67a53f401f7475"
+      "sha256": "10b1259a9a7a3c46a5d81b0ba0b9b18a50ddc9b4092c19b9827dabfe1e1c033e"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "signing",
-      "sha256": "4f78246fb9cf470c92b79a0a5d5587161d79b251031ddcfcf5b640862ba50aea"
+      "sha256": "08172e23e0b56ceaeaa0efa35739b34b9631f486b3e6874744abf4080d363a9b"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "release-notes",
-      "sha256": "1114b6fd42acc997ed5a46506dd3dd51e1975738bfa5c6a3c81deb98b05ac641"
+      "sha256": "6896e9192b52b78ac2a262001e154969b910027ee7e5ceaba828bf4cc01189a1"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "changelog",
-      "sha256": "79c09705658a97e76c4fdaa2fb698a1718510a710813dfeffe3e9181e9afdde5"
+      "sha256": "e3193f624851305cdbd410bda53522fc7a5192d310a19b56c4118e9091e1ac97"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "build",
-      "sha256": "0e86478c1bfedaddfac143d1966a6d2c3955efe26a66553f45cd2e9a5f5890a1"
+      "sha256": "ceab7fa540a726d8274bd0c3a5ba36d1ea4707dbfac0f4c5e130e73137f8d18f"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "publish",
-      "sha256": "73b3b866dab6c42f57983b608e23db0538ab58bd4013680a0ff1fc446f93d4ea"
+      "sha256": "a14a3706a463d77b36d45c9cee52bc78f13cfdf1c2d9180022250b608025ea1f"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "record-sha",
-      "sha256": "58f75bef6ff7c7f98486c641de6a8a6e028135489546d9c036aa0a5b6a1f093e"
+      "sha256": "6ff1e45e2a2fef0e2ecb3e26a8e1e8179f4f1a23a4cee15f270bc60b8f68da4e"
     },
     {
       "file": "release.yml",
       "job": "check",
       "id": "diff",
-      "sha256": "b459212bdaa5cf1f8395dc20854f27c26d0abbfdeb93f48dd01c2f7ff9414f7d"
+      "sha256": "4d4ece2f3648277218fdd220650999fb5cf07c31ea1d870b262fa709352a4033"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "checkout",
-      "sha256": "562d18cefa3b3dc7de2fc9185e3022a5236e3ee37da31cac873d4176c5a5d9a5"
+      "sha256": "01bfe8d1384663e850cf7b44a5f4d6426aaa6ebd393afc5543fb5a55a7c88683"
+    },
+    {
+      "file": "release.yml",
+      "job": "release",
+      "id": "guard-workers-url",
+      "sha256": "2201ee71534f9a1d6279ab34fd368b123b9fe7b92b9c8a4bbb5740451d76082e"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "setup-node",
-      "sha256": "5f50e6972ebd1cdbff605fa6812be0c1cfc2677ef5620ee9416d98db87e8a4c0"
+      "sha256": "7aadbb34e44216bae6c96c27b976ef3ccf90289769336e70012861a82da41d56"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "setup-rust",
-      "sha256": "ea6527eff4bc0e33d62e9d9aebbfbc91d27f8a61a5f97adec6437f38822deb31"
+      "sha256": "94d406477ca4d76eb421ffddec41a5cc1b0f32d51ea0fb2742b89b4a39acda1d"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "cache-rust",
-      "sha256": "d0fd1c00e2b04d029dc6fff612a119d25c411e9ff8022053deeaac87f1e4c8b6"
+      "sha256": "3d45ffb73141ad9b1e0a06815e5c21d1353a3594384990cb2821e0c31e15e4d6"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "install",
-      "sha256": "39187c2e3621f4ca23caa91f6f4a6754ae591f2d8e8daee4b2c6842a09dea7db"
+      "sha256": "40094e0230b7e37da3111c306214d46c757b4340ab6fa6d9a9564a8375539cf8"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "patch-updater",
-      "sha256": "4c6a5d3286f0afc39e10f9ba96a582bde07dffac2eb207b1cd659e036653b9bc"
+      "sha256": "efdd961575a12756d21e10300b5ca881555fa5ae13b04ce7fba839d96cdcfcf9"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "version",
-      "sha256": "4e059e89ade146f50a44acbbb93cb9598656f71005446384905d7fd105af55c5"
+      "sha256": "19ac7a77cdc87092e5f62db2b5a976b97617232daee782b3d3a11bfc4009133f"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "signing",
-      "sha256": "007971b560e58855c7d6d1671c2a12ce1ff71b19e9fae3b61fc026281c429014"
+      "sha256": "4669dbe4bbc185f108a4a6248e1202e73cb7d7eda7454fa15183c062f98cec14"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "release-notes",
-      "sha256": "007ebd5c8914aef2fcfd43dce3cd3e64c46f338b51e1c8a7cb6d59da1ca5d68c"
+      "sha256": "740254fe9902cc70d51977f2a462c83db2bd5e4801eba134eb33155055b254b2"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "changelog",
-      "sha256": "8abde3ae35f3a027c4574a46756b817da273a8b47f147f7f93cecbc1aa4d6c5e"
+      "sha256": "8b5a8524f2f7fdd6e24ddff8179c54bc92666b39a77382b587c5fe2795413b99"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "build",
-      "sha256": "df5853777510a7cad1e15a0d291d7d9a06e8bb4870ea7870ddcec9b85eea3541"
+      "sha256": "41e5d65af46e71bda86859199cdc49d3131c8afb6ae37a86ed42d926726b90b6"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "publish",
-      "sha256": "e62f74b25c86dbd1dc2af869e5110f3dfee4656e8e02f547fd3a638ceec9b3ea"
+      "sha256": "a39d9e10df0d92b502e467ec1199803fa499ce91dc2488fc880512f0e02c93e1"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "commit-latest",
-      "sha256": "f5de8090a9a0aa3cf079e595dccf2d9df1eb7e3e8cca30a3e49e3d6f12f86c17"
+      "sha256": "e1f736960a70e6027841cc1dc1fde254a89716fc2682dda66fb9b55c8bb5134a"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "record-sha",
-      "sha256": "5e8a3d6cbca5bf7b0e02979bb6aa37d5ad698c6e2edbcac7129751e51008c217"
+      "sha256": "48d3b8bfce078f787a5e14ca7b579cae344dbaa59d121091eb39a5ab0c5f447c"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "write-version",
-      "sha256": "b09c3b5e83d08d0b894b89bd3400355a8c276ee870d2082f552c2bd62915810d"
+      "sha256": "f83f57cd6da3c74b693dd992c19f9447ead48ae022a71eb767fe3e3d9132f2c7"
     },
     {
       "file": "support-manifest.yml",
@@ -456,6 +474,7 @@
       "job": "testflight",
       "ids": [
         "checkout",
+        "guard-workers-url",
         "setup-node",
         "setup-rust",
         "cache-rust",
@@ -468,7 +487,7 @@
         "build-ipa",
         "testflight"
       ],
-      "sha256": "067bf8d85af2aa8ec4236dda6c206e697b6ebff34243279bd94ad1e16bcdace8"
+      "sha256": "d949fe10115b0b3cee4afdc0f70cf7e52efc146f4936ce1dc38a173cb6928f6b"
     },
     {
       "file": "migrate-neon.yml",
@@ -506,6 +525,7 @@
       "job": "release",
       "ids": [
         "checkout",
+        "guard-workers-url",
         "setup-node",
         "setup-rust",
         "cache-rust",
@@ -518,7 +538,7 @@
         "publish",
         "record-sha"
       ],
-      "sha256": "1fb4c3cc27a1ec92d32dcf2f20b72b4b3f4cbbe138afae550734440cfa4b86d8"
+      "sha256": "e601d275806fd7d2e9da2fae47c8b82e75d408528472fc558cf258b92539ccb3"
     },
     {
       "file": "release.yml",
@@ -533,6 +553,7 @@
       "job": "release",
       "ids": [
         "checkout",
+        "guard-workers-url",
         "setup-node",
         "setup-rust",
         "cache-rust",
@@ -548,7 +569,7 @@
         "record-sha",
         "write-version"
       ],
-      "sha256": "8da0152b15c2a535f5d4ad779f455cc16a9062d9c474d6115fa35578c21f916a"
+      "sha256": "99201e1c17e05e9cab16846387a6940aff21dff8fa6f2e884eec280a34b25c1b"
     },
     {
       "file": "support-manifest.yml",
