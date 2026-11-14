@@ -51,6 +51,7 @@ export interface Job {
   total: number
   completed: number
   attempts: number
+  created_at?: string
 }
 
 interface ReflectionsCursor {
@@ -424,7 +425,14 @@ export async function drain(k: number, clock: TickClock = new TickClock()): Prom
   const sb = supabaseAdmin()
   const { data: claimed, error } = await sb.rpc('claim_processing_jobs', { k })
   if (error) throw error
-  const jobs = (claimed ?? []) as Job[]
+  // UPDATE … RETURNING has no guaranteed row order, so pin the RPC's intended
+  // oldest-first order here: under a tick budget, the first job runs and later
+  // ones may be deferred, so the order must be stable (and fair) across ticks.
+  const jobs = ((claimed ?? []) as Job[]).slice().sort((a, b) => {
+    const ta = a.created_at ? Date.parse(a.created_at) : 0
+    const tb = b.created_at ? Date.parse(b.created_at) : 0
+    return ta - tb || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  })
 
   const summaries: Array<Record<string, unknown>> = []
   for (const job of jobs) {
@@ -477,7 +485,7 @@ async function runChunk(job: Job, clock: TickClock): Promise<Record<string, unkn
           (e as { details?: string } | null)?.details ??
           (typeof e === 'string' ? e : JSON.stringify(e)?.slice(0, 300)) ??
           'chunk failed')
-    // Transient: leave 'running' (locked_at keeps it out of reach for 5 min, a
+    // Transient: leave 'running' (locked_at keeps it out of reach for the 90 s stale window, a
     // natural backoff) so a later tick reclaims and retries — until we give up.
     const giveUp = job.attempts >= MAX_ATTEMPTS
     await sb
@@ -537,7 +545,7 @@ async function runReflections(job: Job, clock: TickClock): Promise<Record<string
   }
 
   // More to do — persist progress, leave running (clear lock so the next tick
-  // picks it straight up rather than waiting out the 5-min stale window).
+  // picks it straight up rather than waiting out the 90 s stale window).
   await sb
     .from('processing_jobs')
     .update({ cursor: { range, index }, completed: index, locked_at: null, attempts: 0 })

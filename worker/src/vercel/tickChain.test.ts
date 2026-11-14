@@ -1,7 +1,8 @@
 // The Worker's tick budget, end to end on PGlite through the shim: real drain,
 // real process-tick handler, real claim RPC (0007), real upsertInsight. Only the
 // model work is faked, and each fake unit advances a virtual clock by what it
-// cost on prod (Nov 13: one reflection ≈ 10–12 s, a gather chunk ≈ 10 s).
+// cost on prod (Nov 13: one reflection ≈ 10–12 s, a gather chunk ≈ 10 s). Every
+// unit kind advances the clock, so the outcome doesn't depend on claim order.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
@@ -13,6 +14,9 @@ import { runInBridge } from './bridge.ts'
 let vt = 1_800_000_000_000
 const cost = (ms: number) => { vt += ms }
 const killOnce = { period: null as string | null }
+// A pool-6 reflections batch runs its calls concurrently and costs about one model
+// call (≈ 11.4 s), so each fake reflection adds 1/6 of that.
+const REFLECTION_CALL_MS = 1_900
 
 vi.mock(import('../../../api/_lib/synthesize.ts'), async (orig) => {
   const real = await orig()
@@ -21,6 +25,7 @@ vi.mock(import('../../../api/_lib/synthesize.ts'), async (orig) => {
     await real.upsertInsight(supabaseAdmin() as never, {
       owner, type, period_start: p.start, period_end: p.end, source_ids: [], structured_payload: {} as never, source_model: 'test',
     })
+    cost(REFLECTION_CALL_MS)
     if (killOnce.period === `${type}:${p.start}`) {
       killOnce.period = null
       throw new Error('simulated kill mid-unit')
@@ -110,17 +115,26 @@ async function insertEntries(n: number) {
 }
 
 describe('Worker tick budget: chained ticks finish whole jobs', () => {
-  it('70/70 reflections and a 20-entry import gather complete through chained ticks; every tick ≤ 30 s; nothing left running', async () => {
+  // Both claim orders, pinned by created_at (drain runs claimed jobs oldest first).
+  it.each([
+    { first: 'reflections' },
+    { first: 'gather' },
+  ])('70/70 reflections and a 20-entry import gather complete through chained ticks ($first claimed first); every tick ≤ 30 s; nothing left running', async ({ first }) => {
     const { reflectionsTasks } = await import('../../../api/_lib/processing.ts')
     const total = reflectionsTasks(RANGE).length
     expect(total).toBe(70)
     await insertEntries(20)
-    await sql`INSERT INTO processing_jobs (owner, kind, status, total, cursor) VALUES
-      (${OWNER}, 'reflections', 'queued', ${total}, ${sql.json({ range: RANGE, index: 0 })}),
-      (${OWNER}, 'gather', 'queued', 20, ${sql.json({ origin: 'import' })})`
+    const [tRefl, tGather] = first === 'reflections' ? ['2026-11-13T00:00:00Z', '2026-11-13T00:00:01Z'] : ['2026-11-13T00:00:01Z', '2026-11-13T00:00:00Z']
+    await sql`INSERT INTO processing_jobs (owner, kind, status, total, cursor, created_at) VALUES
+      (${OWNER}, 'reflections', 'queued', ${total}, ${sql.json({ range: RANGE, index: 0 })}, ${tRefl}),
+      (${OWNER}, 'gather', 'queued', 20, ${sql.json({ origin: 'import' })}, ${tGather})`
     const ticks = await runChain()
     expect(ticks.at(-1)!.claimed).toBe(0) // the chain ended by itself
     for (const t of ticks) expect(t.wallMs).toBeLessThanOrEqual(30_000)
+    // The first tick claims both; the first-claimed job fills the budget, so the
+    // other is released as deferred (not left locked) and the chain continues.
+    expect(ticks[0]!.claimed).toBe(2)
+    expect(ticks[0]!.results.find((r) => r.kind !== first)).toMatchObject({ status: 'deferred' })
     expect(ticks.some((t) => t.results.some((r) => r.status === 'deferred'))).toBe(true)
     const jobs = await sql<{ kind: string; status: string; completed: number }[]>`SELECT kind, status, completed FROM processing_jobs WHERE owner = ${OWNER} ORDER BY kind`
     expect(jobs.filter((j) => j.status === 'running' || j.status === 'queued')).toEqual([])

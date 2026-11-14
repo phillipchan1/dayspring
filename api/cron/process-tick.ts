@@ -3,7 +3,8 @@
 // enqueue kicks the first tick and each working tick kicks the next (kickWorker)
 // — so an archive drains in the background without a sub-minute cron (Vercel
 // Hobby-safe). The daily cron in vercel.json is only a backstop to restart any
-// chain that stalled; crashes also self-heal via the 5-minute lock reclaim.
+// chain that stalled; crashes also self-heal via the 90 s stale-lock reclaim
+// (claim_processing_jobs, worker/schema/0007).
 // See docs/PROCESSING_AND_ONBOARDING.md §4.
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
