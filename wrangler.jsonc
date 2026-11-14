@@ -72,6 +72,9 @@
       // Vercel-port routes and crons (synthesize, process-tick, echoes) run model
       // calls and per-entry loops. Workers Paid allows up to 5 min CPU per invocation.
       "limits": { "cpu_ms": 300000 },
+      // Binding to this same Worker: the processing engine's self-kick
+      // (worker/src/vercel/selfKick.ts). Not inherited, so each env names itself.
+      "services": [{ "binding": "SELF", "service": "dayspring" }],
     },
     "preview": {
       "name": "dayspring-preview",
@@ -87,6 +90,7 @@
       // Empty on purpose: Hyperdrive is not inherited. Preview uses DATABASE_URL.
       // A placeholder id here fails deploy with error 10157.
       "hyperdrive": [],
+      "services": [{ "binding": "SELF", "service": "dayspring-preview" }],
     },
   },
 }

@@ -32,7 +32,7 @@ describe('Vercel-port routes on the Worker', () => {
       '/api/ask', '/api/transcribe', '/api/transcribe-image', '/api/pages/interpret', '/api/keeping/read',
       '/api/reflections/generate', '/api/spiritual/notice', '/api/spiritual/scripture',
       '/api/spiritual/scripture-resolve', '/api/spiritual/scripture-chapter', '/api/onboarding/backfill',
-      '/api/concordance/rebuild', '/api/processing/enqueue',
+      '/api/concordance/rebuild', '/api/processing/enqueue', '/api/realtime-token', '/api/zdr-selftest',
     ]) expect(paths).toContain(p)
     for (const p of Object.values(CRON_PATHS)) expect(paths).toContain(p)
     expect(Object.keys(CRON_PATHS)).toHaveLength(6)
@@ -119,9 +119,104 @@ describe('Vercel-port routes on the Worker', () => {
     }
   })
 
+  it('a self-kicked process-tick answers 202 at once and runs the tick under waitUntil', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const tasks: Promise<unknown>[] = []
+    const executionCtx = { waitUntil: (p: Promise<unknown>) => { tasks.push(p) }, passThroughOnException: () => undefined, props: {} }
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const res = await app.request('/api/cron/process-tick', { headers: { ...cronHeaders, 'x-dayspring-kick': '1' } }, {
+        ...baseEnv, AI_GATEWAY_ZDR: 'on', AI_GATEWAY_API_KEY: 'gw-test', GATHER_ENGINE: 'on', GATHER_MODE: 'gate',
+      }, executionCtx as never)
+      expect(res.status).toBe(202)
+      expect(await res.json()).toEqual({ ok: true, kicked: true })
+      expect(tasks.length).toBeGreaterThan(0)
+      await Promise.all(tasks)
+      expect(err.mock.calls.filter((c) => String(c[0]).includes('[self-kick]'))).toEqual([])
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      err.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('the kick header without CRON_SECRET is still 401', async () => {
+    const res = await app.request('/api/cron/process-tick', { headers: { 'x-dayspring-kick': '1' } }, baseEnv)
+    expect(res.status).toBe(401)
+  })
+
+  it('synthesize and echoes accept x-dayspring-owner (cron secret only) and refuse a malformed one', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const env = { ...baseEnv, AI_GATEWAY_ZDR: 'on', AI_GATEWAY_API_KEY: 'gw-test' }
+      for (const path of ['/api/cron/synthesize', '/api/cron/echoes']) {
+        const bad = await app.request(path, { headers: { ...cronHeaders, 'x-dayspring-owner': "x' or 1=1" } }, env)
+        expect(bad.status, path).toBe(400)
+        const scoped = await app.request(path, { headers: { ...cronHeaders, 'x-dayspring-owner': 'no-such-owner-0001' } }, env)
+        expect(scoped.status, path).toBe(200)
+        expect((await scoped.json() as { owners: number }).owners, path).toBe(0)
+        const noSecret = await app.request(path, { headers: { 'x-dayspring-owner': 'no-such-owner-0001' } }, env)
+        expect(noSecret.status, path).toBe(401)
+      }
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('zdr-selftest is a clean 404 when ZDR_SELFTEST_TOKEN is unset', async () => {
+    for (const method of ['GET', 'POST']) {
+      const res = await app.request('/api/zdr-selftest', { method, headers: { 'x-zdr-selftest-token': 'guess' } }, baseEnv)
+      expect(res.status, method).toBe(404)
+    }
+  })
+
+  it('an unknown /api path served by ASSETS (immutable headers) is not a 500', async () => {
+    const ASSETS = { fetch: async () => fetchLikeResponse('<!doctype html>', 404) }
+    const res = await app.request('/api/does-not-exist', {}, { ...baseEnv, ASSETS } as never)
+    expect(res.status).toBe(404)
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+  })
+
+  it('realtime-token is served by the Worker: 501 without OPENAI_API_KEY, 401 without a session', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const off = await app.request('/api/realtime-token', { method: 'POST', body: '{}' }, baseEnv)
+      expect(off.status).toBe(501)
+      expect(await off.text()).not.toMatch(/OPENAI_API_KEY/)
+      const anon = await app.request('/api/realtime-token', {
+        method: 'POST', headers: { authorization: 'Bearer forged', 'content-type': 'application/json' }, body: '{}',
+      }, { ...baseEnv, OPENAI_API_KEY: 'sk-test' })
+      expect(anon.status).toBe(401)
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('transcribe 501s without OPENAI_API_KEY and does not name the key', async () => {
     const res = await app.request('/api/transcribe', { method: 'POST' }, baseEnv)
     expect(res.status).toBe(501)
     expect(await res.text()).not.toMatch(/OPENAI_API_KEY/)
   })
 })
+
+/** A Response whose headers are immutable, like one from fetch() / ASSETS.fetch(). */
+function fetchLikeResponse(body: string, status: number): Response {
+  const res = new Response(body, { status, headers: { 'content-type': 'text/html' } })
+  const headers = res.headers
+  const frozen = new Proxy(headers, {
+    get(target, prop) {
+      if (prop === 'set' || prop === 'append' || prop === 'delete') {
+        return () => { throw new TypeError("Can't modify immutable headers.") }
+      }
+      const v = Reflect.get(target, prop, target)
+      return typeof v === 'function' ? v.bind(target) : v
+    },
+  })
+  Object.defineProperty(res, 'headers', { get: () => frozen })
+  return res
+}

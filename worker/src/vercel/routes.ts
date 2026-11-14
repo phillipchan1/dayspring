@@ -8,7 +8,7 @@ import type { VercelHandler } from './bridge.ts'
 export type Gate =
   /** Text/vision/embeddings through api/_lib/aiClient.ts (AI Gateway, ZDR). */
   | 'ai-gateway'
-  /** Direct OpenAI audio (no ZDR route exists), as on Vercel. */
+  /** Direct OpenAI audio and realtime captions (no ZDR route exists), as on Vercel. */
   | 'openai-direct'
   /** No model call. */
   | 'none'
@@ -28,6 +28,13 @@ const post = (path: string, gate: Gate, load: () => Promise<{ POST: VercelHandle
   gate,
   load: async () => (await load()).POST,
 })
+/** GET (and POST) handler outside /api/cron — no CRON_SECRET gate. */
+const getOrPost = (path: string, gate: Gate, load: () => Promise<{ GET: VercelHandler }>): PortedRoute => ({
+  method: 'GET',
+  path,
+  gate,
+  load: async () => (await load()).GET,
+})
 const cron = (path: string, gate: Gate, load: () => Promise<{ GET: VercelHandler }>): PortedRoute => ({
   method: 'GET',
   path,
@@ -38,6 +45,8 @@ const cron = (path: string, gate: Gate, load: () => Promise<{ GET: VercelHandler
 export const PORTED_ROUTES: PortedRoute[] = [
   post('/api/ask', 'ai-gateway', () => import('../../../api/ask.ts')),
   post('/api/transcribe', 'openai-direct', () => import('../../../api/transcribe.ts')),
+  // Live captions: mints a short-lived OpenAI Realtime transcription secret.
+  post('/api/realtime-token', 'openai-direct', () => import('../../../api/realtime-token.ts')),
   post('/api/transcribe-image', 'ai-gateway', () => import('../../../api/transcribe-image.ts')),
   post('/api/pages/interpret', 'ai-gateway', () => import('../../../api/pages/interpret.ts')),
   post('/api/keeping/read', 'ai-gateway', () => import('../../../api/keeping/read.ts')),
@@ -49,6 +58,8 @@ export const PORTED_ROUTES: PortedRoute[] = [
   post('/api/onboarding/backfill', 'ai-gateway', () => import('../../../api/onboarding/backfill.ts')),
   post('/api/concordance/rebuild', 'ai-gateway', () => import('../../../api/concordance/rebuild.ts')),
   post('/api/processing/enqueue', 'none', () => import('../../../api/processing/enqueue.ts')),
+  // Synthetic-only gateway probe. 404 unless ZDR_SELFTEST_TOKEN is set and presented.
+  getOrPost('/api/zdr-selftest', 'none', () => import('../../../api/zdr-selftest.ts')),
   cron('/api/cron/synthesize', 'ai-gateway', () => import('../../../api/cron/synthesize.ts')),
   cron('/api/cron/process-tick', 'ai-gateway', () => import('../../../api/cron/process-tick.ts')),
   cron('/api/cron/echoes', 'ai-gateway', () => import('../../../api/cron/echoes.ts')),
