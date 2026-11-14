@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.525",
+  "appVersion": "1.0.545",
   "channel": "stable",
   "categories": {
     "shortcuts": [
@@ -1040,6 +1040,76 @@
         "family": "dark",
         "blurb": "Pine after dark.",
         "isDefault": false
+      },
+      {
+        "id": "theme.onelight",
+        "label": "One Light",
+        "family": "light",
+        "blurb": "From Atom.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.ayulight",
+        "label": "Ayu Light",
+        "family": "light",
+        "blurb": "From Ayu.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.solarized",
+        "label": "Solarized Light",
+        "family": "light",
+        "blurb": "From Solarized.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.latte",
+        "label": "Catppuccin Latte",
+        "family": "light",
+        "blurb": "From Catppuccin.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.onedark",
+        "label": "One Dark",
+        "family": "dark",
+        "blurb": "From Atom.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.ayumirage",
+        "label": "Ayu Mirage",
+        "family": "dark",
+        "blurb": "From Ayu.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.palenight",
+        "label": "Palenight",
+        "family": "dark",
+        "blurb": "From Material Theme.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.tokyonight",
+        "label": "Tokyo Night",
+        "family": "dark",
+        "blurb": "From Tokyo Night.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.gruvbox",
+        "label": "Gruvbox",
+        "family": "dark",
+        "blurb": "From Gruvbox.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.mocha",
+        "label": "Catppuccin Mocha",
+        "family": "dark",
+        "blurb": "From Catppuccin.",
+        "isDefault": false
       }
     ],
     "voices": [
@@ -1653,7 +1723,7 @@
     "editor.font-size-min": 14,
     "editor.font-size-max": 36,
     "counts.practices": 15,
-    "counts.themes": 11,
+    "counts.themes": 21,
     "counts.voices": 6,
     "counts.slash-commands": 23,
     "counts.highlight-colors": 5,
