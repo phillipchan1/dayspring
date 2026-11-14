@@ -61,7 +61,8 @@ const COPY_TABLES = [
   { target: 'attachments', source: 'public.attachments', pk: ['id'] },
   { target: 'processing_jobs', source: 'public.processing_jobs', pk: ['id'] },
   { target: 'concordance', source: 'public.concordance', pk: ['id'] },
-  { target: 'concordance_occurrences', source: 'public.concordance_occurrences', pk: ['id'] },
+  // No id in Supabase, so the copy can't upsert it: reload it whole (DELETE + INSERT in one transaction).
+  { target: 'concordance_occurrences', source: 'public.concordance_occurrences', pk: ['id'], reload: true },
   { target: 'concordance_events', source: 'public.concordance_events', pk: ['id'] },
   { target: 'concordance_shadow', source: 'public.concordance_shadow', pk: ['id'] },
   { target: 'marks', source: 'public.marks', pk: ['id'] },
@@ -286,18 +287,36 @@ async function copyTable(src, tgt, spec, kind) {
     .filter((c) => !pk.includes(c))
     .map((c) => `"${c}" = EXCLUDED."${c}"`)
     .join(', ')
-  for (const row of rows.rows) {
-    const values = pairs.map((c) => bindCopyValue(c, row[c.name]))
-    const placeholders = pairs.map((c, i) => insertPlaceholder(c, i + 1)).join(', ')
-    const conflict = pk.length ? pk.map((c) => `"${c}"`).join(', ') : null
-    const sql = conflict && updateSet
-      ? `INSERT INTO ${spec.target} (${colSql}) VALUES (${placeholders})
-         ON CONFLICT (${conflict}) DO UPDATE SET ${updateSet}`
-      : conflict
+  // A reload table is plain-INSERTed (its spec pk is Neon-only), so no ON CONFLICT.
+  const conflict = pk.length && !spec.reload ? pk.map((c) => `"${c}"`).join(', ') : null
+  const writeAll = async () => {
+    for (const row of rows.rows) {
+      const values = pairs.map((c) => bindCopyValue(c, row[c.name]))
+      const placeholders = pairs.map((c, i) => insertPlaceholder(c, i + 1)).join(', ')
+      const sql = conflict && updateSet
         ? `INSERT INTO ${spec.target} (${colSql}) VALUES (${placeholders})
-           ON CONFLICT (${conflict}) DO NOTHING`
-        : `INSERT INTO ${spec.target} (${colSql}) VALUES (${placeholders})`
-    await tgt.query(sql, values)
+           ON CONFLICT (${conflict}) DO UPDATE SET ${updateSet}`
+        : conflict
+          ? `INSERT INTO ${spec.target} (${colSql}) VALUES (${placeholders})
+             ON CONFLICT (${conflict}) DO NOTHING`
+          : `INSERT INTO ${spec.target} (${colSql}) VALUES (${placeholders})`
+      await tgt.query(sql, values)
+    }
+  }
+  if (!spec.reload) {
+    await writeAll()
+    return { table: spec.target, source: rows.rows.length, skipped: false }
+  }
+  // Clear and reload in one transaction: a failure keeps the old rows (never an empty table).
+  await tgt.query('BEGIN')
+  try {
+    const cleared = await tgt.query(`DELETE FROM ${spec.target}`)
+    await writeAll()
+    await tgt.query('COMMIT')
+    console.log(`reload ${spec.target}: cleared=${cleared.rowCount} inserted=${rows.rows.length}`)
+  } catch (err) {
+    await tgt.query('ROLLBACK').catch(() => {})
+    throw err
   }
   return { table: spec.target, source: rows.rows.length, skipped: false }
 }
@@ -472,12 +491,19 @@ async function main() {
         return switchReport(src, tgt, reports)
       }),
     )
-    console.log(`switch-report: ${ok ? 'PASS' : 'FAIL'} (dry-run)`)
+    const owners = await withClient(tgtConn, tgtPass, async (tgt) => triggerOwnership(tgt, await copyTriggers(tgt)))
+    console.log(`switch-report: ${ok && owners.ok ? 'PASS' : 'FAIL'} (dry-run)`)
+    // Any count, hash, jsonb, entitlement or ownership FAIL exits non-zero, same as --apply.
+    if (!ok || !owners.ok) process.exit(1)
     return
   }
 
   await withClient(tgtConn, tgtPass, async (tgt) => {
     await applyNeonSchema(tgt)
+    // Before prune writes anything: the copy must be able to disable every trigger it names.
+    if (!(await triggerOwnership(tgt, await copyTriggers(tgt))).ok) {
+      fail('triggers: ABORT before prune and copy, this role cannot disable triggers on every table (nothing deleted, nothing copied)')
+    }
   })
   await withClient(srcConn, srcPass, async (src) =>
     withClient(tgtConn, tgtPass, async (tgt) => pruneNeonOnly(src, tgt)),
@@ -488,15 +514,19 @@ async function main() {
       // Neon's owner role can't SET session_replication_role, so runCopy's replica switch is a
       // silent no-op and set_updated_at would stamp every upserted row with the copy time.
       // Disable the user triggers by name for the copy and always turn them back on.
-      const trig = (await tgt.query(`SELECT c.relname AS tbl, t.tgname AS name
-          FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
-         WHERE n.nspname = 'public' AND NOT t.tgisinternal AND c.relname = ANY($1::text[])`, [COPY_TABLES.map((x) => x.target)])).rows
+      const trig = await copyTriggers(tgt)
+      const owners = await triggerOwnership(tgt, trig)
+      if (!owners.ok) fail('triggers: ABORT before the copy, this role cannot disable triggers on every table (nothing disabled, nothing copied)')
       console.log(`triggers: disabling ${trig.map((r) => `${r.tbl}.${r.name}`).join(' ') || 'none'}`)
-      for (const r of trig) await tgt.query(`ALTER TABLE public."${r.tbl}" DISABLE TRIGGER "${r.name}"`)
       try {
+        for (const r of trig) await tgt.query(`ALTER TABLE public."${r.tbl}" DISABLE TRIGGER "${r.name}"`)
         await runCopy(src, tgt)
       } finally {
-        for (const r of trig) await tgt.query(`ALTER TABLE public."${r.tbl}" ENABLE TRIGGER "${r.name}"`)
+        // Re-enable every one, even if a DISABLE or an earlier ENABLE failed (ENABLE on an enabled trigger is a no-op).
+        for (const r of trig) {
+          await tgt.query(`ALTER TABLE public."${r.tbl}" ENABLE TRIGGER "${r.name}"`)
+            .catch((err) => console.error(`triggers: ENABLE ${r.tbl}.${r.name} failed: ${err instanceof Error ? err.message : err}`))
+        }
         const off = (await tgt.query(`SELECT count(*)::int AS n FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
             WHERE NOT t.tgisinternal AND t.tgenabled = 'D' AND c.relname = ANY($1::text[])`, [COPY_TABLES.map((x) => x.target)])).rows[0].n
         console.log(`triggers: re-enabled ${trig.length}; still disabled=${off}`)
@@ -548,11 +578,38 @@ async function diffNeonOnly(src, tgt, log) {
   return out
 }
 
+/** User triggers on the copied tables (the ones the copy disables by name). */
+async function copyTriggers(tgt) {
+  return (await tgt.query(`SELECT c.relname AS tbl, t.tgname AS name
+      FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND NOT t.tgisinternal AND c.relname = ANY($1::text[])
+     ORDER BY 1, 2`, [COPY_TABLES.map((x) => x.target)])).rows
+}
+
+/** ALTER TABLE … DISABLE TRIGGER needs table ownership (or a role that has the owner's privileges). */
+async function triggerOwnership(tgt, trig) {
+  const tables = [...new Set(trig.map((r) => r.tbl))]
+  if (!tables.length) {
+    console.log('trigger-owner: no user triggers on copied tables')
+    return { ok: true }
+  }
+  const rows = (await tgt.query(`SELECT c.relname AS tbl, pg_get_userbyid(c.relowner) AS owner,
+           pg_has_role(current_user, c.relowner, 'USAGE') AS ok
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relname = ANY($1::text[]) ORDER BY 1`, [tables])).rows
+  const bad = rows.filter((r) => !r.ok)
+  const role = (await tgt.query('SELECT current_user AS u')).rows[0].u
+  if (bad.length) {
+    console.error(`trigger-owner: FAIL, role ${role} does not own ${bad.map((r) => `${r.tbl} (owner ${r.owner})`).join(', ')}`)
+    return { ok: false }
+  }
+  console.log(`trigger-owner: ok, role ${role} owns ${rows.length}/${tables.length} tables with triggers`)
+  return { ok: rows.length === tables.length }
+}
+
 async function pruneNeonOnly(src, tgt) {
-  // concordance_occurrences has no id in Supabase, so the copy plain-INSERTs it. Reload it whole
-  // or a second apply doubles it. Derived index table; nothing references it.
-  const occ = await tgt.query('DELETE FROM concordance_occurrences')
-  console.log(`prune: cleared concordance_occurrences=${occ.rowCount} (reloaded by the copy)`)
+  // concordance_occurrences is reloaded inside the copy (DELETE + INSERT in one transaction), so
+  // its Neon-only rows are not pruned here and prune writes nothing before its checks pass.
   const only = await diffNeonOnly(src, tgt, true)
   delete only.concordance_occurrences
   const tables = Object.keys(only)
