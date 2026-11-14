@@ -485,7 +485,22 @@ async function main() {
   console.log(`copy: start ${new Date().toISOString()}`)
   const reports = await withClient(srcConn, srcPass, async (src) =>
     withClient(tgtConn, tgtPass, async (tgt) => {
-      await runCopy(src, tgt)
+      // Neon's owner role can't SET session_replication_role, so runCopy's replica switch is a
+      // silent no-op and set_updated_at would stamp every upserted row with the copy time.
+      // Disable the user triggers by name for the copy and always turn them back on.
+      const trig = (await tgt.query(`SELECT c.relname AS tbl, t.tgname AS name
+          FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND NOT t.tgisinternal AND c.relname = ANY($1::text[])`, [COPY_TABLES.map((x) => x.target)])).rows
+      console.log(`triggers: disabling ${trig.map((r) => `${r.tbl}.${r.name}`).join(' ') || 'none'}`)
+      for (const r of trig) await tgt.query(`ALTER TABLE public."${r.tbl}" DISABLE TRIGGER "${r.name}"`)
+      try {
+        await runCopy(src, tgt)
+      } finally {
+        for (const r of trig) await tgt.query(`ALTER TABLE public."${r.tbl}" ENABLE TRIGGER "${r.name}"`)
+        const off = (await tgt.query(`SELECT count(*)::int AS n FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+            WHERE NOT t.tgisinternal AND t.tgenabled = 'D' AND c.relname = ANY($1::text[])`, [COPY_TABLES.map((x) => x.target)])).rows[0].n
+        console.log(`triggers: re-enabled ${trig.length}; still disabled=${off}`)
+      }
       return collectCounts(src, tgt)
     }),
   )
