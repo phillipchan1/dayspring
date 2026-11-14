@@ -47,6 +47,11 @@ export interface Env {
   META_PIXEL_ID?: string
   META_CAPI_ACCESS_TOKEN?: string
   REVENUECAT_WEBHOOK_SECRET?: string
+  /** Vercel-port routes (worker/src/vercel). The transcription key is read only in vercel/routes.ts. */
+  GATHER_ENGINE?: string
+  GATHER_MODE?: string
+  /** `on` only in the switch step that turns off Vercel's remind / sync-resend / welcome-drip crons. */
+  WORKER_MAIL_CRONS?: string
 }
 
 const HYPERDRIVE_PLACEHOLDERS = [

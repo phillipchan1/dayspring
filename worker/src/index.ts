@@ -2,9 +2,10 @@ import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
 import { sessionUser } from './auth.ts'
 import { stripGetSessionToken } from './sessionBody.ts'
-import { CPU_HEAVY_ROUTES, cpuHeavyPayload } from './cpuLimits.ts'
+import { CPU_HEAVY_ROUTES } from './cpuLimits.ts'
 import type { Env } from './env.ts'
-import { welcomeDripSendsEnabled } from './env.ts'
+import { closeSql, createSql } from './db.ts'
+import { CRON_PATHS, PORTED_ROUTES, openaiDirectConfigured, workerMailCronsOn, type PortedRoute } from './vercel/routes.ts'
 import { authOf, finishRequest, sqlOf, type WorkerContext, type WorkerVars } from './request.ts'
 import { timingSafeEqualString } from './safeEqual.ts'
 import {
@@ -172,12 +173,6 @@ app.delete('/api/account/delete', async (c) => {
   return json({ ok: true })
 })
 
-app.post('/api/processing/enqueue', async (c) => {
-  const user = await requireUser(c)
-  if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ ok: true, queued: true })
-})
-
 app.post('/api/trial/extend', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
@@ -186,37 +181,85 @@ app.post('/api/trial/extend', async (c) => {
   return json({ trial_ends_at: result.trial_ends_at })
 })
 
-async function llmOr501(c: { env: Env }, route: string): Promise<Response> {
-  // Dynamic import so Node strip-types checks that load `app` do not have to
-  // resolve api/_lib/*.js (Vercel extension). Wrangler still bundles this.
-  const { workerAiClient, workerAiGatewayReady } = await import('./ai.ts')
-  if (!workerAiGatewayReady(c.env)) {
-    return json(
-      { error: 'AI_GATEWAY_ZDR is off or AI_GATEWAY_API_KEY is not set', ...cpuHeavyPayload(route) },
-      501,
-    )
+/** Copy string bindings onto process.env, which api/_lib/env.ts reads. Values are never logged. */
+function bindPortEnv(env: Env): void {
+  for (const [name, value] of Object.entries(env as unknown as Record<string, unknown>)) {
+    if (typeof value === 'string') process.env[name] = value
   }
-  // Same client as Vercel (api/_lib/aiClient.ts). Construction only — these
-  // routes still 501 on Workers Free so merging stays inert (no model call).
-  workerAiClient(c.env)
-  return json({ error: 'not implemented on Workers Free', ...cpuHeavyPayload(route) }, 501)
 }
 
-app.post('/api/ask', (c) => llmOr501(c, 'POST /api/ask'))
-app.post('/api/keeping/read', (c) => llmOr501(c, 'POST /api/keeping/read'))
-app.post('/api/pages/interpret', (c) => llmOr501(c, 'POST /api/pages/interpret'))
-app.post('/api/transcribe-image', (c) => llmOr501(c, 'POST /api/transcribe-image'))
-app.post('/api/onboarding/backfill', (c) => llmOr501(c, 'POST /api/onboarding/backfill'))
-app.post('/api/spiritual/notice', (c) => llmOr501(c, 'POST /api/spiritual/notice'))
-app.post('/api/reflections/generate', (c) => llmOr501(c, 'POST /api/reflections/generate'))
-app.post('/api/concordance/rebuild', (c) => llmOr501(c, 'POST /api/concordance/rebuild'))
-app.post('/api/transcribe', () =>
-  json({ error: 'OpenAI transcription stays on Vercel until cutover (no ZDR speech-to-text)' }, 501),
-)
+/**
+ * Serve a Vercel handler (api/**) unchanged against Neon. See worker/src/vercel/.
+ * Gates run first: AI text/vision/embeddings only through the ZDR gateway (fail
+ * closed, never direct OpenAI), transcription direct to OpenAI as on Vercel, and
+ * mail crons off until WORKER_MAIL_CRONS=on.
+ */
+async function servePorted(c: WorkerContext, route: PortedRoute): Promise<Response> {
+  const isCron = route.path.startsWith('/api/cron/')
+  if (isCron && !cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
+  if (route.gate === 'ai-gateway') {
+    const { workerAiClient, workerAiGatewayReady } = await import('./ai.ts')
+    if (!workerAiGatewayReady(c.env)) {
+      return json({ error: 'AI_GATEWAY_ZDR is off or AI_GATEWAY_API_KEY is not set', route: `${route.method} ${route.path}` }, 501)
+    }
+    // Throws unless the gateway ZDR client can be built. The handler's own
+    // createAiClient() then reads the same AI_GATEWAY_* names from process.env.
+    workerAiClient(c.env)
+  }
+  if (route.gate === 'openai-direct' && !openaiDirectConfigured(c.env)) {
+    return json({ error: 'transcription is not configured on this Worker' }, 501)
+  }
+  if (route.gate === 'mail' && !workerMailCronsOn(c.env.WORKER_MAIL_CRONS)) {
+    // Vercel's cron still sends until the switch step that turns it off and sets WORKER_MAIL_CRONS=on.
+    return json({ ok: true, skipped: 'WORKER_MAIL_CRONS is off' })
+  }
+  bindPortEnv(c.env)
+  const [{ createPgRestClient, runVercelHandler }, handler] = await Promise.all([
+    import('./vercel/bridge.ts'),
+    route.load(),
+  ])
+  // Own connection: background work (waitUntil) can outlive the response, and
+  // finishRequest closes the request's sqlOf(c) as soon as the response is sent.
+  const sql = createSql(c.env)
+  const auth = authOf(c)
+  const pending: Promise<unknown>[] = []
+  const client = createPgRestClient(sql, {
+    resolveToken: async (token) => {
+      const headers = new Headers({ authorization: `Bearer ${token}` })
+      return (await sessionUser(auth, new Request(c.req.url, { headers })))?.id ?? null
+    },
+  })
+  const origin = c.env.BETTER_AUTH_URL?.trim() || new URL(c.req.url).origin
+  try {
+    return await runVercelHandler(
+      {
+        client,
+        waitUntil: (task) => { pending.push(Promise.resolve(task).catch(() => undefined)) },
+        origin,
+        cronSecret: c.env.CRON_SECRET?.trim() || null,
+      },
+      handler,
+      c.req.raw,
+    )
+  } finally {
+    const drain = (async () => {
+      while (pending.length) await Promise.all(pending.splice(0))
+      await closeSql(sql)
+    })()
+    try {
+      c.executionCtx.waitUntil(drain)
+    } catch {
+      await drain
+    }
+  }
+}
 
-app.post('/api/spiritual/scripture', (c) => json({ error: 'ESV stays on Vercel until cutover', configured: Boolean(c.env.ESV_API_KEY) }, 501))
-app.post('/api/spiritual/scripture-resolve', () => json({ error: 'ESV stays on Vercel until cutover' }, 501))
-app.post('/api/spiritual/scripture-chapter', () => json({ error: 'ESV stays on Vercel until cutover' }, 501))
+for (const route of PORTED_ROUTES) {
+  if (route.method === 'POST') app.post(route.path, (c) => servePorted(c, route))
+  // Vercel invokes crons with GET; POST kept for manual runs, as the stubs allowed.
+  else app.on(['GET', 'POST'], route.path, (c) => servePorted(c, route))
+}
+
 app.post('/api/circumstances/snap', () => json({ error: 'geocode stays on Vercel until cutover' }, 501))
 app.post('/api/realtime-token', async (c) => {
   const user = await requireUser(c)
@@ -392,48 +435,6 @@ app.post('/api/webhooks/revenuecat', async (c) => {
   return b.handleRevenuecatWebhook(c.req.raw, sqlOf(c), c.env, waitUntilOf(c))
 })
 
-app.all('/api/cron/welcome-drip', async (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  const sql = sqlOf(c)
-  const enrolled = await sql<{ owner: string; status: string }[]>`
-    SELECT owner, status FROM welcome_drip_enrollments WHERE status = 'active'
-  `
-  return json({
-    ok: true,
-    evaluated: enrolled.length,
-    sends_enabled: welcomeDripSendsEnabled(c.env),
-  })
-})
-
-app.all('/api/cron/remind', async (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  const sql = sqlOf(c)
-  const due = await sql<{ n: number }[]>`
-    SELECT COUNT(*)::int AS n FROM reminders WHERE fired = FALSE AND remind_at <= NOW()
-  `
-  return json({ ok: true, due: due[0]?.n ?? 0 })
-})
-
-app.all('/api/cron/sync-resend', async (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: true, skipped: !c.env.RESEND_API_KEY })
-})
-
-app.all('/api/cron/synthesize', (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: false, ...cpuHeavyPayload('GET|POST /api/cron/synthesize') }, 501)
-})
-
-app.all('/api/cron/process-tick', (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: false, ...cpuHeavyPayload('GET|POST /api/cron/process-tick') }, 501)
-})
-
-app.all('/api/cron/echoes', (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: false, ...cpuHeavyPayload('GET|POST /api/cron/echoes') }, 501)
-})
-
 app.get('/terms', (c) => fromAssets(c, '/legal/terms.html'))
 app.get('/privacy', (c) => fromAssets(c, '/legal/privacy.html'))
 
@@ -465,17 +466,12 @@ app.all('*', (c) => fromAssets(c))
 export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    const cron = event.cron
-    const url =
-      cron === '0 8 * * *' ? '/api/cron/synthesize'
-        : cron === '* * * * *' ? '/api/cron/process-tick'
-          : cron === '0 9 * * *' ? '/api/cron/remind'
-            : cron === '15 9 * * *' ? '/api/cron/sync-resend'
-              : cron === '30 9 * * *' ? '/api/cron/welcome-drip'
-                : '/api/cron/echoes'
+    const url = CRON_PATHS[event.cron]
+    if (!url) return
+    // Pass ctx so the route's waitUntil work (and the per-request DB close) runs.
     ctx.waitUntil(Promise.resolve(app.fetch(new Request(`https://worker${url}`, {
       headers: { authorization: `Bearer ${env.CRON_SECRET ?? ''}` },
-    }), env)))
+    }), env, ctx)))
   },
 }
 

@@ -14,11 +14,17 @@ const FORBIDDEN = [
   { re: /from\s+['"]openai['"]/, why: 'importing openai in the Worker bypasses aiClient.ts' },
 ]
 
+/** Worker sources, including the Vercel-port bridge in vercel/. */
 export function workerAiSourceFiles(): string[] {
-  return readdirSync(ROOT)
+  const top = readdirSync(ROOT).filter((name) => name.endsWith('.ts') && !SKIP.test(name))
+  const port = readdirSync(join(ROOT, 'vercel'))
     .filter((name) => name.endsWith('.ts') && !SKIP.test(name))
-    .map((name) => join(ROOT, name))
+    .map((name) => `vercel/${name}`)
+  return [...top, ...port].map((name) => join(ROOT, name))
 }
+
+/** The one sanctioned direct-OpenAI exception: the transcription gate (no ZDR speech-to-text). */
+const OPENAI_KEY_ALLOWED = new Set(['vercel/routes.ts'])
 
 function withoutComments(text: string): string {
   return text
@@ -32,6 +38,7 @@ export function assertNoWorkerAiBypass(): void {
     const text = withoutComments(readFileSync(file, 'utf8'))
     const base = file.slice(ROOT.length + 1)
     for (const rule of FORBIDDEN) {
+      if (rule.re.source === 'OPENAI_API_KEY' && OPENAI_KEY_ALLOWED.has(base)) continue
       if (rule.re.test(text)) hits.push(`${base}: ${rule.why}`)
     }
   }
