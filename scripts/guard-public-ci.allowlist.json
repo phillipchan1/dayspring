@@ -401,7 +401,7 @@
       "file": "release.yml",
       "job": "release",
       "id": "write-version",
-      "sha256": "91f6f0bfdedda57eb0ef4bc6fb27204662d724fb4c6a95dcd95761894a92a6b6"
+      "sha256": "efb4b9e9c497cd54691a044eb79db6cb4c5d9410cd73a6189b7bdbdae61316be"
     },
     {
       "file": "support-manifest.yml",
