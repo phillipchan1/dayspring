@@ -438,6 +438,30 @@
       "job": "publish",
       "id": "commit",
       "sha256": "3246544ac288d35e17ca7528118c917ad5ebf45b846e9c56c890cb8d0d4399b8"
+    },
+    {
+      "file": "worker-openai-secret.yml",
+      "job": "put-secret",
+      "id": "checkout",
+      "sha256": "e41872313199e5528485529e0b00ab73f05166fda16308b0ac0716a9c074e384"
+    },
+    {
+      "file": "worker-openai-secret.yml",
+      "job": "put-secret",
+      "id": "setup-node",
+      "sha256": "6f7190dd0e5ede38da920a88420b647d884182d169b036877739b680f1661a27"
+    },
+    {
+      "file": "worker-openai-secret.yml",
+      "job": "put-secret",
+      "id": "npm-ci",
+      "sha256": "40a2ca676676ad0eb904bbc89710e0f4beb85bfbb6975fe91dda64c8eb1e3f6d"
+    },
+    {
+      "file": "worker-openai-secret.yml",
+      "job": "put-secret",
+      "id": "put",
+      "sha256": "2f6823deb441e06968bebdf212dafe8a0f1c9b8cb8fcde12a13b79d40d268518"
     }
   ],
   "job_steps": [
@@ -583,6 +607,17 @@
         "commit"
       ],
       "sha256": "4e3d3b815026bf44240e8e726afe4faf15b3e2db7a57c8cc25cf2bb97775d5fb"
+    },
+    {
+      "file": "worker-openai-secret.yml",
+      "job": "put-secret",
+      "ids": [
+        "checkout",
+        "setup-node",
+        "npm-ci",
+        "put"
+      ],
+      "sha256": "ba1c45158da6236be982238ee78625e31e08d59b7eeb264100cab54fccb74d06"
     }
   ],
   "workflow_jobs": [
@@ -637,6 +672,13 @@
         "publish"
       ],
       "sha256": "41fcd3c33933410621c540d82db535602955a9ba0545ff5861c1d5bb96fe3382"
+    },
+    {
+      "file": "worker-openai-secret.yml",
+      "jobs": [
+        "put-secret"
+      ],
+      "sha256": "22cc6ab368bb36d04c34900ed50727176f4fb9e57ba1079491064a7c0f3f61ff"
     }
   ]
 }
