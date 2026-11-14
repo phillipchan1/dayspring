@@ -4,6 +4,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { env } from './env.js'
 import { liveResendTransport, nameFromAuthMetadata, type ResendTransport } from './resendAudience.js'
+import { mailSender, mailSenderWelcomeTransport } from './mailSender.js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import {
   applyDecision,
@@ -42,13 +43,16 @@ export interface WelcomeDripDeps {
 }
 
 export function liveWelcomeDripDeps(now: Date = new Date()): WelcomeDripDeps {
+  // Worker: rendered template snapshots through Cloudflare Email Sending.
+  // Vercel: Resend-hosted templates by id (unchanged).
+  const send = mailSender()
   const key = env.resendKey()
   return {
     sb: supabaseAdmin(),
     now,
     sendsEnabled: env.welcomeDripSendsEnabled(),
     from: env.welcomeDripFrom(),
-    transport: key ? liveResendTransport(key) : null,
+    transport: send ? mailSenderWelcomeTransport(send) : key ? liveResendTransport(key) : null,
   }
 }
 

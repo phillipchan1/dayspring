@@ -8,6 +8,7 @@ import { closeSql, createSql } from './db.ts'
 import { CRON_PATHS, PORTED_ROUTES, openaiDirectConfigured, workerMailCronsOn, type PortedRoute } from './vercel/routes.ts'
 import { authOf, finishRequest, sqlOf, type WorkerContext, type WorkerVars } from './request.ts'
 import { timingSafeEqualString } from './safeEqual.ts'
+import { UNSUBSCRIBE_PATH, verifyUnsubscribe } from '../../api/_lib/unsubscribe.ts'
 import { buildSelfKick, KICK_HEADER, PROCESS_TICK_PATH } from './vercel/selfKick.ts'
 import {
   deleteOwnedAccount,
@@ -258,6 +259,8 @@ async function servePorted(c: WorkerContext, route: PortedRoute): Promise<Respon
             }))
           },
           kick,
+          email: c.env.EMAIL ?? null,
+          unsubscribeSecret: c.env.BETTER_AUTH_SECRET ?? null,
         },
         handler,
         c.req.raw,
@@ -470,6 +473,29 @@ app.post('/api/webhooks/revenuecat', async (c) => {
   const b = await billing()
   b.bindBillingEnv(c.env)
   return b.handleRevenuecatWebhook(c.req.raw, sqlOf(c), c.env, waitUntilOf(c))
+})
+
+// One-click unsubscribe for Worker-sent mail (RFC 8058). GET shows a confirm
+// button (link scanners prefetch GETs, so GET never writes); POST verifies the
+// HMAC link and records the address in email_suppressions (worker/schema/0008).
+const unsubscribePage = (title: string, body: string, form?: string) =>
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title></head>` +
+  `<body style="font-family:Georgia,serif;max-width:520px;margin:3rem auto;padding:0 1.5rem;color:#2a2a2a"><h1 style="font-size:1.3rem">${title}</h1><p>${body}</p>${form ?? ''}</body></html>`
+
+app.get(UNSUBSCRIBE_PATH, async (c) => {
+  const email = await verifyUnsubscribe(c.req.query('e') ?? null, c.req.query('t') ?? null, c.env.BETTER_AUTH_SECRET ?? '')
+  if (!email) return c.html(unsubscribePage('Link not valid', 'This unsubscribe link is not valid. Reply to any Dayspring email and we will take you off the list.'), 400)
+  const qs = new URL(c.req.url).search.replace(/"/g, '')
+  return c.html(unsubscribePage('Stop Dayspring emails?', 'You will stop getting reminder and welcome emails from Dayspring.',
+    `<form method="post" action="${UNSUBSCRIBE_PATH}${qs}"><button type="submit" style="padding:0.6rem 1.2rem;background:#2a2a2a;color:#fff;border:0;border-radius:6px;font-size:0.95rem">Unsubscribe</button></form>`))
+})
+
+app.post(UNSUBSCRIBE_PATH, async (c) => {
+  const email = await verifyUnsubscribe(c.req.query('e') ?? null, c.req.query('t') ?? null, c.env.BETTER_AUTH_SECRET ?? '')
+  if (!email) return c.html(unsubscribePage('Link not valid', 'This unsubscribe link is not valid.'), 400)
+  const sql = sqlOf(c)
+  await sql`INSERT INTO public.email_suppressions (email, source) VALUES (${email}, 'one-click') ON CONFLICT (email) DO NOTHING`
+  return c.html(unsubscribePage('You are unsubscribed', 'You will not get reminder or welcome emails from Dayspring.'))
 })
 
 app.get('/terms', (c) => fromAssets(c, '/legal/terms.html'))

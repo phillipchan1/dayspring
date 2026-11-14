@@ -15,6 +15,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { setSupabaseAdminOverride } from '../../../api/_lib/supabaseAdmin.ts'
 import { setKickWorkerOverride, setTickProfile, WORKER_TICK_PROFILE } from '../../../api/_lib/processing.ts'
+import { bindingMailSender, setMailSenderOverride, suppressionLookup } from '../../../api/_lib/mailSender.ts'
 import { createPgRestClient, type PgRestClient } from './pgrest.ts'
 
 export type VercelHandler = (req: Request) => Promise<Response> | Response
@@ -24,6 +25,10 @@ export interface BridgeContext {
   waitUntil: (p: Promise<unknown>) => void
   /** Runs one self-kick (selfKick.ts); null when no CRON_SECRET or route to self. */
   kick: (() => Promise<void>) | null
+  /** Cloudflare send_email binding (env.EMAIL); remind / welcome-drip send through it. */
+  email?: SendEmail | null
+  /** Signs one-click unsubscribe links (BETTER_AUTH_SECRET); mailto-only when unset. */
+  unsubscribeSecret?: string | null
 }
 
 const als = new AsyncLocalStorage<BridgeContext>()
@@ -40,6 +45,16 @@ function install(): void {
   })
   // Kicked ticks run under waitUntil (30 s cap): small units, ~18 s budget.
   setTickProfile(WORKER_TICK_PROFILE)
+  // Mail crons send through env.EMAIL, never Resend, on the Worker.
+  setMailSenderOverride(() => {
+    const ctx = als.getStore()
+    if (!ctx?.email) return null
+    return bindingMailSender({
+      binding: ctx.email,
+      isSuppressed: suppressionLookup(ctx.client as never),
+      secret: ctx.unsubscribeSecret ?? null,
+    })
+  })
   setKickWorkerOverride(() => {
     const ctx = als.getStore()
     if (!ctx?.kick) {
