@@ -13,14 +13,13 @@ on:
   workflow_dispatch:
     inputs:
       vite_backend:
-        description: Client backend for this build. Push builds ignore this and stay on Vercel.
+        description: Client backend. Every Mac build (push and dispatch) targets the Cloudflare Worker.
         type: choice
         options:
-          - vercel
           - workers
-        default: vercel
+        default: workers
       vite_api_base_url:
-        description: Worker origin. Used only when vite_backend is workers.
+        description: Worker origin. Push builds use the default.
         type: string
         default: https://api.usedayspring.app
 
@@ -71,7 +70,7 @@ jobs:
 
       - id: guard-workers-url
         name: Require Worker URL on workers dispatch
-        if: github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers'
+        if: github.event_name == 'workflow_dispatch'
         env:
           WORKER_URL: ${{ inputs.vite_api_base_url }}
         run: |
@@ -159,8 +158,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_API_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers' && inputs.vite_api_base_url || 'https://dayspring-eosin.vercel.app' }}
-          VITE_BACKEND: ${{ github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers' && 'workers' || '' }}
+          VITE_API_BASE_URL: ${{ inputs.vite_api_base_url || 'https://api.usedayspring.app' }}
+          VITE_BACKEND: workers
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

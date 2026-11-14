@@ -221,187 +221,187 @@
       "file": "release-stable.yml",
       "job": "check",
       "id": "diff",
-      "sha256": "22cd4071e2010bb16b4bf40a9a83ca407707981f4d71028ee8a7fab33229b78f"
+      "sha256": "0a133ccdcf1f708435bbf5ffe925ce73e5c16d7da43803dde011e0838f0fd5fc"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "checkout",
-      "sha256": "10358ab4d84b9dabd652d88164ca04193f5d9411bbdb4e6b948ebe2f76cbe549"
+      "sha256": "675c9477a113e07415ee493359d4aec2059ed211bb53bee3a424304bedc54c05"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "guard-workers-url",
-      "sha256": "75c1a5de84b30c047da60e3523376a838d25ea49c47e20b2a14c17e923d9d723"
+      "sha256": "8e7a7b2ef23a7d5ba2229e692d9b3bfc499ba9e8b42769cc8cf1fe0d1bd113f0"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "setup-node",
-      "sha256": "34e79bcfd8450a9e39fb97f5a17f0c1e56bfc102f0d8a7e2f5bd09ef8659a2e4"
+      "sha256": "81fec853ec9d818167afa293dec5327e17e9eb34f79c0100747308e7f42fd744"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "setup-rust",
-      "sha256": "3dace0de0d8c9b5046eb9c6e63e10ebcee1fc2094d148fae0d5df09e12993194"
+      "sha256": "71c054c6b50053b9ed78ac78ead3ba7ea6beb5ab41ab5ad39fc8ed405656bea8"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "cache-rust",
-      "sha256": "5e4f5b1c4e297c691f646108d46baf087ff70abb72979d0e1d9f3c02da7e8af0"
+      "sha256": "e4f654336ee9fc737806cfc7ddee094ea797726db735060f013b52f651b1e360"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "install",
-      "sha256": "c3f2b49821d2014f30b149d2c950d459baed974270d828b325904a996a853619"
+      "sha256": "43b2e5b21cb857f3ad620fea1e7372bd790daa7df204d6e2973b26d9114be1b6"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "version",
-      "sha256": "10b1259a9a7a3c46a5d81b0ba0b9b18a50ddc9b4092c19b9827dabfe1e1c033e"
+      "sha256": "25217d8f4de292b850e35522876ec6561f1d6d887d41d3d488e878af70893dca"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "signing",
-      "sha256": "08172e23e0b56ceaeaa0efa35739b34b9631f486b3e6874744abf4080d363a9b"
+      "sha256": "d0e016d763657dd15c8a7770c443751a66698864a6c4da7645da0a6f8b8f661d"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "release-notes",
-      "sha256": "6896e9192b52b78ac2a262001e154969b910027ee7e5ceaba828bf4cc01189a1"
+      "sha256": "0a2f764d9f3420ae05b34a771fed4ad962e1ed6d8faba8d86a33991c9ecfead6"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "changelog",
-      "sha256": "e3193f624851305cdbd410bda53522fc7a5192d310a19b56c4118e9091e1ac97"
+      "sha256": "7b5273dfd902df57bd944f3e33c165add6bb49a8076b53ce749ab904b780deec"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "build",
-      "sha256": "ceab7fa540a726d8274bd0c3a5ba36d1ea4707dbfac0f4c5e130e73137f8d18f"
+      "sha256": "b4dae2f71dae591f07ad610bbf6ea97282815a485c284c189ed9802c0e0420e2"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "publish",
-      "sha256": "a14a3706a463d77b36d45c9cee52bc78f13cfdf1c2d9180022250b608025ea1f"
+      "sha256": "bb53c55194fb72d3d9dfad6515a3f3f99b8dbd0f957774804edcfe74b4739a9b"
     },
     {
       "file": "release-stable.yml",
       "job": "release",
       "id": "record-sha",
-      "sha256": "6ff1e45e2a2fef0e2ecb3e26a8e1e8179f4f1a23a4cee15f270bc60b8f68da4e"
+      "sha256": "aca0a5a6aaf7557399a92abf33f819779bb095d81c6d9180662d7e65d23f87ad"
     },
     {
       "file": "release.yml",
       "job": "check",
       "id": "diff",
-      "sha256": "4d4ece2f3648277218fdd220650999fb5cf07c31ea1d870b262fa709352a4033"
+      "sha256": "2e63e15aa6835ef1f5354557f6c5d73c3ccee6398c71c614b8198187beced260"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "checkout",
-      "sha256": "01bfe8d1384663e850cf7b44a5f4d6426aaa6ebd393afc5543fb5a55a7c88683"
+      "sha256": "d9371b137c48764636396f5221493c8a5137169976b1d8a90c2d6ddf5dd46dbf"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "guard-workers-url",
-      "sha256": "2201ee71534f9a1d6279ab34fd368b123b9fe7b92b9c8a4bbb5740451d76082e"
+      "sha256": "26fa98adb304c21fe6db245714746f3279dbfa08760ba797a0c20620e3ea802d"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "setup-node",
-      "sha256": "7aadbb34e44216bae6c96c27b976ef3ccf90289769336e70012861a82da41d56"
+      "sha256": "d211c6dffe00d9ac362b6d24f0f98ae6957fd411c1dfc0146642b6def498ae64"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "setup-rust",
-      "sha256": "94d406477ca4d76eb421ffddec41a5cc1b0f32d51ea0fb2742b89b4a39acda1d"
+      "sha256": "31e1704fc9e07ddda27a8b194f81a55ad959e04dcd9b3f0c971ae9bb6ca22caf"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "cache-rust",
-      "sha256": "3d45ffb73141ad9b1e0a06815e5c21d1353a3594384990cb2821e0c31e15e4d6"
+      "sha256": "a79c4ea777c7bd1d46866dd345d0796da748e5161571de6bb611ffa345060401"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "install",
-      "sha256": "40094e0230b7e37da3111c306214d46c757b4340ab6fa6d9a9564a8375539cf8"
+      "sha256": "2d67e4e0c15c3de1d12041ba4d4f13a91ffb0dbfa0bb7898dcaa90333684897b"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "patch-updater",
-      "sha256": "efdd961575a12756d21e10300b5ca881555fa5ae13b04ce7fba839d96cdcfcf9"
+      "sha256": "647604a1e266296911a503d2c8db97bee5547f5590a53e63c6420249e024ad43"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "version",
-      "sha256": "19ac7a77cdc87092e5f62db2b5a976b97617232daee782b3d3a11bfc4009133f"
+      "sha256": "a7bc7ccdbe49c36f01541af40acff1048ef150732c841a71560833ebeac786d0"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "signing",
-      "sha256": "4669dbe4bbc185f108a4a6248e1202e73cb7d7eda7454fa15183c062f98cec14"
+      "sha256": "e0353ec7e57f5561fc050db7c576252997d43e89dacd0a0196aeaf1dc52cdb6c"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "release-notes",
-      "sha256": "740254fe9902cc70d51977f2a462c83db2bd5e4801eba134eb33155055b254b2"
+      "sha256": "b1823597951c4e447013845b73057fefcede378a1f5d425877068744bb522278"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "changelog",
-      "sha256": "8b5a8524f2f7fdd6e24ddff8179c54bc92666b39a77382b587c5fe2795413b99"
+      "sha256": "831409b9cac64d08d01e244c3852f2b7a2522818706b5045b0d8d52614226cbb"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "build",
-      "sha256": "41e5d65af46e71bda86859199cdc49d3131c8afb6ae37a86ed42d926726b90b6"
+      "sha256": "e7bb02837684b51b4bf1b609a47580db7009b8e10284bbe85fa89a67663b2202"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "publish",
-      "sha256": "a39d9e10df0d92b502e467ec1199803fa499ce91dc2488fc880512f0e02c93e1"
+      "sha256": "6705117f8f2b1db80129c2230d99e2b9dca9414f85ef47b81929919a8f96ac34"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "commit-latest",
-      "sha256": "e1f736960a70e6027841cc1dc1fde254a89716fc2682dda66fb9b55c8bb5134a"
+      "sha256": "2de0504f0bc1dfa16538b8292878efd3b5d9d6652dedea0e2675bf6c125934dd"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "record-sha",
-      "sha256": "48d3b8bfce078f787a5e14ca7b579cae344dbaa59d121091eb39a5ab0c5f447c"
+      "sha256": "8f3146018f84d4990a774089b1b734908087b5398d9b124401bcec45ac784c5e"
     },
     {
       "file": "release.yml",
       "job": "release",
       "id": "write-version",
-      "sha256": "f83f57cd6da3c74b693dd992c19f9447ead48ae022a71eb767fe3e3d9132f2c7"
+      "sha256": "91f6f0bfdedda57eb0ef4bc6fb27204662d724fb4c6a95dcd95761894a92a6b6"
     },
     {
       "file": "support-manifest.yml",
