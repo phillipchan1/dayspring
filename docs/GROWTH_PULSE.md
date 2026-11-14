@@ -304,6 +304,7 @@ project.
   there is no separate account tab in the real `SettingsTab` list; account
   actions live inside `'about'`.
 - `theme_changed`'s enum is the 6 `VoiceId` values a user actually picks
+- `palette_changed` fires when a palette is picked within a voice (Plainsong only): `{ voice, palette }`
   (`src/lib/voices.ts`), not the 11-value raw `ThemeId` palette enum
   underneath, and not the 5 guessed in the original ask (which also missed
   `plainsong` and `vigil`).

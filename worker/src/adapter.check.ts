@@ -2,7 +2,7 @@
 // Proves Better Auth insert/select against the snake_case Neon schema.
 import { PGlite } from '@electric-sql/pglite'
 import { applyNeonSchema } from './isolationDb.ts'
-import { authModels, createAuth, type AuthDatabase } from './auth.ts'
+import { authModels, createAuth, socialProvidersFromEnv, type AuthDatabase } from './auth.ts'
 import { stripGetSessionToken } from './sessionBody.ts'
 
 const fails: string[] = []
@@ -54,6 +54,18 @@ function makePglitePool(db: PGlite): AuthDatabase {
   ok(body.user?.id === 'user', 'stripGetSessionToken keeps user')
 }
 
+ok(socialProvidersFromEnv({}) == null, 'social providers stay off without secrets')
+const wiredSocial = socialProvidersFromEnv({
+  APPLE_CLIENT_ID: 'com.dayspring.web',
+  APPLE_CLIENT_SECRET: 'dummy-apple-secret',
+  APPLE_APP_BUNDLE_IDENTIFIER: 'app.usedayspring.ios',
+  GOOGLE_CLIENT_ID: 'dummy.apps.googleusercontent.com',
+  GOOGLE_CLIENT_SECRET: 'dummy-google-secret',
+})
+ok(wiredSocial?.apple?.clientId === 'com.dayspring.web', 'apple social is configured from env')
+ok(wiredSocial?.apple?.appBundleIdentifier === 'app.usedayspring.ios', 'apple idToken bundle id is set')
+ok(wiredSocial?.google?.clientId === 'dummy.apps.googleusercontent.com', 'google social is configured from env')
+
 ok(authModels.user.fields.emailVerified === 'email_verified', 'user.emailVerified maps to email_verified')
 ok(authModels.session.fields.userId === 'user_id', 'session.userId maps to user_id')
 ok(authModels.account.fields.accountId === 'account_id', 'account.accountId maps to account_id')
@@ -81,11 +93,21 @@ const auth = createAuth(
     ENVIRONMENT: 'local',
     BETTER_AUTH_SECRET: 'x'.repeat(32),
     DATABASE_URL: 'postgresql://postgres@127.0.0.1:5432/dayspring',
+    APPLE_CLIENT_ID: 'com.dayspring.web',
+    APPLE_CLIENT_SECRET: 'dummy-apple-secret',
+    APPLE_APP_BUNDLE_IDENTIFIER: 'app.usedayspring.ios',
+    GOOGLE_CLIENT_ID: 'dummy.apps.googleusercontent.com',
+    GOOGLE_CLIENT_SECRET: 'dummy-google-secret',
   },
   makePglitePool(db),
   { onOtp: (payload) => otps.push(payload) },
 )
 const ctx = await auth.$context
+const socialIds = (ctx.socialProviders ?? []).map((p: { id?: string }) => p.id)
+ok(socialIds.includes('apple'), 'Better Auth apple provider is wired')
+ok(socialIds.includes('google'), 'Better Auth google provider is wired')
+const appleProv = (ctx.socialProviders ?? []).find((p: { id?: string }) => p.id === 'apple') as { idToken?: unknown } | undefined
+ok(appleProv?.idToken != null, 'apple native idToken verifier is wired')
 
 const created = await ctx.adapter.create<{
   id: string
@@ -160,6 +182,20 @@ const rawAccount = await db.query<{ account_id: string; provider_id: string; use
 ok(rawAccount.rows[0]?.account_id === 'ada-account', 'account.account_id column written')
 ok(rawAccount.rows[0]?.provider_id === 'credential', 'account.provider_id column written')
 ok(rawAccount.rows[0]?.user_id === created.id, 'account.user_id column written')
+
+await db.query(
+  `INSERT INTO account (id, account_id, provider_id, user_id) VALUES ($1, $2, $3, $4)`,
+  ['migrated-apple-row', '001234.ada.apple', 'apple', created.id],
+)
+const migratedApple = await ctx.adapter.findOne<{ accountId: string; userId: string; providerId: string }>({
+  model: 'account',
+  where: [
+    { field: 'providerId', value: 'apple' },
+    { field: 'accountId', value: '001234.ada.apple' },
+  ],
+})
+ok(migratedApple?.userId === created.id, 'migrated apple account resolves to its preserved user id')
+ok(migratedApple?.accountId === '001234.ada.apple', 'migrated apple accountId matches identities.provider_id')
 
 const verification = await ctx.adapter.create<{ id: string; identifier: string; value: string }>({
   model: 'verification',

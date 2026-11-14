@@ -15,6 +15,7 @@
 import { settingsStore } from './settings'
 import type { PlatformKind } from './platform'
 import type { VoiceId } from './voices'
+import type { ThemeId } from './resolveTheme'
 
 type ReturnSurface = 'reflections' | 'scripture' | 'altar'
 import type { SlashCommandId } from '@/editor/slashDetect'
@@ -168,6 +169,8 @@ interface EventProps {
   settings_opened: { section: SettingsSection }
   /** A voice (palette + type pairing) was picked in the Theme tab. */
   theme_changed: { theme: VoiceId }
+  /** A palette was picked within a voice that offers a choice (Plainsong). */
+  palette_changed: { voice: VoiceId; palette: ThemeId }
   /** The Stripe billing portal specifically — not Apple's subscription sheet
    *  or the App Store account page, which are managed at Apple, not us. */
   billing_portal_opened: undefined

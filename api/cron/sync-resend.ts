@@ -4,6 +4,7 @@
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
 import { env } from '../_lib/env.js'
+import { mailSender } from '../_lib/mailSender.js'
 import {
   accountContactsFromAuthUsers,
   liveResendTransport,
@@ -33,6 +34,13 @@ async function listAllAuthUsers() {
 
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
+
+  // Worker: skip. This job only maintains Resend's Broadcast segment; the Worker
+  // sends through Cloudflare Email Sending, and Resend has no verified
+  // usedayspring.app domain to broadcast from. Vercel: unchanged.
+  if (mailSender()) {
+    return Response.json({ skipped: true, reason: 'Resend audience sync is off on the Worker (Cloudflare Email Sending)' })
+  }
 
   const key = env.resendKey()
   if (!key) {

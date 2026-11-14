@@ -1,5 +1,5 @@
 import type { Settings } from './settings'
-import { getVoice, isNightOnly } from './voices'
+import { getVoice, isNightOnly, voicePalette } from './voices'
 
 export type ThemeId =
   | 'dawn'
@@ -14,6 +14,18 @@ export type ThemeId =
   // Drawn for the voices (D-028): Plainsong's daylight ground, Sabbath's night.
   | 'quire'
   | 'grove'
+  // Plainsong's borrowed editor palettes — reached only through that voice's
+  // palette choice (voices.ts `palettes`), never projected to the legacy slots.
+  | 'onelight'
+  | 'ayulight'
+  | 'solarized'
+  | 'latte'
+  | 'onedark'
+  | 'ayumirage'
+  | 'palenight'
+  | 'tokyonight'
+  | 'gruvbox'
+  | 'mocha'
 
 export type ThemeFamily = 'light' | 'dark'
 
@@ -44,6 +56,16 @@ export const THEMES: ThemeMeta[] = [
   { id: 'vigil', label: 'Vigil', family: 'dark', blurb: 'Dimmed all the way down, for dark rooms.', swatch: { bg: '#080807', accent: '#8a7f6a' } },
   { id: 'quire', label: 'Quire', family: 'light', blurb: 'Paper for a plain hand.', swatch: { bg: '#f4f3f0', accent: '#a06a1e' } },
   { id: 'grove', label: 'Grove', family: 'dark', blurb: 'Pine after dark.', swatch: { bg: '#101613', accent: '#6cb79a' } },
+  { id: 'onelight', label: 'One Light', family: 'light', blurb: 'From Atom.', swatch: { bg: '#fafafa', accent: '#4078f2' } },
+  { id: 'ayulight', label: 'Ayu Light', family: 'light', blurb: 'From Ayu.', swatch: { bg: '#fcfcfc', accent: '#fa8d3e' } },
+  { id: 'solarized', label: 'Solarized Light', family: 'light', blurb: 'From Solarized.', swatch: { bg: '#fdf6e3', accent: '#268bd2' } },
+  { id: 'latte', label: 'Catppuccin Latte', family: 'light', blurb: 'From Catppuccin.', swatch: { bg: '#eff1f5', accent: '#8839ef' } },
+  { id: 'onedark', label: 'One Dark', family: 'dark', blurb: 'From Atom.', swatch: { bg: '#282c34', accent: '#61afef' } },
+  { id: 'ayumirage', label: 'Ayu Mirage', family: 'dark', blurb: 'From Ayu.', swatch: { bg: '#1f2430', accent: '#ffcc66' } },
+  { id: 'palenight', label: 'Palenight', family: 'dark', blurb: 'From Material Theme.', swatch: { bg: '#292d3e', accent: '#c792ea' } },
+  { id: 'tokyonight', label: 'Tokyo Night', family: 'dark', blurb: 'From Tokyo Night.', swatch: { bg: '#1a1b26', accent: '#7aa2f7' } },
+  { id: 'gruvbox', label: 'Gruvbox', family: 'dark', blurb: 'From Gruvbox.', swatch: { bg: '#282828', accent: '#fe8019' } },
+  { id: 'mocha', label: 'Catppuccin Mocha', family: 'dark', blurb: 'From Catppuccin.', swatch: { bg: '#1e1e2e', accent: '#cba6f7' } },
 ]
 
 const BY_ID = Object.fromEntries(THEMES.map((t) => [t.id, t])) as Record<ThemeId, ThemeMeta>
@@ -53,6 +75,10 @@ export const DEFAULT_DARK_THEME: ThemeId = 'ink'
 
 export const LIGHT_THEMES = THEMES.filter((t) => t.family === 'light')
 export const DARK_THEMES = THEMES.filter((t) => t.family === 'dark')
+
+export function getTheme(id: ThemeId): ThemeMeta | undefined {
+  return BY_ID[id]
+}
 
 export function isLightTheme(id: ThemeId): boolean {
   return BY_ID[id]?.family === 'light'
@@ -74,13 +100,18 @@ function validDark(id: ThemeId | undefined): ThemeId {
  * alpha and stable share one `profiles.settings` row, and a client that has
  * never heard of `voice` has to find a real palette in there. See settings.ts.
  *
+ * A voice that offers a choice of palette (Plainsong) answers with the one
+ * picked in `paletteLight` / `paletteDark`, when it is one the voice offers.
+ *
  * A night-only voice resolves to its dark palette in every mode; there is no
  * daylight version of Vigil to fall back to.
  */
 export function resolveTheme(settings: Settings, prefersDark: boolean): ThemeId {
   const voice = settings.voice ? getVoice(settings.voice) : null
-  const light = voice ? validLight(voice.light ?? undefined) : validLight(settings.lightTheme)
-  const dark = voice ? validDark(voice.dark) : validDark(settings.darkTheme)
+  const light = voice
+    ? validLight(voicePalette(voice.id, 'light', settings.paletteLight) ?? undefined)
+    : validLight(settings.lightTheme)
+  const dark = voice ? validDark(voicePalette(voice.id, 'dark', settings.paletteDark) ?? undefined) : validDark(settings.darkTheme)
   if (voice && isNightOnly(voice.id)) return dark
   const mode = settings.appearance
   if (mode === 'light') return light

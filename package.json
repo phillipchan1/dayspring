@@ -1,7 +1,7 @@
 {
   "name": "dayspring",
   "private": true,
-  "version": "1.0.525",
+  "version": "1.0.545",
   "type": "module",
   "description": "Personal AI Journal — single-user, private journaling app",
   "scripts": {
@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b --noEmit && tsc --noEmit -p worker/tsconfig.json",
-    "check:worker": "node --experimental-strip-types worker/src/authUrl.check.ts && node --experimental-strip-types worker/src/adapter.check.ts && node --experimental-strip-types worker/src/profile.check.ts && node --experimental-strip-types worker/src/access.check.ts && node --experimental-strip-types worker/src/entry.check.ts && node --experimental-strip-types worker/src/instance.check.ts",
+    "check:worker": "node --experimental-strip-types worker/src/ai.check.ts && node --experimental-strip-types worker/src/authUrl.check.ts && node --experimental-strip-types worker/src/adapter.check.ts && node --experimental-strip-types worker/src/profile.check.ts && node --experimental-strip-types worker/src/access.check.ts && node --experimental-strip-types worker/src/entry.check.ts && node --experimental-strip-types worker/src/instance.check.ts && node --experimental-strip-types worker/src/wranglerProd.check.ts && node --experimental-strip-types worker/src/migrate.check.ts",
+    "db:migrate": "node scripts/migrate-neon.mjs --apply",
+    "db:migrate-dry": "node scripts/migrate-neon.mjs --dry-run",
     "check:isolation-mutation": "node scripts/prove-isolation-mutation.mjs",
     "cf:dev": "npm run build:skip-types && wrangler dev",
     "cf:preview": "npm run build:skip-types && wrangler deploy --env preview",
@@ -125,6 +127,7 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
     "vitest": "^4.1.8",
-    "wrangler": "^4.45.0"
+    "wrangler": "^4.45.0",
+    "yaml": "2.9.1"
   }
 }

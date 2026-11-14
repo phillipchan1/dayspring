@@ -2,21 +2,26 @@ import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
 import { sessionUser } from './auth.ts'
 import { stripGetSessionToken } from './sessionBody.ts'
-import { CPU_HEAVY_ROUTES, cpuHeavyPayload } from './cpuLimits.ts'
+import { CPU_HEAVY_ROUTES } from './cpuLimits.ts'
 import type { Env } from './env.ts'
-import { welcomeDripSendsEnabled } from './env.ts'
+import { closeSql, createSql } from './db.ts'
+import { CRON_PATHS, PORTED_ROUTES, openaiDirectConfigured, workerMailCronsOn, type PortedRoute } from './vercel/routes.ts'
 import { authOf, finishRequest, sqlOf, type WorkerContext, type WorkerVars } from './request.ts'
 import { timingSafeEqualString } from './safeEqual.ts'
+import { UNSUBSCRIBE_PATH, verifyUnsubscribe } from '../../api/_lib/unsubscribe.ts'
+import { buildSelfKick, KICK_HEADER, PROCESS_TICK_PATH } from './vercel/selfKick.ts'
 import {
   deleteOwnedAccount,
   ensureProfile,
   extendTrialOnce,
   getEntry,
   getProfile,
+  setAckedCompletion,
   listEntries,
   listEntriesSince,
   listProcessingJobs,
   makeStore,
+  upsertAttachment,
   upsertEntryChecked,
 } from './store.ts'
 
@@ -27,6 +32,9 @@ app.use('*', async (c, next) => {
     await next()
     const path = new URL(c.req.url).pathname
     if (path.startsWith('/api/')) {
+      // Responses from ASSETS.fetch (and fetch() generally) have immutable
+      // headers. Re-wrap once so unknown /api paths don't 500 here.
+      if (!headersMutable(c.res)) c.res = new Response(c.res.body, c.res)
       for (const [key, value] of Object.entries(API_SECURITY)) {
         c.res.headers.set(key, value)
       }
@@ -35,6 +43,15 @@ app.use('*', async (c, next) => {
     await finishRequest(c)
   }
 })
+
+function headersMutable(res: Response): boolean {
+  try {
+    res.headers.set('x-content-type-options', res.headers.get('x-content-type-options') ?? 'nosniff')
+    return true
+  } catch {
+    return false
+  }
+}
 
 function missingAsset(): Response {
   return new Response('Not found', {
@@ -153,17 +170,21 @@ app.post('/api/profile/ensure', async (c) => {
   return json({ profile })
 })
 
+app.post('/api/profile/ack-completion', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const body = await c.req.json<{ key?: string }>()
+  const key = typeof body.key === 'string' ? body.key.trim() : ''
+  if (!key) return json({ error: 'key required' }, 400)
+  await setAckedCompletion(makeStore(sqlOf(c), user.id), key)
+  return json({ ok: true })
+})
+
 app.delete('/api/account/delete', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
   await deleteOwnedAccount(makeStore(sqlOf(c), user.id))
   return json({ ok: true })
-})
-
-app.post('/api/processing/enqueue', async (c) => {
-  const user = await requireUser(c)
-  if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ ok: true, queued: true })
 })
 
 app.post('/api/trial/extend', async (c) => {
@@ -174,85 +195,307 @@ app.post('/api/trial/extend', async (c) => {
   return json({ trial_ends_at: result.trial_ends_at })
 })
 
-function llmOr501(c: { env: Env }, route: string): Response {
-  if (!c.env.OPENAI_API_KEY) {
-    return json({ error: 'OPENAI_API_KEY is not set', ...cpuHeavyPayload(route) }, 501)
+/** Copy string bindings onto process.env, which api/_lib/env.ts reads. Values are never logged. */
+function bindPortEnv(env: Env): void {
+  for (const [name, value] of Object.entries(env as unknown as Record<string, unknown>)) {
+    if (typeof value === 'string') process.env[name] = value
   }
-  return json({ error: 'not implemented on Workers Free', ...cpuHeavyPayload(route) }, 501)
 }
 
-app.post('/api/ask', (c) => llmOr501(c, 'POST /api/ask'))
-app.post('/api/keeping/read', (c) => llmOr501(c, 'POST /api/keeping/read'))
-app.post('/api/pages/interpret', (c) => llmOr501(c, 'POST /api/pages/interpret'))
-app.post('/api/transcribe', (c) => llmOr501(c, 'POST /api/transcribe'))
-app.post('/api/transcribe-image', (c) => llmOr501(c, 'POST /api/transcribe-image'))
-app.post('/api/onboarding/backfill', (c) => llmOr501(c, 'POST /api/onboarding/backfill'))
-app.post('/api/spiritual/notice', (c) => llmOr501(c, 'POST /api/spiritual/notice'))
-app.post('/api/reflections/generate', (c) => llmOr501(c, 'POST /api/reflections/generate'))
-app.post('/api/concordance/rebuild', (c) => llmOr501(c, 'POST /api/concordance/rebuild'))
+/**
+ * Serve a Vercel handler (api/**) unchanged against Neon. See worker/src/vercel/.
+ * Gates run first: AI text/vision/embeddings only through the ZDR gateway (fail
+ * closed, never direct OpenAI), transcription direct to OpenAI as on Vercel, and
+ * mail crons off until WORKER_MAIL_CRONS=on.
+ */
+async function servePorted(c: WorkerContext, route: PortedRoute): Promise<Response> {
+  const isCron = route.path.startsWith('/api/cron/')
+  if (isCron && !cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
+  if (route.gate === 'ai-gateway') {
+    const { workerAiClient, workerAiGatewayReady } = await import('./ai.ts')
+    if (!workerAiGatewayReady(c.env)) {
+      return json({ error: 'AI_GATEWAY_ZDR is off or AI_GATEWAY_API_KEY is not set', route: `${route.method} ${route.path}` }, 501)
+    }
+    // Throws unless the gateway ZDR client can be built. The handler's own
+    // createAiClient() then reads the same AI_GATEWAY_* names from process.env.
+    workerAiClient(c.env)
+  }
+  if (route.gate === 'openai-direct' && !openaiDirectConfigured(c.env)) {
+    return json({ error: 'transcription is not configured on this Worker' }, 501)
+  }
+  if (route.gate === 'mail' && !workerMailCronsOn(c.env.WORKER_MAIL_CRONS)) {
+    // Vercel's cron still sends until the switch step that turns it off and sets WORKER_MAIL_CRONS=on.
+    return json({ ok: true, skipped: 'WORKER_MAIL_CRONS is off' })
+  }
+  bindPortEnv(c.env)
+  const [{ createPgRestClient, runVercelHandler }, handler] = await Promise.all([
+    import('./vercel/bridge.ts'),
+    route.load(),
+  ])
+  // Own connection: background work (waitUntil) can outlive the response, and
+  // finishRequest closes the request's sqlOf(c) as soon as the response is sent.
+  const sql = createSql(c.env)
+  const auth = authOf(c)
+  const pending: Promise<unknown>[] = []
+  const client = createPgRestClient(sql, {
+    resolveToken: async (token) => {
+      const headers = new Headers({ authorization: `Bearer ${token}` })
+      return (await sessionUser(auth, new Request(c.req.url, { headers })))?.id ?? null
+    },
+  })
+  const kick = buildSelfKick({
+    self: c.env.SELF ?? null,
+    origin: c.env.BETTER_AUTH_URL?.trim() || new URL(c.req.url).origin,
+    cronSecret: c.env.CRON_SECRET?.trim() || null,
+  })
+  const run = async (): Promise<Response> => {
+    try {
+      return await runVercelHandler(
+        {
+          client,
+          waitUntil: (task) => {
+            pending.push(Promise.resolve(task).catch((e) => {
+              console.error(`[waitUntil] ${route.path} task failed: ${e instanceof Error ? e.message : String(e)}`)
+            }))
+          },
+          kick,
+          email: c.env.EMAIL ?? null,
+          unsubscribeSecret: c.env.BETTER_AUTH_SECRET ?? null,
+        },
+        handler,
+        c.req.raw,
+      )
+    } finally {
+      const drain = (async () => {
+        while (pending.length) await Promise.all(pending.splice(0))
+        await closeSql(sql)
+      })()
+      await waitUntilOrAwait(c, drain)
+    }
+  }
+  // A self-kick (selfKick.ts): answer 202 now and run the tick under this
+  // invocation's own waitUntil, so the kicker never waits on the tick.
+  if (isCron && route.path === PROCESS_TICK_PATH && c.req.header(KICK_HEADER) === '1') {
+    const tick = run()
+      .then(async (res) => {
+        if (!res.ok) console.error(`[self-kick] kicked process-tick returned ${res.status}`)
+        await res.body?.cancel().catch(() => undefined)
+      })
+      .catch((e) => {
+        console.error(`[self-kick] kicked process-tick failed: ${e instanceof Error ? e.message : String(e)}`)
+      })
+    await waitUntilOrAwait(c, tick)
+    return json({ ok: true, kicked: true }, 202)
+  }
+  return run()
+}
 
-app.post('/api/spiritual/scripture', (c) => json({ error: 'ESV stays on Vercel until cutover', configured: Boolean(c.env.ESV_API_KEY) }, 501))
-app.post('/api/spiritual/scripture-resolve', () => json({ error: 'ESV stays on Vercel until cutover' }, 501))
-app.post('/api/spiritual/scripture-chapter', () => json({ error: 'ESV stays on Vercel until cutover' }, 501))
+/** ctx.waitUntil when there is an ExecutionContext (always on Workers); tests await instead. */
+async function waitUntilOrAwait(c: WorkerContext, task: Promise<unknown>): Promise<void> {
+  try {
+    c.executionCtx.waitUntil(task)
+  } catch {
+    await task
+  }
+}
+
+for (const route of PORTED_ROUTES) {
+  if (route.method === 'POST') app.post(route.path, (c) => servePorted(c, route))
+  // Vercel invokes crons with GET; POST kept for manual runs, as the stubs allowed.
+  else app.on(['GET', 'POST'], route.path, (c) => servePorted(c, route))
+}
+
 app.post('/api/circumstances/snap', () => json({ error: 'geocode stays on Vercel until cutover' }, 501))
-app.post('/api/realtime-token', async (c) => {
-  const user = await requireUser(c)
-  if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ error: 'OpenAI realtime stays on Vercel until cutover' }, 501)
-})
 app.post('/api/feedback', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
   return json({ error: 'feedback stays on Vercel until cutover' }, 501)
 })
 
-app.post('/api/stripe/checkout', () => json({ error: 'billing stays on Vercel; do not move webhooks' }, 501))
-app.get('/api/stripe/portal', () => json({ error: 'billing stays on Vercel; do not move webhooks' }, 501))
-app.post('/api/apple/verify', () => json({ error: 'StoreKit stays on Vercel; do not move webhooks' }, 501))
-app.post('/api/webhooks/stripe', () => json({ error: 'billing webhook stays on Vercel' }, 501))
-app.post('/api/webhooks/apple', () => json({ error: 'StoreKit webhook stays on Vercel' }, 501))
-app.post('/api/webhooks/revenuecat', () => json({ error: 'billing webhook stays on Vercel' }, 501))
+const ATTACHMENTS_BUCKET = 'attachments'
+const SIGNED_URL_TTL_S = 3600
 
-app.all('/api/cron/welcome-drip', async (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  const sql = sqlOf(c)
-  const enrolled = await sql<{ owner: string; status: string }[]>`
-    SELECT owner, status FROM welcome_drip_enrollments WHERE status = 'active'
-  `
-  return json({
-    ok: true,
-    evaluated: enrolled.length,
-    sends_enabled: welcomeDripSendsEnabled(c.env),
+function ownerStorageKey(ownerId: string, storageKey: string): string | null {
+  const prefix = `${ownerId}/`
+  if (!storageKey.startsWith(prefix) || storageKey.includes('..') || storageKey.includes('//')) return null
+  if (storageKey.slice(prefix.length).includes('/')) return null
+  return storageKey
+}
+
+async function supabaseSign(
+  env: Env,
+  action: 'download' | 'upload',
+  storageKey: string,
+  transform?: { width?: number; quality?: number; resize?: string },
+): Promise<{ signedUrl: string } | { error: string; status: number }> {
+  const base = env.SUPABASE_URL?.trim().replace(/\/$/, '')
+  const secret = env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!base || !secret) return { error: 'storage not configured', status: 501 }
+  const encoded = storageKey.split('/').map(encodeURIComponent).join('/')
+  const path = action === 'upload'
+    ? `/storage/v1/object/upload/sign/${ATTACHMENTS_BUCKET}/${encoded}`
+    : `/storage/v1/object/sign/${ATTACHMENTS_BUCKET}/${encoded}`
+  const body: Record<string, unknown> = { expiresIn: SIGNED_URL_TTL_S }
+  if (action === 'download' && transform) body.transform = transform
+  const res = await fetch(`${base}${path}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${secret}`,
+      apikey: secret,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
   })
+  const payload = await res.json().catch(() => ({})) as { signedURL?: string; signedUrl?: string; url?: string; token?: string }
+  if (!res.ok) return { error: 'sign failed', status: 502 }
+  if (action === 'upload') {
+    const rel = payload.url ?? ''
+    const token = payload.token ?? ''
+    const signedUrl = rel.startsWith('http') ? (token ? `${rel}${rel.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : rel) : `${base}/storage/v1${rel}${token ? (rel.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token) : ''}`
+    return { signedUrl }
+  }
+  const rel = payload.signedURL ?? payload.signedUrl ?? ''
+  const signedUrl = rel.startsWith('http') ? rel : `${base}/storage/v1${rel}`
+  return { signedUrl }
+}
+
+app.post('/api/storage/sign', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const body = await c.req.json<{
+    action?: string
+    storageKey?: string
+    hash?: string
+    mime?: string
+    bytes?: number
+    transform?: { width?: number; quality?: number; resize?: string }
+  }>()
+  const storageKey = ownerStorageKey(user.id, String(body.storageKey ?? ''))
+  if (!storageKey) return json({ error: 'forbidden key' }, 403)
+  const action = body.action === 'upload' ? 'upload' : 'download'
+  const signed = await supabaseSign(c.env, action, storageKey, body.transform)
+  if ('error' in signed) return json({ error: signed.error }, signed.status)
+  if (action === 'upload' && body.hash) {
+    await upsertAttachment(makeStore(sqlOf(c), user.id), {
+      hash: body.hash,
+      storage_key: storageKey,
+      mime: body.mime ?? null,
+      bytes: body.bytes ?? null,
+    })
+  }
+  return json(signed)
 })
 
-app.all('/api/cron/remind', async (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
+function waitUntilOf(c: WorkerContext): (task: Promise<unknown>) => void {
+  return (task) => {
+    try {
+      c.executionCtx.waitUntil(task)
+    } catch {
+      void task
+    }
+  }
+}
+
+// Dynamic import so Node strip-types checks that load `app` do not have to
+// resolve api/_lib/apple.ts's .js imports (Vercel extension). Wrangler still bundles this.
+async function billing() {
+  const [
+    { bindBillingEnv },
+    { liveApple },
+    { handleAppleWebhook },
+    { handleStripeCheckout },
+    { handleStripePortal },
+    { handleStripeWebhook, stripeClientFromEnv },
+    { handleAppleVerify },
+    { handleRevenuecatWebhook },
+  ] = await Promise.all([
+    import('./billing/bindEnv.ts'),
+    import('./billing/apple.ts'),
+    import('./billing/appleWebhook.ts'),
+    import('./billing/checkout.ts'),
+    import('./billing/portal.ts'),
+    import('./billing/stripeWebhook.ts'),
+    import('./billing/verify.ts'),
+    import('./billing/revenuecatWebhook.ts'),
+  ])
+  return {
+    bindBillingEnv,
+    liveApple,
+    handleAppleWebhook,
+    handleStripeCheckout,
+    handleStripePortal,
+    handleStripeWebhook,
+    stripeClientFromEnv,
+    handleAppleVerify,
+    handleRevenuecatWebhook,
+  }
+}
+
+app.post('/api/stripe/checkout', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  const stripe = b.stripeClientFromEnv(c.env)
+  return b.handleStripeCheckout(c.req.raw, sqlOf(c), c.env, user, stripe)
+})
+
+app.get('/api/stripe/portal', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  const stripe = b.stripeClientFromEnv(c.env)
+  return b.handleStripePortal(sqlOf(c), c.env, user, stripe)
+})
+
+app.post('/api/apple/verify', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleAppleVerify(c.req.raw, sqlOf(c), c.env, user, b.liveApple, waitUntilOf(c))
+})
+
+app.post('/api/webhooks/stripe', async (c) => {
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleStripeWebhook(c.req.raw, sqlOf(c), c.env, waitUntilOf(c))
+})
+
+app.post('/api/webhooks/apple', async (c) => {
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleAppleWebhook(c.req.raw, sqlOf(c), c.env, b.liveApple, waitUntilOf(c))
+})
+
+app.post('/api/webhooks/revenuecat', async (c) => {
+  const b = await billing()
+  b.bindBillingEnv(c.env)
+  return b.handleRevenuecatWebhook(c.req.raw, sqlOf(c), c.env, waitUntilOf(c))
+})
+
+// One-click unsubscribe for Worker-sent mail (RFC 8058). GET shows a confirm
+// button (link scanners prefetch GETs, so GET never writes); POST verifies the
+// HMAC link and records the address in email_suppressions (worker/schema/0008).
+const unsubscribePage = (title: string, body: string, form?: string) =>
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title></head>` +
+  `<body style="font-family:Georgia,serif;max-width:520px;margin:3rem auto;padding:0 1.5rem;color:#2a2a2a"><h1 style="font-size:1.3rem">${title}</h1><p>${body}</p>${form ?? ''}</body></html>`
+
+app.get(UNSUBSCRIBE_PATH, async (c) => {
+  const email = await verifyUnsubscribe(c.req.query('e') ?? null, c.req.query('t') ?? null, c.env.BETTER_AUTH_SECRET ?? '')
+  if (!email) return c.html(unsubscribePage('Link not valid', 'This unsubscribe link is not valid. Reply to any Dayspring email and we will take you off the list.'), 400)
+  const qs = new URL(c.req.url).search.replace(/"/g, '')
+  return c.html(unsubscribePage('Stop Dayspring emails?', 'You will stop getting reminder and welcome emails from Dayspring.',
+    `<form method="post" action="${UNSUBSCRIBE_PATH}${qs}"><button type="submit" style="padding:0.6rem 1.2rem;background:#2a2a2a;color:#fff;border:0;border-radius:6px;font-size:0.95rem">Unsubscribe</button></form>`))
+})
+
+app.post(UNSUBSCRIBE_PATH, async (c) => {
+  const email = await verifyUnsubscribe(c.req.query('e') ?? null, c.req.query('t') ?? null, c.env.BETTER_AUTH_SECRET ?? '')
+  if (!email) return c.html(unsubscribePage('Link not valid', 'This unsubscribe link is not valid.'), 400)
   const sql = sqlOf(c)
-  const due = await sql<{ n: number }[]>`
-    SELECT COUNT(*)::int AS n FROM reminders WHERE fired = FALSE AND remind_at <= NOW()
-  `
-  return json({ ok: true, due: due[0]?.n ?? 0 })
-})
-
-app.all('/api/cron/sync-resend', async (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: true, skipped: !c.env.RESEND_API_KEY })
-})
-
-app.all('/api/cron/synthesize', (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: false, ...cpuHeavyPayload('GET|POST /api/cron/synthesize') }, 501)
-})
-
-app.all('/api/cron/process-tick', (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: false, ...cpuHeavyPayload('GET|POST /api/cron/process-tick') }, 501)
-})
-
-app.all('/api/cron/echoes', (c) => {
-  if (!cronAuthorized(c.req.raw, c.env)) return json({ error: 'unauthorized' }, 401)
-  return json({ ok: false, ...cpuHeavyPayload('GET|POST /api/cron/echoes') }, 501)
+  await sql`INSERT INTO public.email_suppressions (email, source) VALUES (${email}, 'one-click') ON CONFLICT (email) DO NOTHING`
+  return c.html(unsubscribePage('You are unsubscribed', 'You will not get reminder or welcome emails from Dayspring.'))
 })
 
 app.get('/terms', (c) => fromAssets(c, '/legal/terms.html'))
@@ -286,17 +529,12 @@ app.all('*', (c) => fromAssets(c))
 export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    const cron = event.cron
-    const url =
-      cron === '0 8 * * *' ? '/api/cron/synthesize'
-        : cron === '* * * * *' ? '/api/cron/process-tick'
-          : cron === '0 9 * * *' ? '/api/cron/remind'
-            : cron === '15 9 * * *' ? '/api/cron/sync-resend'
-              : cron === '30 9 * * *' ? '/api/cron/welcome-drip'
-                : '/api/cron/echoes'
+    const url = CRON_PATHS[event.cron]
+    if (!url) return
+    // Pass ctx so the route's waitUntil work (and the per-request DB close) runs.
     ctx.waitUntil(Promise.resolve(app.fetch(new Request(`https://worker${url}`, {
       headers: { authorization: `Bearer ${env.CRON_SECRET ?? ''}` },
-    }), env)))
+    }), env, ctx)))
   },
 }
 

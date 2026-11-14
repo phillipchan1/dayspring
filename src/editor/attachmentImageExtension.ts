@@ -14,8 +14,10 @@ import {
 } from '@codemirror/view'
 import { RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state'
 import { supabase } from '@/lib/supabase'
+import { isWorkersBackend } from '@/lib/env'
 import {
   PENDING_ATTACHMENT_REF_RE,
+  attachmentOwnerId,
   fetchAttachmentMeta,
   imageSizeFrom,
   resolveAttachmentDisplayUrl,
@@ -103,9 +105,7 @@ let authListenerRegistered = false
 
 async function getOwnerId(): Promise<string | null> {
   if (cachedOwnerId) return cachedOwnerId
-  if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
-  cachedOwnerId = data.session?.user?.id ?? null
+  cachedOwnerId = await attachmentOwnerId(supabase)
   return cachedOwnerId
 }
 
@@ -138,7 +138,7 @@ function fetchAttachmentMetaCached(hash: string): Promise<AttachmentPhotoMeta | 
 
   const promise = getOwnerId()
     .then((ownerId) => {
-      if (!ownerId || !supabase) return null
+      if (!ownerId) return null
       return fetchAttachmentMeta(supabase, ownerId, hash)
     })
     .then((meta) => {
@@ -157,7 +157,7 @@ function fetchAttachmentMetaCached(hash: string): Promise<AttachmentPhotoMeta | 
 }
 
 function fetchMissingMeta(view: EditorView): void {
-  if (!supabase) return
+  if (!supabase && !isWorkersBackend) return
   const text = view.state.doc.toString()
   ATTACHMENT_RE.lastIndex = 0
   let m: RegExpExecArray | null
@@ -195,7 +195,7 @@ function fetchAttachmentUrl(hash: string, ext: string): Promise<string | null> {
 
   const promise = getOwnerId()
     .then((ownerId) => {
-      if (!ownerId || !supabase) return null
+      if (!ownerId) return null
       return resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext)
     })
     .then((url) => {
@@ -798,7 +798,7 @@ const attachmentDecoField = StateField.define<DecorationSet>({
 // ── URL fetch ─────────────────────────────────────────────────────────────────
 
 function fetchMissingUrls(view: EditorView): void {
-  if (!supabase) return
+  if (!supabase && !isWorkersBackend) return
   const text = view.state.doc.toString()
   ATTACHMENT_RE.lastIndex = 0
   let m: RegExpExecArray | null
@@ -1406,7 +1406,7 @@ export async function resolveCachedAttachmentPreview(
 ): Promise<string | null> {
   const key = `${hash}.${ext}`
   if (resolvedUrls.has(key)) return resolvedUrls.get(key)!
-  if (!supabase) return null
+  if (!supabase && !isWorkersBackend) return null
   const ownerId = await getOwnerId()
   if (!ownerId) return null
   const url = await resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext)

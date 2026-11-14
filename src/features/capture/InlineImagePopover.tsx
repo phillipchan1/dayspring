@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { hasNativeCapture, pickPhotosNatively } from '@/lib/nativeCapture'
-import { extFromImageFile } from '@/lib/attachments'
+import { attachmentOwnerId, extFromImageFile } from '@/lib/attachments'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { beginArrivals } from '@/lib/photoArrival'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
+import { isWorkersBackend } from '@/lib/env'
 import { supabase } from '@/lib/supabase'
 import { CommandPopover, CommandPopoverHint } from './CommandPopover'
 import { IMAGE_DROP_HINT } from './commandHints'
@@ -54,7 +55,7 @@ export function InlineImagePopover({
       )
       return
     }
-    if (!supabase) {
+    if (!supabase && !isWorkersBackend) {
       setPhase('error')
       setError('Photos require a connected account')
       return
@@ -74,7 +75,7 @@ export function InlineImagePopover({
     onClose()
 
     try {
-      const ownerId = (await supabase.auth.getSession()).data.session?.user?.id
+      const ownerId = await attachmentOwnerId(supabase)
       // One at a time, in the order chosen: each tile fills in as its own upload
       // lands, and one that fails takes only itself out of the set.
       for (const { pendingId, alt, file } of pending) {

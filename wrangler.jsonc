@@ -21,22 +21,68 @@
     "OPENAI_MODEL": "gpt-5.4-nano",
     "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
     "WELCOME_DRIP_SENDS_ENABLED": "false",
+    // AI_GATEWAY_API_KEY — secret (wrangler secret put). Do not set a value here.
+    // AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS — unset here so the flag stays off.
+    // APPLE_CLIENT_ID / APPLE_APP_BUNDLE_IDENTIFIER / GOOGLE_CLIENT_ID — dashboard vars.
+    // APPLE_CLIENT_SECRET / GOOGLE_CLIENT_SECRET — wrangler secret put. Never vars.
   },
-  // Replace `id` with a real Hyperdrive config before any paid deploy.
-  // Hyperdrive is a Workers Paid feature. Local / Free preview uses DATABASE_URL.
+  // HYPERDRIVE_ID_PLACEHOLDER — replace with a real Hyperdrive config id before
+  // any paid deploy. Hyperdrive is a Workers Paid feature and is NOT inherited
+  // by named envs; each env that needs it must declare this binding.
   // Local `wrangler dev` uses localConnectionString (or DATABASE_URL in .dev.vars).
+  // Operator steps: docs/cloudflare-migration/production.md
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "00000000000000000000000000000000",
+      "id": "HYPERDRIVE_ID_PLACEHOLDER",
       "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
     },
+  ],
+  // Cloudflare Email Sending. Not inherited by named envs; each env declares it.
+  "send_email": [
+    { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
   ],
   "observability": {
     "enabled": true,
   },
-  // workers.dev only. No routes, no custom domain. Do not deploy from CI.
+  // Named envs only. Do not deploy from CI. No routes / custom domain in this PR.
   "env": {
+    "production": {
+      "name": "dayspring",
+      // Public origin is not known yet — do not set BETTER_AUTH_URL here.
+      // workers.dev and localhost in production vars fail check:worker.
+      "vars": {
+        // Same model as Vercel production (OPENAI_MODEL there is gpt-6-luna).
+        "OPENAI_MODEL": "gpt-6-luna",
+        // Same as Vercel production (gather engine on, gate mode).
+        "GATHER_ENGINE": "on",
+        "GATHER_MODE": "gate",
+        "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
+        "WELCOME_DRIP_SENDS_ENABLED": "false",
+        // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
+        // WORKER_MAIL_CRONS — unset (off). Set to "on" only in the switch step that
+        // turns off Vercel's remind / sync-resend / welcome-drip crons.
+      },
+      "send_email": [
+        { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
+      ],
+      // HYPERDRIVE_ID_PLACEHOLDER — fill in from the Cloudflare API create
+      // in docs/cloudflare-migration/production.md (curl --data @file).
+      // Do not wrangler hyperdrive create: that puts the Neon password in argv.
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "e531860b19f74e49a798aa1f2364937b",
+          "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
+        },
+      ],
+      // Vercel-port routes and crons (synthesize, process-tick, echoes) run model
+      // calls and per-entry loops. Workers Paid allows up to 5 min CPU per invocation.
+      "limits": { "cpu_ms": 300000 },
+      // Binding to this same Worker: the processing engine's self-kick
+      // (worker/src/vercel/selfKick.ts). Not inherited, so each env names itself.
+      "services": [{ "binding": "SELF", "service": "dayspring" }],
+    },
     "preview": {
       "name": "dayspring-preview",
       "workers_dev": true,
@@ -46,10 +92,15 @@
         "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
         "WELCOME_DRIP_SENDS_ENABLED": "false",
         "BETTER_AUTH_URL": "https://dayspring-preview.nq-morning-briefing.workers.dev",
+        // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
       },
+      "send_email": [
+        { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
+      ],
       // Empty on purpose: Hyperdrive is not inherited. Preview uses DATABASE_URL.
       // A placeholder id here fails deploy with error 10157.
       "hyperdrive": [],
+      "services": [{ "binding": "SELF", "service": "dayspring-preview" }],
     },
   },
 }

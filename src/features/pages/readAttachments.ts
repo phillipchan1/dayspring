@@ -2,6 +2,7 @@ import { formatPhotoMetaLine, isMeaningfulCaption } from '@/lib/attachmentCaptio
 import { cropFor } from '@/lib/attachmentLayout'
 import {
   ATTACHMENT_REF_RE,
+  attachmentOwnerId,
   fetchAttachmentMeta,
   imageSizeFrom,
   resolveAttachmentDisplayUrl,
@@ -66,9 +67,7 @@ function makeLookable(el: HTMLElement, label: string, open: () => void): void {
 
 const defaultDeps: ReadAttachmentDeps = {
   async resolve(hash, ext) {
-    if (!supabase) return { url: null, meta: null }
-    const { data } = await supabase.auth.getSession()
-    const ownerId = data.session?.user?.id
+    const ownerId = await attachmentOwnerId(supabase)
     if (!ownerId) return { url: null, meta: null }
     const [url, meta] = await Promise.all([
       resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext),

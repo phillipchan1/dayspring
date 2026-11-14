@@ -6,7 +6,7 @@
 //
 // Cost discipline: reads only from rollup summaries, never raw entries.
 
-import { isAuthorized, unauthorized } from '../_lib/auth.js'
+import { cronOwnerScope, isAuthorized, unauthorized } from '../_lib/auth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { callModel } from '../_lib/openai.js'
 
@@ -77,9 +77,14 @@ interface RollupRow {
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
 
+  const scope = cronOwnerScope(req)
+  if ('error' in scope) return scope.error
+
   const sb = supabaseAdmin()
   // Steady-state heartbeat for every account (one row per user in profiles).
-  const { data: owners, error } = await sb.from('profiles').select('owner')
+  // A manual run with x-dayspring-owner covers just that account.
+  const profiles = sb.from('profiles').select('owner')
+  const { data: owners, error } = scope.owner ? await profiles.eq('owner', scope.owner) : await profiles
   if (error) return Response.json({ error: error.message }, { status: 500 })
 
   const perOwner: Array<{ owner: string; result: Record<string, unknown> }> = []

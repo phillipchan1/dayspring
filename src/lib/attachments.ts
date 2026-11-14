@@ -11,9 +11,13 @@ import { analyzeImage, makeDisplayVariant, prepareImageForUpload } from './image
 import { attachmentCacheGet, attachmentCachePut } from './db'
 import { isTauri } from './platform'
 import type { AttachmentPhotoMeta } from './attachmentCaption'
+import { isWorkersBackend } from './env'
+import { apiPost } from './api'
 
 const BUCKET = 'attachments'
 const SIGNED_URL_TTL_S = 3600 // 1 hour
+
+type SignedTransform = { width: number; quality: number; resize: 'contain' }
 
 // Display transform requested from Supabase Storage (Pro feature): a ~1400px,
 // quality-72 render so we ship a fraction of the stored bytes to the viewport.
@@ -130,8 +134,29 @@ export const PENDING_ATTACHMENT_REF_RE =
  * Upload an image for the signed-in user. Idempotent by content hash.
  * @throws when Supabase is unavailable or the user is not signed in.
  */
+export async function attachmentOwnerId(supabase?: SupabaseClient | null): Promise<string | null> {
+  if (isWorkersBackend) {
+    const { getWorkersUserId } = await import('./authClient')
+    return getWorkersUserId()
+  }
+  if (!supabase) return null
+  const { data } = await supabase.auth.getSession()
+  return data.session?.user?.id ?? null
+}
+
+async function workersSign(body: {
+  action: 'download' | 'upload'
+  storageKey: string
+  hash?: string
+  mime?: string
+  bytes?: number
+  transform?: SignedTransform
+}): Promise<{ signedUrl: string }> {
+  return apiPost('/api/storage/sign', body)
+}
+
 export async function uploadImageAttachment(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   file: File,
   meta?: AttachmentPhotoMeta,
   /** The photo is read and resized; what is left is the network. */
@@ -140,8 +165,7 @@ export async function uploadImageAttachment(
   // The session already in memory, not a round trip to ask the server who this
   // is: that was one wait per photo before a single byte moved, and storage
   // checks the same token on the upload itself.
-  const { data } = await supabase.auth.getSession()
-  const ownerId = data.session?.user?.id
+  const ownerId = await attachmentOwnerId(supabase)
   if (!ownerId) throw new Error('Sign in to add photos')
   const prepared = await prepareImageForUpload(file)
   const ext = extFromImageFile(prepared)
@@ -181,7 +205,7 @@ async function cacheDisplayVariant(
  * Returns the SHA-256 hash and whether the file was newly uploaded.
  */
 export async function ensureAttachment(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   ownerId: string,
   blob: Blob,
   ext: string,
@@ -189,6 +213,25 @@ export async function ensureAttachment(
 ): Promise<EnsureResult> {
   const hash = await computeSha256(blob)
   const storageKey = `${ownerId}/${hash}.${ext}`
+
+  if (isWorkersBackend) {
+    const { signedUrl } = await workersSign({
+      action: 'upload',
+      storageKey,
+      hash,
+      mime: blob.type || `image/${ext}`,
+      bytes: blob.size,
+    })
+    const put = await fetch(signedUrl, {
+      method: 'PUT',
+      headers: { 'content-type': blob.type || `image/${ext}` },
+      body: blob,
+    })
+    if (!put.ok) throw new Error(`Storage upload failed: ${put.status}`)
+    return { hash, isNew: true }
+  }
+
+  if (!supabase) throw new Error('Supabase is not configured')
 
   const { data: existing } = await supabase
     .from('attachments')
@@ -223,10 +266,11 @@ export async function ensureAttachment(
 
 /** Load stored metadata for a photo (capture time, etc.). */
 export async function fetchAttachmentMeta(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   ownerId: string,
   hash: string,
 ): Promise<AttachmentPhotoMeta | null> {
+  if (isWorkersBackend || !supabase) return null
   const { data } = await supabase
     .from('attachments')
     .select('metadata')
@@ -243,14 +287,12 @@ export async function fetchAttachmentMeta(
   return Object.keys(out).length > 0 ? out : null
 }
 
-type SignedTransform = { width: number; quality: number; resize: 'contain' }
-
 /**
  * Resolve `attachment:<hash>.<ext>` to a signed URL, optionally a transformed
  * (resized) render. Results are cached until 60 s before the URL expires.
  */
 export async function resolveAttachmentUrl(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   ownerId: string,
   hash: string,
   ext: string,
@@ -261,6 +303,20 @@ export async function resolveAttachmentUrl(
   const cached = urlCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.url
 
+  if (isWorkersBackend) {
+    const { signedUrl } = await workersSign({
+      action: 'download',
+      storageKey,
+      ...(transform ? { transform } : {}),
+    })
+    urlCache.set(cacheKey, {
+      url: signedUrl,
+      expiresAt: Date.now() + (SIGNED_URL_TTL_S - 60) * 1000,
+    })
+    return signedUrl
+  }
+
+  if (!supabase) return null
   const { data, error } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(storageKey, SIGNED_URL_TTL_S, transform ? { transform } : undefined)
@@ -282,7 +338,7 @@ export async function resolveAttachmentUrl(
  * Returns null only when even a signed URL can't be obtained.
  */
 export async function resolveAttachmentDisplayUrl(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   ownerId: string,
   hash: string,
   ext: string,
@@ -324,12 +380,19 @@ export async function resolveAttachmentDisplayUrl(
  * Returns null if the object is missing or unreadable.
  */
 export async function downloadAttachmentBlob(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   ownerId: string,
   hash: string,
   ext: string,
 ): Promise<Blob | null> {
   const storageKey = `${ownerId}/${hash}.${ext}`
+  if (isWorkersBackend) {
+    const { signedUrl } = await workersSign({ action: 'download', storageKey })
+    const res = await fetch(signedUrl)
+    if (!res.ok) return null
+    return res.blob()
+  }
+  if (!supabase) return null
   const { data, error } = await supabase.storage.from(BUCKET).download(storageKey)
   if (error || !data) return null
   return data

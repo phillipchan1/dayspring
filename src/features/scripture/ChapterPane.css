@@ -377,7 +377,17 @@
 
 /* Plainsong — a dashed column, square corners, no bloom. */
 [data-theme='quire'] .chapter-pane,
-[data-theme='nocturne'] .chapter-pane {
+[data-theme='nocturne'] .chapter-pane,
+[data-theme='onelight'] .chapter-pane,
+[data-theme='ayulight'] .chapter-pane,
+[data-theme='solarized'] .chapter-pane,
+[data-theme='latte'] .chapter-pane,
+[data-theme='onedark'] .chapter-pane,
+[data-theme='ayumirage'] .chapter-pane,
+[data-theme='palenight'] .chapter-pane,
+[data-theme='tokyonight'] .chapter-pane,
+[data-theme='gruvbox'] .chapter-pane,
+[data-theme='mocha'] .chapter-pane {
   --chapter-here-radius: 0;
   --chapter-here-glow: none;
   --chapter-here-rule-style: dashed;

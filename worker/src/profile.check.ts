@@ -11,6 +11,7 @@ import {
   extendTrialOnce,
   getProfile,
   makeStore,
+  setAckedCompletion,
   upsertProfile,
 } from './store.ts'
 
@@ -106,6 +107,17 @@ ok(conflicts.length === 7, 'parallel extendTrialOnce: the rest are 409')
 ok(
   (await getProfile(racing))?.feature_flags.filter((flag) => flag === TRIAL_EXTENDED_FLAG).length === 1,
   'parallel extendTrialOnce writes trial_extended once',
+)
+
+const ackKey = '2026-03-01T12:00:00.000Z'
+await setAckedCompletion(fresh, ackKey)
+const acked = await getProfile(fresh)
+ok(acked?.acked_processing_completion === ackKey, 'setAckedCompletion stores the text completion key')
+ok(typeof acked?.acked_processing_completion === 'string', 'acked_processing_completion is text, not boolean')
+await setAckedCompletion(fresh, ackKey)
+ok(
+  (await getProfile(fresh))?.acked_processing_completion === ackKey,
+  'setAckedCompletion is idempotent for the same key',
 )
 
 console.log(`${checks} checks, ${fails.length} failed`)

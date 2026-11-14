@@ -40,6 +40,18 @@ export interface Voice {
   face: 'serif' | 'literary' | 'typewriter' | 'mono' | 'sans' | 'readable'
   /** Preview chips for the picker — kept in sync with themes.css. */
   swatch: { light: string; dark: string; accent: string }
+  /**
+   * Other palettes this voice can wear, under the same face and ornament. Only
+   * Plainsong has any: it is the terminal voice, and people who write in mono
+   * tend to have an editor palette they already love.
+   *
+   * The voice's own `light` / `dark` stay the defaults, and stay what is
+   * projected to `lightTheme` / `darkTheme` for the other release channel —
+   * a client that has never heard of these palettes keeps rendering Quire /
+   * Nocturne rather than falling back to Dawn. The choice itself lives in
+   * `settings.paletteLight` / `paletteDark`, which such a client round-trips.
+   */
+  palettes?: { light: ThemeId[]; dark: ThemeId[] }
 }
 
 /**
@@ -92,6 +104,10 @@ export const VOICES: Voice[] = [
     dark: 'nocturne',
     face: 'mono',
     swatch: { light: '#f4f3f0', dark: '#000000', accent: '#a06a1e' },
+    palettes: {
+      light: ['quire', 'onelight', 'ayulight', 'solarized', 'latte'],
+      dark: ['nocturne', 'onedark', 'ayumirage', 'palenight', 'tokyonight', 'gruvbox', 'mocha'],
+    },
   },
   {
     id: 'vigil',
@@ -110,6 +126,21 @@ const BY_ID = Object.fromEntries(VOICES.map((v) => [v.id, v])) as Record<VoiceId
 
 export function getVoice(id: VoiceId | undefined): Voice {
   return (id && BY_ID[id]) || BY_ID[DEFAULT_VOICE]
+}
+
+/**
+ * The palette a voice wears on one side of the day: the chosen one when the
+ * voice offers it, otherwise the voice's own. A choice made under one voice is
+ * simply ignored under another, so it survives a round trip through Dawn.
+ */
+export function voicePalette(
+  id: VoiceId | undefined,
+  side: 'light' | 'dark',
+  chosen: ThemeId | null | undefined,
+): ThemeId | null {
+  const v = getVoice(id)
+  if (chosen && v.palettes?.[side].includes(chosen)) return chosen
+  return v[side]
 }
 
 /** True when this voice has no daylight palette — the picker disables Light for it. */

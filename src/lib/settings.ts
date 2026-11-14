@@ -223,6 +223,19 @@ export interface Settings {
   voice: VoiceId
 
   /**
+   * The palette picked within the voice, by day and by night — only for a voice
+   * that offers a choice (Plainsong; see voices.ts `palettes`). Absent / null,
+   * or one the current voice doesn't offer: the voice's own palette.
+   *
+   * Never projected to `lightTheme` / `darkTheme`: those keep the voice's own
+   * palettes so a client that predates these ids still renders the voice
+   * instead of resetting to Dawn. Optional so an older blob still parses; such
+   * a client round-trips the keys untouched.
+   */
+  paletteLight?: ThemeId | null
+  paletteDark?: ThemeId | null
+
+  /**
    * Whether `editorFont` follows the voice (true) or was deliberately chosen
    * (false).
    *

@@ -357,6 +357,21 @@ grotesque; the body followed. `--voice-scale` 0.97 → 0.93, since Archivo's x-h
 tallest of the voice faces; `face` is `sans` for the cross-channel slot. Source Serif 4 is
 no longer bundled.
 
+*Amended 2026-11-10:* Plainsong takes a choice of palette. It is the terminal voice, and
+people who write in mono usually already have an editor palette they love, so under the
+selected Plainsong row the picker now offers, by day: Quire, One Light, Ayu Light, Solarized
+Light, Catppuccin Latte; by night: Nocturne, One Dark, Ayu Mirage, Palenight, Tokyo Night,
+Gruvbox, Catppuccin Mocha. The face, scale, brackets, block caret and diamond don't change;
+only the colours do. Marking tones keep the arc using each theme's own colours, and the
+nearest one stands in where a theme lacks one (Palenight's sense is blue, Gruvbox's mauve).
+This is not a return to 54 combinations: the choice exists for one voice only, and the
+list of voices is still six rows. Cross-channel, the same additive rule applies:
+`lightTheme` / `darkTheme` keep projecting Quire / Nocturne, and the pick lives in the new
+`paletteLight` / `paletteDark` keys, which stable round-trips untouched, so a stable device
+renders plain Plainsong. *What would change our mind:* other voices' users ask for the same →
+reconsider whether palettes belong to voices at all; nobody moves off Quire / Nocturne in
+a month → remove the choice.
+
 **A voice spans light and dark**, so the face cannot change when the sun goes down. That was
 the actual mechanism behind the complaint, and two independent slots could never fix it.
 
