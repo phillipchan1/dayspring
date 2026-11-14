@@ -188,14 +188,15 @@ try {
   ok(!/hyperdrive\.local/i.test(message), 'Hyperdrive TLS errors do not leak the host')
 }
 
-ok(nextMigrationVersions([]).join(',') === '0001,0002,0003,0004,0005,0006', 'fresh DB applies 0001 then 0002 then 0003 then 0004 then 0005 then 0006')
-ok(nextMigrationVersions(['0001']).join(',') === '0002,0003,0004,0005,0006', '0001 applied continues at 0002')
-ok(nextMigrationVersions(['0002']).join(',') === '0003,0004,0005,0006', 'never re-run 0001 after 0002; continue at 0003')
-ok(nextMigrationVersions(['0001', '0002']).join(',') === '0003,0004,0005,0006', '0001+0002 continues at 0003')
-ok(nextMigrationVersions(['0001', '0002', '0003']).join(',') === '0004,0005,0006', '0001+0002+0003 continues at 0004')
-ok(nextMigrationVersions(['0001', '0002', '0003', '0004']).join(',') === '0005,0006', '0001..0004 continues at 0005')
-ok(nextMigrationVersions(['0001', '0002', '0003', '0004', '0005']).join(',') === '0006', '0001..0005 continues at 0006')
-ok(nextMigrationVersions(['0001', '0002', '0003', '0004', '0005', '0006']).join(',') === '', 'fully applied migrations are no-ops')
+ok(nextMigrationVersions([]).join(',') === '0001,0002,0003,0004,0005,0006,0007', 'fresh DB applies 0001..0007 in order')
+ok(nextMigrationVersions(['0001']).join(',') === '0002,0003,0004,0005,0006,0007', '0001 applied continues at 0002')
+ok(nextMigrationVersions(['0002']).join(',') === '0003,0004,0005,0006,0007', 'never re-run 0001 after 0002; continue at 0003')
+ok(nextMigrationVersions(['0001', '0002']).join(',') === '0003,0004,0005,0006,0007', '0001+0002 continues at 0003')
+ok(nextMigrationVersions(['0001', '0002', '0003']).join(',') === '0004,0005,0006,0007', '0001+0002+0003 continues at 0004')
+ok(nextMigrationVersions(['0001', '0002', '0003', '0004']).join(',') === '0005,0006,0007', '0001..0004 continues at 0005')
+ok(nextMigrationVersions(['0001', '0002', '0003', '0004', '0005']).join(',') === '0006,0007', '0001..0005 continues at 0006')
+ok(nextMigrationVersions(['0001', '0002', '0003', '0004', '0005', '0006']).join(',') === '0007', '0001..0006 continues at 0007')
+ok(nextMigrationVersions(['0001', '0002', '0003', '0004', '0005', '0006', '0007']).join(',') === '', 'fully applied migrations are no-ops')
 ok(
   schemaFileVersion('0002_occ_updated_at.sql') === 2
     && schemaFileVersion('0001_init.sql') === 1

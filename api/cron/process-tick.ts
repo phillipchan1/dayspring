@@ -3,11 +3,12 @@
 // enqueue kicks the first tick and each working tick kicks the next (kickWorker)
 // — so an archive drains in the background without a sub-minute cron (Vercel
 // Hobby-safe). The daily cron in vercel.json is only a backstop to restart any
-// chain that stalled; crashes also self-heal via the 5-minute lock reclaim.
+// chain that stalled; crashes also self-heal via the 90 s stale-lock reclaim
+// (claim_processing_jobs, worker/schema/0007).
 // See docs/PROCESSING_AND_ONBOARDING.md §4.
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
-import { drain, enqueueSettledGathers, kickWorker } from '../_lib/processing.js'
+import { drain, enqueueSettledGathers, kickWorker, TickClock } from '../_lib/processing.js'
 
 // Owners processed per tick — also the natural OpenAI rate cap. skip-locked makes
 // overlapping ticks safe.
@@ -16,6 +17,7 @@ const K = 4
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
 
+  const clock = new TickClock()
   const ranAt = new Date().toISOString()
   try {
     // Steady state (GATHER_ENGINE=on; a no-op otherwise): any owner whose writing
@@ -27,9 +29,10 @@ export async function GET(req: Request): Promise<Response> {
     } catch (e) {
       console.error('[process-tick] enqueueSettledGathers failed:', e instanceof Error ? e.message : e)
     }
-    const results = await drain(K)
-    // Self-chain: if this tick did work, more chunks likely remain — kick the
-    // next tick. Stops naturally when a tick claims nothing (chain ends).
+    const results = await drain(K, clock)
+    // Self-chain: if this tick did work (or deferred a job past its budget), more
+    // chunks likely remain — kick the next tick before returning. Stops naturally
+    // when a tick claims nothing (chain ends).
     if (results.length > 0) kickWorker()
     return Response.json({ ran_at: ranAt, gathers, claimed: results.length, results })
   } catch (e) {

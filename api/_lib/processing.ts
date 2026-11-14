@@ -51,6 +51,7 @@ export interface Job {
   total: number
   completed: number
   attempts: number
+  created_at?: string
 }
 
 interface ReflectionsCursor {
@@ -78,7 +79,7 @@ interface ReflectionsTask {
  * empty for hours while an oldest-first cascade grinds through ~15 years of
  * weeks before it ever reaches a quarter.
  */
-function reflectionsTasks(range: Period): ReflectionsTask[] {
+export function reflectionsTasks(range: Period): ReflectionsTask[] {
   const years = yearsInRange(range).slice().reverse() // recent year first
   const tasks: ReflectionsTask[] = []
   for (const year of years) {
@@ -97,7 +98,7 @@ function reflectionsTasks(range: Period): ReflectionsTask[] {
 // Tuning knobs (chunk = the per-tick budget that keeps each invocation under the
 // Vercel timeout). The next tick continues where this one left off.
 const REFLECTIONS_PER_TICK = 24 // periods built per tick (concurrently, same-stage)
-const REFLECTIONS_POOL = 6 // concurrent builds within a tick — caps model fan-out
+
 const HARVEST_PER_TICK = 60 // entries scanned for prayer cues per tick
 const THREAD_PER_TICK = 300 // untagged prayers/senses read by the subject tagger per tick
 const CONCORDANCE_PER_TICK = 64 // entries read for concordance candidates per tick
@@ -108,6 +109,80 @@ const WRITE_TAG_MAX = 120 // prayer lines tagged inline after a writing-session 
 // that reset, attempts only ever grew: a long import was past 5 after its fifth
 // healthy tick, and the first transient error after that failed it for good.
 const MAX_ATTEMPTS = 5
+
+// ── Tick profile (wall-clock budget) ─────────────────────────────────────────
+//
+// Vercel runs a tick as one long function invocation: no budget, the sizes above.
+// The Cloudflare Worker runs a kicked tick under ctx.waitUntil, which is cancelled
+// 30 s after the 202 (developers.cloudflare.com/workers/platform/limits, "Duration").
+// So the Worker installs a profile (worker/src/vercel/bridge.ts): smaller units,
+// and a unit only starts while `elapsed + estimate <= budgetMs` (the first unit of
+// a tick always starts, so every tick makes progress). Measured on prod Nov 13:
+// one gpt-6-luna reflection ≈ 10–12 s wall, so a pool-wide batch of 6 ≈ one call;
+// a 3-entry gather chunk (embed + gate + extract + harvest) ≈ 10 s.
+export interface TickProfile {
+  /** Stop starting units once elapsed + estimate would pass this. null = no budget (Vercel). */
+  budgetMs: number | null
+  reflectionsPerTick: number
+  gatherPerTick: number
+  harvestPerTick: number
+  threadPerTick: number
+  concordancePerTick: number
+  /** Wall-clock estimate of one unit, per kind (ms). */
+  unitMs: { reflections: number; gather: number; gatherFinish: number; other: number }
+}
+const VERCEL_PROFILE: TickProfile = {
+  budgetMs: null,
+  reflectionsPerTick: REFLECTIONS_PER_TICK,
+  gatherPerTick: GATHER_PER_TICK,
+  harvestPerTick: HARVEST_PER_TICK,
+  threadPerTick: THREAD_PER_TICK,
+  concordancePerTick: CONCORDANCE_PER_TICK,
+  unitMs: { reflections: 0, gather: 0, gatherFinish: 0, other: 0 },
+}
+/** The Worker's profile: ~18 s of work per tick, well inside the 30 s waitUntil cap. */
+export const WORKER_TICK_PROFILE: TickProfile = {
+  budgetMs: 18_000,
+  reflectionsPerTick: 6, // = REFLECTIONS_POOL: one parallel batch, ≈ one model call
+  gatherPerTick: 8, // = one concordance extract batch and one harvest batch
+  harvestPerTick: 12, // import-path altar harvest (one pooled round of batches)
+  threadPerTick: 60, // subject tagger lines per tick
+  concordancePerTick: 16, // two extract batches, pooled
+  unitMs: { reflections: 12_000, gather: 12_000, gatherFinish: 12_000, other: 12_000 },
+}
+let tickProfile: TickProfile = VERCEL_PROFILE
+export function setTickProfile(p: TickProfile | null): void {
+  tickProfile = p ?? VERCEL_PROFILE
+}
+export function currentTickProfile(): TickProfile {
+  return tickProfile
+}
+
+/** Per-tick clock. `now` is injectable for tests. */
+export class TickClock {
+  private started: number
+  private first = true
+  constructor(
+    private profile: TickProfile = tickProfile,
+    private now: () => number = Date.now,
+    startedAt?: number,
+  ) {
+    this.started = startedAt ?? now()
+  }
+  elapsed(): number {
+    return this.now() - this.started
+  }
+  /** May a unit estimated at `estMs` start? The first unit of a tick always may. */
+  canStart(estMs: number): boolean {
+    if (this.first) {
+      this.first = false
+      return true
+    }
+    const budget = this.profile.budgetMs
+    return budget === null || this.elapsed() + estMs <= budget
+  }
+}
+const REFLECTIONS_POOL = 6 // concurrent builds within a tick — caps model fan-out
 
 /** Run `fn` over items with bounded concurrency (no extra deps). */
 async function runPool<T>(
@@ -340,26 +415,51 @@ export function kickWorker(): void {
 
 // ── Drain ────────────────────────────────────────────────────────────────────
 
-/** Claim up to K jobs and advance each by one bounded chunk. */
-export async function drain(k: number): Promise<Array<Record<string, unknown>>> {
+/**
+ * Claim up to K jobs and advance each by one bounded chunk. Under a tick budget
+ * (the Worker), a claimed job whose unit no longer fits is released at once —
+ * lock cleared, claim's attempt bump undone — and reported as `deferred`, so the
+ * caller kicks the next tick and that tick resumes it immediately.
+ */
+export async function drain(k: number, clock: TickClock = new TickClock()): Promise<Array<Record<string, unknown>>> {
   const sb = supabaseAdmin()
   const { data: claimed, error } = await sb.rpc('claim_processing_jobs', { k })
   if (error) throw error
-  const jobs = (claimed ?? []) as Job[]
+  // UPDATE … RETURNING has no guaranteed row order, so pin the RPC's intended
+  // oldest-first order here: under a tick budget, the first job runs and later
+  // ones may be deferred, so the order must be stable (and fair) across ticks.
+  const jobs = ((claimed ?? []) as Job[]).slice().sort((a, b) => {
+    const ta = a.created_at ? Date.parse(a.created_at) : 0
+    const tb = b.created_at ? Date.parse(b.created_at) : 0
+    return ta - tb || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  })
 
   const summaries: Array<Record<string, unknown>> = []
   for (const job of jobs) {
-    summaries.push(await runChunk(job))
+    if (!clock.canStart(unitEstimate(job.kind))) {
+      await sb
+        .from('processing_jobs')
+        .update({ locked_at: null, attempts: Math.max(0, job.attempts - 1) })
+        .eq('id', job.id)
+      summaries.push({ id: job.id, kind: job.kind, status: 'deferred' })
+      continue
+    }
+    summaries.push(await runChunk(job, clock))
   }
   return summaries
 }
 
-async function runChunk(job: Job): Promise<Record<string, unknown>> {
+function unitEstimate(kind: Job['kind']): number {
+  const u = tickProfile.unitMs
+  return kind === 'reflections' ? u.reflections : kind === 'gather' ? u.gather : u.other
+}
+
+async function runChunk(job: Job, clock: TickClock): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
   try {
     switch (job.kind) {
       case 'reflections':
-        return await runReflections(job)
+        return await runReflections(job, clock)
       case 'altar_harvest':
         return await runAltarHarvest(job)
       case 'altar_embed':
@@ -369,7 +469,7 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
       case 'concordance':
         return await runConcordance(job)
       case 'gather':
-        return await runGather(job)
+        return await runGather(job, clock)
       case 'scripture':
         // Scripture is scanned client-side post-import; nothing to do server-side.
         await sb.from('processing_jobs').update({ status: 'done', locked_at: null }).eq('id', job.id)
@@ -385,7 +485,7 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
           (e as { details?: string } | null)?.details ??
           (typeof e === 'string' ? e : JSON.stringify(e)?.slice(0, 300)) ??
           'chunk failed')
-    // Transient: leave 'running' (locked_at keeps it out of reach for 5 min, a
+    // Transient: leave 'running' (locked_at keeps it out of reach for the 90 s stale window, a
     // natural backoff) so a later tick reclaims and retries — until we give up.
     const giveUp = job.attempts >= MAX_ATTEMPTS
     await sb
@@ -402,7 +502,7 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
   }
 }
 
-async function runReflections(job: Job): Promise<Record<string, unknown>> {
+async function runReflections(job: Job, clock: TickClock): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
   const cursor = job.cursor as ReflectionsCursor & { stage?: Stage }
   const range = cursor.range
@@ -416,13 +516,18 @@ async function runReflections(job: Job): Promise<Record<string, unknown>> {
   // stage (no intra-stage dependencies — a month only reads its OWN weeks, which
   // a prior batch already built) and run them through a bounded pool. A stage
   // change ends the batch, so a parent is never built alongside its children.
-  while (built < REFLECTIONS_PER_TICK && index < tasks.length) {
+  const perTick = tickProfile.reflectionsPerTick
+  // The drain already let this job's first batch start; later batches must fit.
+  let firstBatch = true
+  while (built < perTick && index < tasks.length) {
+    if (!firstBatch && tickProfile.budgetMs !== null && clock.elapsed() + tickProfile.unitMs.reflections > tickProfile.budgetMs) break
+    firstBatch = false
     const stage = tasks[index]!.stage
     const batch: Period[] = []
     while (
       index < tasks.length &&
       tasks[index]!.stage === stage &&
-      batch.length < REFLECTIONS_PER_TICK - built
+      batch.length < perTick - built
     ) {
       batch.push(tasks[index]!.period)
       index += 1
@@ -440,7 +545,7 @@ async function runReflections(job: Job): Promise<Record<string, unknown>> {
   }
 
   // More to do — persist progress, leave running (clear lock so the next tick
-  // picks it straight up rather than waiting out the 5-min stale window).
+  // picks it straight up rather than waiting out the 90 s stale window).
   await sb
     .from('processing_jobs')
     .update({ cursor: { range, index }, completed: index, locked_at: null, attempts: 0 })
@@ -450,7 +555,7 @@ async function runReflections(job: Job): Promise<Record<string, unknown>> {
 
 async function runAltarHarvest(job: Job): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
-  const { scanned, failed } = await harvestPrayers(job.owner, { max: HARVEST_PER_TICK })
+  const { scanned, failed } = await harvestPrayers(job.owner, { max: tickProfile.harvestPerTick })
   // Nothing could be read this tick: fail the chunk so the engine backs off,
   // counts the attempt and eventually gives up. Returning normally here left the
   // job "running" with the same unreadable entries at the head of the queue,
@@ -481,7 +586,7 @@ async function runAltarHarvest(job: Job): Promise<Record<string, unknown>> {
 async function runConcordance(job: Job): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
   const { scanned, failed } = await scanConcordance(job.owner, {
-    max: CONCORDANCE_PER_TICK,
+    max: tickProfile.concordancePerTick,
     source: 'import', // archive seed — items land suggested, never confirmed
   })
   // Same guard as the harvest: a tick that read nothing must fail, not loop.
@@ -506,14 +611,14 @@ async function runConcordance(job: Job): Promise<Record<string, unknown>> {
   return { id: job.id, kind: 'concordance', status: 'running', completed, remaining: unscanned }
 }
 
-async function runGather(job: Job): Promise<Record<string, unknown>> {
+async function runGather(job: Job, clock: TickClock): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
   const origin: GatherOrigin = (job.cursor as GatherCursor).origin === 'import' ? 'import' : 'write'
   const settleMinutes = origin === 'import' ? 0 : env.gatherSettleMinutes()
 
   const res = await gatherChunk(job.owner, {
     settleMinutes,
-    max: GATHER_PER_TICK,
+    max: tickProfile.gatherPerTick,
     source: origin === 'import' ? 'import' : 'repetition',
   })
   // "Done with" an entry = gathered, or given up on. A failed entry is still
@@ -529,7 +634,19 @@ async function runGather(job: Job): Promise<Record<string, unknown>> {
     return { id: job.id, kind: 'gather', status: 'running', origin, completed, remaining, ...res }
   }
 
-  // Drained. Everything harvested (and every /pray block the derive wrote) needs
+  // Drained. The finish (embed items, tag, regroup) is its own unit under a tick
+  // budget: if it no longer fits, leave the job claimable and let the next tick
+  // (kicked by process-tick) run it from a fresh clock.
+  const budget = tickProfile.budgetMs
+  if (budget !== null && res.read > 0 && clock.elapsed() + tickProfile.unitMs.gatherFinish > budget) {
+    await sb
+      .from('processing_jobs')
+      .update({ completed, total: completed, locked_at: null, attempts: 0 })
+      .eq('id', job.id)
+    return { id: job.id, kind: 'gather', status: 'running', origin, completed, remaining: 0, finish: 'next-tick', ...res }
+  }
+
+  // Everything harvested (and every /pray block the derive wrote) needs
   // an embedding before it can be threaded.
   const embedded = await embedUnembeddedItems(job.owner)
 
@@ -581,7 +698,7 @@ async function runAltarThread(job: Job): Promise<Record<string, unknown>> {
   //
   // Tagging is the priced, per-line step; grouping is deterministic, so it runs
   // once at the end rather than on every tick.
-  const res = await tagSubjects(job.owner, { max: THREAD_PER_TICK })
+  const res = await tagSubjects(job.owner, { max: tickProfile.threadPerTick })
   const completed = job.completed + res.read
 
   if (res.remaining > 0) {
