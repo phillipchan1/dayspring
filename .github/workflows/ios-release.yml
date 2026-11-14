@@ -26,14 +26,13 @@ on:
   workflow_dispatch:
     inputs:
       vite_backend:
-        description: Client backend for this IPA. Push builds ignore this and stay on Vercel.
+        description: Client backend. Every iOS build (push and dispatch) targets the Cloudflare Worker.
         type: choice
         options:
-          - vercel
           - workers
-        default: vercel
+        default: workers
       vite_api_base_url:
-        description: Worker origin. Used only when vite_backend is workers.
+        description: Worker origin. Push builds use the default.
         type: string
         default: https://api.usedayspring.app
 
@@ -57,15 +56,34 @@ jobs:
           fetch-depth: 0
 
       - id: guard-workers-url
-        name: Require Worker URL on workers dispatch
-        if: github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers'
+        name: Require an allowlisted Worker URL
         env:
-          WORKER_URL: ${{ inputs.vite_api_base_url }}
+          WORKER_URL: ${{ inputs.vite_api_base_url || 'https://api.usedayspring.app' }}
         run: |
-          if [ -z "$WORKER_URL" ]; then
-            echo "::error::vite_api_base_url is required when vite_backend is workers"
-            exit 1
-          fi
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import sys
+          from urllib.parse import urlparse
+
+          url = os.environ.get("WORKER_URL", "")
+          allowed = {
+              "api.usedayspring.app",
+              "dayspring-preview.nq-morning-briefing.workers.dev",
+          }
+          try:
+              parsed = urlparse(url)
+          except ValueError:
+              print("::error::Worker URL must be https:// with an allowlisted host", file=sys.stderr)
+              sys.exit(1)
+          host = (parsed.hostname or "").lower()
+          path_ok = parsed.path in ("", "/")
+          extra = parsed.params or parsed.query or parsed.fragment or parsed.username or parsed.password
+          port_ok = parsed.port in (None, 443)
+          if parsed.scheme != "https" or host not in allowed or not path_ok or extra or not port_ok:
+              print("::error::Worker URL must be https:// with an allowlisted host", file=sys.stderr)
+              sys.exit(1)
+          PY
 
       - id: setup-node
         name: Set up Node
@@ -203,11 +221,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          # Repo variable (Settings → Secrets and variables → Actions → Variables).
-          # Empty → today's Vercel origin. Set to a workers.dev origin only for a
-          # Workers preview IPA. See docs/cloudflare-migration/cutover.md.
-          VITE_API_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers' && inputs.vite_api_base_url || vars.VITE_API_BASE_URL || 'https://dayspring-eosin.vercel.app' }}
-          VITE_BACKEND: ${{ github.event_name == 'workflow_dispatch' && inputs.vite_backend == 'workers' && 'workers' || vars.VITE_BACKEND }}
+          VITE_API_BASE_URL: ${{ inputs.vite_api_base_url || 'https://api.usedayspring.app' }}
+          VITE_BACKEND: workers
           # The TestFlight IPA is the App Store binary if it is promoted in ASC.
           # Never stamp it as alpha or compile beta-testing UI into it.
           VITE_RELEASE_CHANNEL: appstore

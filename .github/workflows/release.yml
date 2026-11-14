@@ -72,15 +72,34 @@ jobs:
           fetch-depth: 0
 
       - id: guard-workers-url
-        name: Require Worker URL on workers dispatch
-        if: github.event_name == 'workflow_dispatch'
+        name: Require an allowlisted Worker URL
         env:
-          WORKER_URL: ${{ inputs.vite_api_base_url }}
+          WORKER_URL: ${{ inputs.vite_api_base_url || 'https://api.usedayspring.app' }}
         run: |
-          if [ -z "$WORKER_URL" ]; then
-            echo "::error::vite_api_base_url is required when vite_backend is workers"
-            exit 1
-          fi
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import sys
+          from urllib.parse import urlparse
+
+          url = os.environ.get("WORKER_URL", "")
+          allowed = {
+              "api.usedayspring.app",
+              "dayspring-preview.nq-morning-briefing.workers.dev",
+          }
+          try:
+              parsed = urlparse(url)
+          except ValueError:
+              print("::error::Worker URL must be https:// with an allowlisted host", file=sys.stderr)
+              sys.exit(1)
+          host = (parsed.hostname or "").lower()
+          path_ok = parsed.path in ("", "/")
+          extra = parsed.params or parsed.query or parsed.fragment or parsed.username or parsed.password
+          port_ok = parsed.port in (None, 443)
+          if parsed.scheme != "https" or host not in allowed or not path_ok or extra or not port_ok:
+              print("::error::Worker URL must be https:// with an allowlisted host", file=sys.stderr)
+              sys.exit(1)
+          PY
 
       - id: setup-node
         name: Set up Node
