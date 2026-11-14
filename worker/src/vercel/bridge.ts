@@ -6,8 +6,8 @@
  *     the Vercel code's `.from()/.rpc()/auth.*` calls hit Neon through
  *     Hyperdrive. auth.getUser(token) resolves Better Auth bearer sessions.
  *   - @vercel/functions waitUntil(): mapped to ctx.waitUntil.
- *   - kickWorker(): kicks this Worker's own /api/cron/process-tick, never
- *     APP_URL (which still names the Vercel web app).
+ *   - kickWorker(): kicks this Worker's own /api/cron/process-tick (SELF
+ *     service binding, see selfKick.ts), never APP_URL (the Vercel web app).
  * api/_lib/env.ts reads process.env, which nodejs_compat fills from the
  * Worker's vars and secrets (compatibility_date ≥ 2025-04-01).
  */
@@ -22,9 +22,8 @@ export type VercelHandler = (req: Request) => Promise<Response> | Response
 export interface BridgeContext {
   client: PgRestClient
   waitUntil: (p: Promise<unknown>) => void
-  /** Public origin of this Worker (BETTER_AUTH_URL), for self-kicks. */
-  origin: string | null
-  cronSecret: string | null
+  /** Runs one self-kick (selfKick.ts); null when no CRON_SECRET or route to self. */
+  kick: (() => Promise<void>) | null
 }
 
 const als = new AsyncLocalStorage<BridgeContext>()
@@ -41,11 +40,11 @@ function install(): void {
   })
   setKickWorkerOverride(() => {
     const ctx = als.getStore()
-    if (!ctx?.origin || !ctx.cronSecret) return
-    const url = `${ctx.origin.replace(/\/$/, '')}/api/cron/process-tick`
-    ctx.waitUntil(
-      fetch(url, { headers: { authorization: `Bearer ${ctx.cronSecret}` } }).then(() => undefined).catch(() => undefined),
-    )
+    if (!ctx?.kick) {
+      console.error('[self-kick] skipped: no CRON_SECRET or no route to this Worker')
+      return
+    }
+    ctx.waitUntil(ctx.kick())
   })
   ;(globalThis as Record<symbol, unknown>)[REQ_CONTEXT] = {
     get: () => {

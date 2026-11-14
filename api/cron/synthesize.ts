@@ -8,7 +8,7 @@
 //   • Jan 1               → last year's monthlies (ensured), then that year sealed
 // Idempotent (builders upsert), so re-running never duplicates.
 
-import { isAuthorized, unauthorized } from '../_lib/auth.js'
+import { cronOwnerScope, isAuthorized, unauthorized } from '../_lib/auth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { env } from '../_lib/env.js'
 import {
@@ -46,12 +46,17 @@ import { scanConcordance, consolidateConcordance } from '../_lib/concordance.js'
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
 
+  const scope = cronOwnerScope(req)
+  if ('error' in scope) return scope.error
+
   const now = new Date()
 
   // Steady-state heartbeat for every account (the one-time archive catch-up is
-  // the processing engine). Profiles is one row per user.
+  // the processing engine). Profiles is one row per user. A manual run with
+  // x-dayspring-owner covers just that account.
   const sb = supabaseAdmin()
-  const { data: owners, error } = await sb.from('profiles').select('owner')
+  const profiles = sb.from('profiles').select('owner')
+  const { data: owners, error } = scope.owner ? await profiles.eq('owner', scope.owner) : await profiles
   if (error) {
     return Response.json(
       { ran_at: now.toISOString(), error: error.message },

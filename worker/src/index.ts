@@ -8,6 +8,7 @@ import { closeSql, createSql } from './db.ts'
 import { CRON_PATHS, PORTED_ROUTES, openaiDirectConfigured, workerMailCronsOn, type PortedRoute } from './vercel/routes.ts'
 import { authOf, finishRequest, sqlOf, type WorkerContext, type WorkerVars } from './request.ts'
 import { timingSafeEqualString } from './safeEqual.ts'
+import { buildSelfKick, KICK_HEADER, PROCESS_TICK_PATH } from './vercel/selfKick.ts'
 import {
   deleteOwnedAccount,
   ensureProfile,
@@ -30,6 +31,9 @@ app.use('*', async (c, next) => {
     await next()
     const path = new URL(c.req.url).pathname
     if (path.startsWith('/api/')) {
+      // Responses from ASSETS.fetch (and fetch() generally) have immutable
+      // headers. Re-wrap once so unknown /api paths don't 500 here.
+      if (!headersMutable(c.res)) c.res = new Response(c.res.body, c.res)
       for (const [key, value] of Object.entries(API_SECURITY)) {
         c.res.headers.set(key, value)
       }
@@ -38,6 +42,15 @@ app.use('*', async (c, next) => {
     await finishRequest(c)
   }
 })
+
+function headersMutable(res: Response): boolean {
+  try {
+    res.headers.set('x-content-type-options', res.headers.get('x-content-type-options') ?? 'nosniff')
+    return true
+  } catch {
+    return false
+  }
+}
 
 function missingAsset(): Response {
   return new Response('Not found', {
@@ -229,28 +242,57 @@ async function servePorted(c: WorkerContext, route: PortedRoute): Promise<Respon
       return (await sessionUser(auth, new Request(c.req.url, { headers })))?.id ?? null
     },
   })
-  const origin = c.env.BETTER_AUTH_URL?.trim() || new URL(c.req.url).origin
-  try {
-    return await runVercelHandler(
-      {
-        client,
-        waitUntil: (task) => { pending.push(Promise.resolve(task).catch(() => undefined)) },
-        origin,
-        cronSecret: c.env.CRON_SECRET?.trim() || null,
-      },
-      handler,
-      c.req.raw,
-    )
-  } finally {
-    const drain = (async () => {
-      while (pending.length) await Promise.all(pending.splice(0))
-      await closeSql(sql)
-    })()
+  const kick = buildSelfKick({
+    self: c.env.SELF ?? null,
+    origin: c.env.BETTER_AUTH_URL?.trim() || new URL(c.req.url).origin,
+    cronSecret: c.env.CRON_SECRET?.trim() || null,
+  })
+  const run = async (): Promise<Response> => {
     try {
-      c.executionCtx.waitUntil(drain)
-    } catch {
-      await drain
+      return await runVercelHandler(
+        {
+          client,
+          waitUntil: (task) => {
+            pending.push(Promise.resolve(task).catch((e) => {
+              console.error(`[waitUntil] ${route.path} task failed: ${e instanceof Error ? e.message : String(e)}`)
+            }))
+          },
+          kick,
+        },
+        handler,
+        c.req.raw,
+      )
+    } finally {
+      const drain = (async () => {
+        while (pending.length) await Promise.all(pending.splice(0))
+        await closeSql(sql)
+      })()
+      await waitUntilOrAwait(c, drain)
     }
+  }
+  // A self-kick (selfKick.ts): answer 202 now and run the tick under this
+  // invocation's own waitUntil, so the kicker never waits on the tick.
+  if (isCron && route.path === PROCESS_TICK_PATH && c.req.header(KICK_HEADER) === '1') {
+    const tick = run()
+      .then(async (res) => {
+        if (!res.ok) console.error(`[self-kick] kicked process-tick returned ${res.status}`)
+        await res.body?.cancel().catch(() => undefined)
+      })
+      .catch((e) => {
+        console.error(`[self-kick] kicked process-tick failed: ${e instanceof Error ? e.message : String(e)}`)
+      })
+    await waitUntilOrAwait(c, tick)
+    return json({ ok: true, kicked: true }, 202)
+  }
+  return run()
+}
+
+/** ctx.waitUntil when there is an ExecutionContext (always on Workers); tests await instead. */
+async function waitUntilOrAwait(c: WorkerContext, task: Promise<unknown>): Promise<void> {
+  try {
+    c.executionCtx.waitUntil(task)
+  } catch {
+    await task
   }
 }
 
@@ -261,11 +303,6 @@ for (const route of PORTED_ROUTES) {
 }
 
 app.post('/api/circumstances/snap', () => json({ error: 'geocode stays on Vercel until cutover' }, 501))
-app.post('/api/realtime-token', async (c) => {
-  const user = await requireUser(c)
-  if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ error: 'OpenAI realtime stays on Vercel until cutover' }, 501)
-})
 app.post('/api/feedback', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)

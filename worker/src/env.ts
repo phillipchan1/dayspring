@@ -4,6 +4,8 @@ export interface HyperdriveBinding {
 
 export interface Env {
   ASSETS?: Fetcher
+  /** Service binding to this same Worker: the processing engine's self-kick (vercel/selfKick.ts). */
+  SELF?: Fetcher
   HYPERDRIVE?: HyperdriveBinding
   DATABASE_URL?: string
   /** Worker AI. Read by name only — do not put a value in wrangler.jsonc. */
