@@ -53,7 +53,8 @@ export async function sendReminderNotification(opts: ReminderNotification): Prom
   const text = `You wrote this on ${opts.writtenDate}:\n\n"${opts.sentence}"\n\nDoes it still feel true?\n\n${entryUrl}`
 
   if (send) {
-    await send({ to: opts.to, subject: 'A word from your past', html, text })
+    // Checks email_suppressions first; adds List-Unsubscribe (+ one-click).
+    await send.send({ to: opts.to, subject: 'A word from your past', html, text })
     return
   }
 
