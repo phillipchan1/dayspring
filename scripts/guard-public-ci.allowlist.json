@@ -437,7 +437,7 @@
       "file": "support-manifest.yml",
       "job": "publish",
       "id": "commit",
-      "sha256": "3246544ac288d35e17ca7528118c917ad5ebf45b846e9c56c890cb8d0d4399b8"
+      "sha256": "92553c998e81e52921f2688f70d276ade633a6bb04beab9e5f2fdfa7262f9c50"
     },
     {
       "file": "worker-openai-secret.yml",
