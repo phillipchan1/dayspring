@@ -38,6 +38,10 @@
       "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
     },
   ],
+  // Cloudflare Email Sending. Not inherited by named envs; each env declares it.
+  "send_email": [
+    { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
+  ],
   "observability": {
     "enabled": true,
   },
@@ -59,6 +63,9 @@
         // WORKER_MAIL_CRONS — unset (off). Set to "on" only in the switch step that
         // turns off Vercel's remind / sync-resend / welcome-drip crons.
       },
+      "send_email": [
+        { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
+      ],
       // HYPERDRIVE_ID_PLACEHOLDER — fill in from the Cloudflare API create
       // in docs/cloudflare-migration/production.md (curl --data @file).
       // Do not wrangler hyperdrive create: that puts the Neon password in argv.
@@ -87,6 +94,9 @@
         "BETTER_AUTH_URL": "https://dayspring-preview.nq-morning-briefing.workers.dev",
         // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
       },
+      "send_email": [
+        { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
+      ],
       // Empty on purpose: Hyperdrive is not inherited. Preview uses DATABASE_URL.
       // A placeholder id here fails deploy with error 10157.
       "hyperdrive": [],
