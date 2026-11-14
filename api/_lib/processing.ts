@@ -318,7 +318,14 @@ async function insertIfInactive(
  * archive drains in the background WITHOUT a sub-minute cron — Vercel Hobby-safe.
  * `waitUntil` keeps the function alive long enough to dispatch the request.
  */
+/** Cloudflare Worker hook: kick the Worker's own tick instead of APP_URL's. Unset on Vercel. */
+let kickOverride: (() => void) | null = null
+export function setKickWorkerOverride(fn: (() => void) | null): void {
+  kickOverride = fn
+}
+
 export function kickWorker(): void {
+  if (kickOverride) return kickOverride()
   try {
     const url = `${env.appUrl()}/api/cron/process-tick`
     waitUntil(

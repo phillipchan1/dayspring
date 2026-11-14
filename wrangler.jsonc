@@ -48,10 +48,16 @@
       // Public origin is not known yet — do not set BETTER_AUTH_URL here.
       // workers.dev and localhost in production vars fail check:worker.
       "vars": {
-        "OPENAI_MODEL": "gpt-5.4-nano",
+        // Same model as Vercel production (OPENAI_MODEL there is gpt-6-luna).
+        "OPENAI_MODEL": "gpt-6-luna",
+        // Same as Vercel production (gather engine on, gate mode).
+        "GATHER_ENGINE": "on",
+        "GATHER_MODE": "gate",
         "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
         "WELCOME_DRIP_SENDS_ENABLED": "false",
         // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
+        // WORKER_MAIL_CRONS — unset (off). Set to "on" only in the switch step that
+        // turns off Vercel's remind / sync-resend / welcome-drip crons.
       },
       // HYPERDRIVE_ID_PLACEHOLDER — fill in from the Cloudflare API create
       // in docs/cloudflare-migration/production.md (curl --data @file).
@@ -63,6 +69,9 @@
           "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5432/dayspring",
         },
       ],
+      // Vercel-port routes and crons (synthesize, process-tick, echoes) run model
+      // calls and per-entry loops. Workers Paid allows up to 5 min CPU per invocation.
+      "limits": { "cpu_ms": 300000 },
     },
     "preview": {
       "name": "dayspring-preview",

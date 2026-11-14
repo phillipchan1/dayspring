@@ -694,6 +694,7 @@ export async function insertEchoDismissal(store: ConnectedStore, entryId: string
   const rows = await store.sql<{ id: string }[]>`
     INSERT INTO echo_dismissals (owner, entry_id)
     VALUES (${store.ownerId}, ${entryId})
+    ON CONFLICT (owner, entry_id) DO UPDATE SET entry_id = EXCLUDED.entry_id
     RETURNING id
   `
   return rows[0]?.id ?? ''

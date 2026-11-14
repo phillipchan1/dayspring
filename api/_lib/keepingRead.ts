@@ -244,7 +244,7 @@ export function keepingReadSystem(): string {
 
 export function keepingReadSchema(): Record<string, unknown> {
   if (env.gatherSentiment() !== 'tight-denial') return SCHEMA as unknown as Record<string, unknown>
-  const clone = structuredClone(SCHEMA) as {
+  const clone = structuredClone(SCHEMA) as unknown as {
     properties: {
       movements: {
         items: {
