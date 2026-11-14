@@ -48,7 +48,8 @@
       // Public origin is not known yet — do not set BETTER_AUTH_URL here.
       // workers.dev and localhost in production vars fail check:worker.
       "vars": {
-        "OPENAI_MODEL": "gpt-5.4-nano",
+        // Same model as Vercel production (OPENAI_MODEL there is gpt-6-luna).
+        "OPENAI_MODEL": "gpt-6-luna",
         // Same as Vercel production (gather engine on, gate mode).
         "GATHER_ENGINE": "on",
         "GATHER_MODE": "gate",

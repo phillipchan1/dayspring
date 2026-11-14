@@ -42,7 +42,7 @@ None of these belong in the Vite bundle. Do not put localhost in `wrangler.jsonc
 | `AI_GATEWAY_API_KEY` | secret | Worker AI (text / vision / embeddings). Omit → those routes 501 | Same gateway key Vercel uses as an override. **Do not set a value in wrangler.jsonc.** Do not use `OPENAI_API_KEY` on the Worker — that path bypasses ZDR. Names only; see [production.md](./production.md). |
 | `AI_GATEWAY_ZDR` | var | Worker AI. Unset / anything other than `on`/`true` → 501 | Names only. Do **not** set `on` in this PR (paid AI Gateway credits). |
 | `AI_GATEWAY_ZDR_PROVIDERS` | var | Default `azure` when unset | Same pin as Vercel. Do not commit a value. |
-| `OPENAI_MODEL` | var | Default `gpt-5.4-nano` (Worker only; Vercel unchanged) | — |
+| `OPENAI_MODEL` | var | Production `gpt-6-luna` (same as Vercel prod). Top-level / preview stay `gpt-5.4-nano` | — |
 | `RESEND_API_KEY` / `RESEND_FROM` | secret / var | OTP + drip sends | Resend free tier |
 | `WELCOME_DRIP_SENDS_ENABLED` | var | Must stay `false` until an explicit enable | — |
 | `ESV_API_KEY` | secret | Scripture routes | Existing |
