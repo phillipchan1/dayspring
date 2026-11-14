@@ -14,7 +14,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { setSupabaseAdminOverride } from '../../../api/_lib/supabaseAdmin.ts'
-import { setKickWorkerOverride } from '../../../api/_lib/processing.ts'
+import { setKickWorkerOverride, setTickProfile, WORKER_TICK_PROFILE } from '../../../api/_lib/processing.ts'
 import { createPgRestClient, type PgRestClient } from './pgrest.ts'
 
 export type VercelHandler = (req: Request) => Promise<Response> | Response
@@ -38,6 +38,8 @@ function install(): void {
     if (!ctx) throw new Error('supabaseAdmin() called outside a Worker request context')
     return ctx.client as unknown as SupabaseClient
   })
+  // Kicked ticks run under waitUntil (30 s cap): small units, ~18 s budget.
+  setTickProfile(WORKER_TICK_PROFILE)
   setKickWorkerOverride(() => {
     const ctx = als.getStore()
     if (!ctx?.kick) {

@@ -325,7 +325,7 @@ interface InsightRow {
   source_model: string
 }
 
-async function upsertInsight(sb: SupabaseClient, row: InsightRow): Promise<void> {
+export async function upsertInsight(sb: SupabaseClient, row: InsightRow): Promise<void> {
   const { data: existing, error: selErr } = await sb
     .from('insights')
     .select('id')
