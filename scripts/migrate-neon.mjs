@@ -13,6 +13,7 @@
 import { closeSync, existsSync, openSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createHash } from 'node:crypto'
 import pg from 'pg'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -465,19 +466,244 @@ async function main() {
     )
     console.log('dry-run (read-only; no writes)')
     logCounts(reports)
+    const ok = await withClient(srcConn, srcPass, async (src) =>
+      withClient(tgtConn, tgtPass, async (tgt) => {
+        await diffNeonOnly(src, tgt, true)
+        return switchReport(src, tgt, reports)
+      }),
+    )
+    console.log(`switch-report: ${ok ? 'PASS' : 'FAIL'} (dry-run)`)
     return
   }
 
   await withClient(tgtConn, tgtPass, async (tgt) => {
     await applyNeonSchema(tgt)
   })
+  await withClient(srcConn, srcPass, async (src) =>
+    withClient(tgtConn, tgtPass, async (tgt) => pruneNeonOnly(src, tgt)),
+  )
+  console.log(`copy: start ${new Date().toISOString()}`)
   const reports = await withClient(srcConn, srcPass, async (src) =>
     withClient(tgtConn, tgtPass, async (tgt) => {
-      await runCopy(src, tgt)
+      // Neon's owner role can't SET session_replication_role, so runCopy's replica switch is a
+      // silent no-op and set_updated_at would stamp every upserted row with the copy time.
+      // Disable the user triggers by name for the copy and always turn them back on.
+      const trig = (await tgt.query(`SELECT c.relname AS tbl, t.tgname AS name
+          FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND NOT t.tgisinternal AND c.relname = ANY($1::text[])`, [COPY_TABLES.map((x) => x.target)])).rows
+      console.log(`triggers: disabling ${trig.map((r) => `${r.tbl}.${r.name}`).join(' ') || 'none'}`)
+      for (const r of trig) await tgt.query(`ALTER TABLE public."${r.tbl}" DISABLE TRIGGER "${r.name}"`)
+      try {
+        await runCopy(src, tgt)
+      } finally {
+        for (const r of trig) await tgt.query(`ALTER TABLE public."${r.tbl}" ENABLE TRIGGER "${r.name}"`)
+        const off = (await tgt.query(`SELECT count(*)::int AS n FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+            WHERE NOT t.tgisinternal AND t.tgenabled = 'D' AND c.relname = ANY($1::text[])`, [COPY_TABLES.map((x) => x.target)])).rows[0].n
+        console.log(`triggers: re-enabled ${trig.length}; still disabled=${off}`)
+      }
       return collectCounts(src, tgt)
     }),
   )
-  if (!logCounts(reports)) process.exit(1)
+  console.log(`copy: done ${new Date().toISOString()}`)
+  logCounts(reports)
+  const ok = await withClient(srcConn, srcPass, async (src) =>
+    withClient(tgtConn, tgtPass, async (tgt) => {
+      await diffNeonOnly(src, tgt, true)
+      return switchReport(src, tgt, reports)
+    }),
+  )
+  console.log(`switch-report: ${ok ? 'PASS' : 'FAIL'} (apply)`)
+  if (!ok) process.exit(1)
+}
+
+
+// ---- Switch-night checks (Nov 13 2026). Counts, hashes and ids only: this repo is public. ----
+
+/** Rows that exist only in Neon and are expected to be removed before the final copy. */
+const EXPECTED_NEON_ONLY_THREADS = ['853d7681-4258-4e02-b184-72e5c614dced', 'ddedde9f-3eb3-4fe1-b99a-639a29e3a387']
+const EXPECTED_NEON_ONLY_THREAD_MEMBERS = 11
+
+/** Row identity for diff/hash where the copy spec's pk is Neon-only (source has no id). */
+const KEY_OVERRIDE = { concordance_occurrences: ['concordance_id', 'entry_id'] }
+const keyCols = (spec) => KEY_OVERRIDE[spec.target] ?? spec.pk
+
+function pkExpr(cols) {
+  return cols.map((c) => `"${c}"::text`).join(` || '|' || `)
+}
+
+async function diffNeonOnly(src, tgt, log) {
+  const out = {}
+  for (const spec of COPY_TABLES) {
+    const [srcSchema, srcName] = spec.source.split('.')
+    if (!(await tableExists(src, srcSchema, srcName))) continue
+    const s = new Set((await src.query(`SELECT ${pkExpr(keyCols(spec))} AS k FROM ${spec.source}`)).rows.map((r) => r.k))
+    const t = (await tgt.query(`SELECT ${pkExpr(keyCols(spec))} AS k FROM ${spec.target}`)).rows.map((r) => r.k)
+    const only = t.filter((k) => !s.has(k))
+    if (only.length) out[spec.target] = only
+  }
+  if (log) {
+    const tables = Object.keys(out)
+    console.log(`neon-only: ${tables.length ? tables.map((t) => `${t}=${out[t].length}`).join(' ') : 'none'}`)
+  }
+  return out
+}
+
+async function pruneNeonOnly(src, tgt) {
+  // concordance_occurrences has no id in Supabase, so the copy plain-INSERTs it. Reload it whole
+  // or a second apply doubles it. Derived index table; nothing references it.
+  const occ = await tgt.query('DELETE FROM concordance_occurrences')
+  console.log(`prune: cleared concordance_occurrences=${occ.rowCount} (reloaded by the copy)`)
+  const only = await diffNeonOnly(src, tgt, true)
+  delete only.concordance_occurrences
+  const tables = Object.keys(only)
+  if (!tables.length) {
+    console.log('prune: nothing to delete')
+    return
+  }
+  const unexpected = tables.filter((t) => t !== 'threads' && t !== 'thread_members')
+  const threads = (only.threads ?? []).slice().sort()
+  const members = only.thread_members ?? []
+  const want = EXPECTED_NEON_ONLY_THREADS.slice().sort()
+  const threadsOk = threads.length === 0 || JSON.stringify(threads) === JSON.stringify(want)
+  const membersOk = members.length === 0 || members.length === EXPECTED_NEON_ONLY_THREAD_MEMBERS
+  if (unexpected.length || !threadsOk || !membersOk) {
+    fail(`prune: ABORT, Neon-only set differs from the expected 2 threads + 11 thread_members (tables=${tables.join(',')} threads=${threads.length} thread_members=${members.length}); nothing deleted`)
+  }
+  await tgt.query('BEGIN')
+  try {
+    const m = await tgt.query('DELETE FROM thread_members WHERE id::text = ANY($1::text[])', [members])
+    const t = await tgt.query('DELETE FROM threads WHERE id::text = ANY($1::text[])', [threads])
+    if (m.rowCount !== members.length || t.rowCount !== threads.length) {
+      throw new Error(`prune: delete counts off (thread_members=${m.rowCount}/${members.length} threads=${t.rowCount}/${threads.length})`)
+    }
+    await tgt.query('COMMIT')
+    console.log(`prune: deleted thread_members=${m.rowCount} threads=${t.rowCount}`)
+  } catch (err) {
+    await tgt.query('ROLLBACK').catch(() => {})
+    fail(err instanceof Error ? err.message : String(err))
+  }
+}
+
+function canon(v) {
+  if (v === null || v === undefined) return null
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? 'Invalid Date' : v.toISOString()
+  if (Buffer.isBuffer(v)) return `\\x${v.toString('hex')}`
+  if (Array.isArray(v)) return v.map(canon)
+  if (typeof v === 'object') {
+    const o = {}
+    for (const k of Object.keys(v).sort()) o[k] = canon(v[k])
+    return o
+  }
+  if (typeof v === 'number' || typeof v === 'bigint') return String(v)
+  return v
+}
+
+async function tableHash(src, tgt, spec, kind) {
+  const [srcSchema, srcName] = spec.source.split('.')
+  if (!(await tableExists(src, srcSchema, srcName))) return null
+  const { cols, srcCols, tgtCols } = await overlappingColumns(src, tgt, srcSchema, srcName, spec.target)
+  const pairs = cols.map((c) => ({ ...c, expr: selectExpr(c, kind) })).filter((p) => p.expr)
+  pairs.push(...derivedPairs(spec.target, srcCols, tgtCols, new Set(pairs.map((p) => p.name))))
+  const names = pairs.map((p) => p.name)
+  const keyOf = (row) => keyCols(spec).map((c) => String(row[c])).join('|')
+  const lines = async (client, sql) => {
+    const m = new Map()
+    let dup = 0
+    for (const row of (await client.query(sql)).rows) {
+      const k = keyOf(row)
+      if (m.has(k)) dup += 1
+      m.set(k, JSON.stringify(names.map((n) => canon(row[n]))))
+    }
+    if (dup) console.log(`hash ${spec.target}: ${dup} duplicate keys`)
+    m.dup = dup
+    return m
+  }
+  const pkSel = keyCols(spec).filter((c) => !names.includes(c)).map((c) => `"${c}"::text AS "${c}"`)
+  const s = await lines(src, `SELECT ${[...pairs.map((p) => p.expr), ...pkSel].join(', ')} FROM ${spec.source}`)
+  const t = await lines(tgt, `SELECT ${[...names.map((n) => `"${n}"`), ...pkSel].join(', ')} FROM ${spec.target}`)
+  const digest = (m) => {
+    const h = createHash('sha256')
+    for (const k of [...m.keys()].sort()) h.update(`${k}\t${m.get(k)}\n`)
+    return h.digest('hex').slice(0, 16)
+  }
+  let diff = 0
+  const diffCols = new Map()
+  for (const [k, line] of s) {
+    const other = t.get(k)
+    if (other !== line) {
+      diff += 1
+      if (other) {
+        const a = JSON.parse(line), b = JSON.parse(other)
+        names.forEach((n, i) => { if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) diffCols.set(n, (diffCols.get(n) ?? 0) + 1) })
+      }
+    }
+  }
+  for (const k of t.keys()) if (!s.has(k)) diff += 1
+  diff += (s.dup ?? 0) + (t.dup ?? 0)
+  return { table: spec.target, rows: s.size, srcHash: digest(s), tgtHash: digest(t), diff, diffCols: [...diffCols].map(([n, c]) => `${n}:${c}`).join(',') }
+}
+
+async function jsonbStringRows(client) {
+  const cols = await client.query(`SELECT table_name, column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND data_type IN ('json', 'jsonb') ORDER BY 1, 2`)
+  const out = []
+  for (const r of cols.rows) {
+    const q = `SELECT count(*)::int AS n, count(*) FILTER (WHERE jsonb_typeof("${r.column_name}"::jsonb) = 'string')::int AS str FROM public."${r.table_name}"`
+    const x = (await client.query(q)).rows[0]
+    out.push({ col: `${r.table_name}.${r.column_name}`, n: x.n, str: x.str })
+  }
+  return out
+}
+
+async function entitlementParity(src, tgt) {
+  const q = (owner) => `SELECT ${owner} AS owner, plan, plan_source, trial_ends_at, plan_expires_at, stripe_customer_id
+      FROM public.profiles WHERE plan = 'active' AND plan_source IN ('stripe', 'apple') ORDER BY 1`
+  const s = (await src.query(q('owner::text'))).rows
+  const tRows = (await tgt.query(`SELECT owner, plan, plan_source, trial_ends_at, plan_expires_at, stripe_customer_id
+      FROM public.profiles WHERE owner = ANY($1::text[])`, [s.map((r) => r.owner)])).rows
+  const t = new Map(tRows.map((r) => [r.owner, JSON.stringify(canon(r))]))
+  const matched = s.filter((r) => t.get(r.owner) === JSON.stringify(canon(r))).length
+  const tPaid = (await tgt.query(`SELECT count(*)::int AS n FROM public.profiles WHERE plan = 'active' AND plan_source IN ('stripe', 'apple')`)).rows[0].n
+  return { source: s.length, matched, targetPaid: tPaid }
+}
+
+async function switchReport(src, tgt, counts) {
+  const kind = (await tableExists(src, 'auth', 'users')) ? 'supabase' : 'neon'
+  let ok = true
+  // Better Auth tables are kept: Neon may hold extra users/accounts made on the Worker.
+  for (const r of counts) {
+    if (r.table === 'user' || r.table === 'account') {
+      if (r.target < r.source) ok = false
+      continue
+    }
+    if (r.source !== r.target) ok = false
+  }
+  if (kind === 'supabase') {
+    const srcUsers = (await src.query('SELECT id::text AS id FROM auth.users WHERE deleted_at IS NULL')).rows.map((r) => r.id)
+    const present = (await tgt.query('SELECT count(*)::int AS n FROM "user" WHERE id = ANY($1::text[])', [srcUsers])).rows[0].n
+    console.log(`users: source=${srcUsers.length} present-in-neon=${present}`)
+    if (present !== srcUsers.length) ok = false
+  }
+  let hashOk = 0
+  for (const spec of COPY_TABLES) {
+    const h = await tableHash(src, tgt, spec, kind)
+    if (!h) continue
+    const mark = h.diff === 0 && h.srcHash === h.tgtHash ? 'ok' : 'FAIL'
+    if (mark === 'ok') hashOk += 1
+    else ok = false
+    console.log(`hash ${h.table.padEnd(28)} rows=${h.rows} src=${h.srcHash} tgt=${h.tgtHash} diff=${h.diff} ${mark}${h.diffCols ? ` cols=${h.diffCols}` : ''}`)
+  }
+  console.log(`hash: ${hashOk}/${COPY_TABLES.length} tables match`)
+  for (const [label, client] of [['source', src], ['neon', tgt]]) {
+    const rows = await jsonbStringRows(client)
+    const bad = rows.filter((r) => r.str > 0)
+    console.log(`jsonb-string ${label}: ${rows.reduce((a, r) => a + r.str, 0)} string rows across ${rows.length} columns${bad.length ? ` (${bad.map((r) => `${r.col}=${r.str}`).join(' ')})` : ''}`)
+    if (label === 'neon' && bad.length) ok = false
+  }
+  const e = await entitlementParity(src, tgt)
+  console.log(`entitlements: ${e.matched}/${e.source} paid match (neon paid total=${e.targetPaid})`)
+  if (e.matched !== e.source || e.targetPaid !== e.source) ok = false
+  return ok
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
