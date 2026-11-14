@@ -258,6 +258,7 @@ async function servePorted(c: WorkerContext, route: PortedRoute): Promise<Respon
             }))
           },
           kick,
+          email: c.env.EMAIL ?? null,
         },
         handler,
         c.req.raw,

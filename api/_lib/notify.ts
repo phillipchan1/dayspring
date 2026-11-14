@@ -1,5 +1,6 @@
 // Notification delivery for reminders (transactional, one recipient).
-// Uses Resend (https://resend.com) when RESEND_API_KEY is set.
+// Worker: Cloudflare Email Sending via mailSender() (api/_lib/mailSender.ts).
+// Vercel: Resend (https://resend.com) when RESEND_API_KEY is set.
 // Feature-announcement mail is a Broadcast to the synced audience — see
 // api/_lib/resendAudience.ts — not this module.
 // Falls back to a console log — wire up a real transport when ready.
@@ -9,6 +10,7 @@
 // API here. The payload and deep-link pattern are identical.
 
 import { env } from './env.js'
+import { mailSender } from './mailSender.js'
 
 export interface ReminderNotification {
   to: string
@@ -19,9 +21,11 @@ export interface ReminderNotification {
 }
 
 export async function sendReminderNotification(opts: ReminderNotification): Promise<void> {
+  // Worker: Cloudflare Email Sending (bridge-installed). Vercel: Resend, unchanged.
+  const send = mailSender()
   const key = env.resendKey()
 
-  if (!key) {
+  if (!send && !key) {
     console.log(
       `[remind] RESEND_API_KEY not configured — skipping email for entry ${opts.entryId}`,
     )
@@ -47,6 +51,11 @@ export async function sendReminderNotification(opts: ReminderNotification): Prom
 </div>`
 
   const text = `You wrote this on ${opts.writtenDate}:\n\n"${opts.sentence}"\n\nDoes it still feel true?\n\n${entryUrl}`
+
+  if (send) {
+    await send({ to: opts.to, subject: 'A word from your past', html, text })
+    return
+  }
 
   const body = {
     from: 'Dayspring <reminders@dayspring.app>',
