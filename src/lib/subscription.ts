@@ -1,7 +1,6 @@
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { apiGet, apiUrl } from './api'
 import { track } from './analytics'
-import { isWorkersBackend } from './env'
 
 export type Plan = 'none' | 'trialing' | 'active' | 'cancelled' | 'past_due'
 
@@ -277,57 +276,26 @@ function subscriptionFromProfile(data: {
 }
 
 async function billingAccessToken(): Promise<string> {
-  if (isWorkersBackend) {
-    const { getWorkersToken } = await import('./authClient')
-    const token = await getWorkersToken()
-    if (!token) throw new Error('not authenticated')
-    return token
-  }
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not authenticated')
-  return session.access_token
+  const { getWorkersToken } = await import('./authClient')
+  const token = await getWorkersToken()
+  if (!token) throw new Error('not authenticated')
+  return token
 }
 
 /** Fetch the current user's subscription state from their profile row. */
 export async function fetchSubscription(): Promise<Subscription> {
-  if (isWorkersBackend) {
-    const data = await apiGet<{
-      profile: {
-        plan: Plan | null
-        plan_source: PlanSource | null
-        trial_ends_at: string | null
-        plan_expires_at: string | null
-        onboarded_at: string | null
-        feature_flags: string[] | null
-      } | null
-    }>('/api/data/profile')
-    if (!data.profile) throw new Error('No profile row')
-    return subscriptionFromProfile(data.profile)
-  }
-
-  const sb = requireSupabase()
-  const { data, error } = await sb
-    .from('profiles')
-    .select('plan, plan_source, trial_ends_at, plan_expires_at, onboarded_at, feature_flags')
-    .maybeSingle()
-
-  if (error) throw error
-  // A missing row is not "no plan". Treating it as none painted the paywall
-  // for paying users whose first select raced ensureProfile / RLS. Keep the
-  // cached entitlement (or stay loading) until a real row arrives.
-  if (!data) throw new Error('No profile row')
-
-  return subscriptionFromProfile({
-    plan: (data.plan as Plan | null) ?? 'none',
-    plan_source: (data.plan_source as PlanSource | null) ?? null,
-    trial_ends_at: data.trial_ends_at ?? null,
-    plan_expires_at: data.plan_expires_at ?? null,
-    onboarded_at: data.onboarded_at ?? null,
-    feature_flags: (data.feature_flags as string[] | null) ?? [],
-  })
+  const data = await apiGet<{
+    profile: {
+      plan: Plan | null
+      plan_source: PlanSource | null
+      trial_ends_at: string | null
+      plan_expires_at: string | null
+      onboarded_at: string | null
+      feature_flags: string[] | null
+    } | null
+  }>('/api/data/profile')
+  if (!data.profile) throw new Error('No profile row')
+  return subscriptionFromProfile(data.profile)
 }
 
 /**
@@ -390,7 +358,7 @@ export interface JournalHolding {
 }
 
 export async function fetchJournalHolding(): Promise<JournalHolding> {
-  const sb = requireSupabase()
+  const sb = remote()
   const head = { count: 'exact' as const, head: true }
   const [entriesRes, firstRes, prayersRes, scripturesRes] = await Promise.all([
     sb.from('entries').select('id', head),

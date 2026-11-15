@@ -68,7 +68,7 @@ export const PORTED_ROUTES: PortedRoute[] = [
   cron('/api/cron/sync-resend', 'mail', () => import('../../../api/cron/sync-resend.ts')),
 ]
 
-/** Same schedule as vercel.json `crons`; scheduled() maps each to its path. */
+/** Same UTC schedules the Vercel project used to run; scheduled() maps each to its path. */
 export const CRON_PATHS: Record<string, string> = {
   '0 8 * * *': '/api/cron/synthesize',
   '* * * * *': '/api/cron/process-tick',

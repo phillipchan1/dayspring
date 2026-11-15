@@ -22,12 +22,9 @@ vi.mock('./platform', () => ({
   isDesktopTauri: () => false,
 }))
 
-vi.mock('./supabase', () => ({
-  requireSupabase: () => ({
-    auth: {
-      getSession: async () => ({ data: { session: { access_token: 't', user: { id: 'u1' } } } }),
-    },
-  }),
+vi.mock('./authClient', () => ({
+  getWorkersToken: async () => 't',
+  getWorkersUserId: async () => 'u1',
 }))
 
 vi.mock('./api', () => ({ apiUrl: (p: string) => p }))
@@ -48,11 +45,12 @@ type Reply =
 /** Queue replies in the order the JWSs are sent. Order is deterministic because
  *  restore maps over the purchases array. */
 function mockVerify(replies: Reply[]): void {
-  let i = 0
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => {
-      const r = replies[i++] ?? { ok: true as const, entitled: false }
+    vi.fn(async (_url: string, init?: { body?: string }) => {
+      const jws = JSON.parse(String(init?.body ?? '{}')).jws as string
+      const i = Number(String(jws).replace(/^jws-/, ''))
+      const r = replies[i] ?? { ok: true as const, entitled: false }
       if (r.ok) {
         return {
           ok: true,
@@ -198,9 +196,9 @@ describe('purchaseApple', () => {
     expect(await purchaseApple('annual')).toEqual({ outcome: 'pending', warning: null })
   })
 
-  it('tags the purchase with the Supabase user id so the server can claim it', async () => {
+  it('tags the purchase with the Better Auth user id so the server can claim it', async () => {
     // appAccountToken is what stops a subscription being re-pointed at another
-    // Dayspring account. StoreKit requires it to be a UUID; Supabase ids are.
+    // Dayspring account. StoreKit requires it to be a UUID; Better Auth ids are.
     purchase.mockResolvedValue({ outcome: 'purchased', purchase: { jws: 'jws-0' } })
     mockVerify([{ ok: true, entitled: true }])
     await purchaseApple('annual')

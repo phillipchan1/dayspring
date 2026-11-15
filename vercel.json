@@ -1,46 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
-  "ignoreCommand": "bash scripts/vercel-ignore-prototypes-only.sh",
-  "buildCommand": "node scripts/assemble-changelog.mjs && npm run build",
-  "devCommand": "ulimit -n 65536; vite --port $PORT",
-  "outputDirectory": "dist",
-  "functions": {
-    "api/cron/process-tick.ts": { "maxDuration": 300 },
-    "api/cron/synthesize.ts": { "maxDuration": 300 },
-    "api/cron/sync-resend.ts": { "maxDuration": 60 },
-    "api/cron/welcome-drip.ts": { "maxDuration": 60 },
-    "api/admin/welcome-drip-backfill.ts": { "maxDuration": 60 },
-    "api/transcribe.ts": { "maxDuration": 300 },
-    "api/ask.ts": { "maxDuration": 60 }
-  },
-  "crons": [
-    { "path": "/api/cron/synthesize",   "schedule": "0 8 * * *" },
-    { "path": "/api/cron/process-tick", "schedule": "* * * * *" },
-    { "path": "/api/cron/remind",       "schedule": "0 9 * * *" },
-    { "path": "/api/cron/sync-resend",  "schedule": "15 9 * * *" },
-    { "path": "/api/cron/welcome-drip", "schedule": "30 9 * * *" },
-    { "path": "/api/cron/echoes",       "schedule": "0 10 * * 1" }
-  ],
-  "redirects": [
-    {
-      "source": "/scripture",
-      "destination": "/lamp",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     {
-      "source": "/terms",
-      "destination": "/legal/terms.html"
-    },
-    {
-      "source": "/privacy",
-      "destination": "/legal/privacy.html"
-    },
-    {
-      "source": "/((?!api/)(?!@)(?!.*\\..*).*)",
-      "destination": "/index.html"
+      "source": "/(.*)",
+      "destination": "https://api.usedayspring.app/$1"
     }
-  ]
+  ],
+  "ignoreCommand": "exit 0"
 }

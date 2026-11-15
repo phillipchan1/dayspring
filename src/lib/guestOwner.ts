@@ -2,7 +2,7 @@
  * Device-local owner for a guest journal.
  *
  * The IndexedDB cache and `fenceCacheToOwner` key rows by an owner string.
- * Signed-in users use the Supabase auth UUID. A guest needs a stable id that:
+ * Signed-in users use the Better Auth user id. A guest needs a stable id that:
  *
  *   1. Survives cold launches on this device (same journal tomorrow).
  *   2. Cannot collide with a real auth UUID, so fencing a later sign-in is an

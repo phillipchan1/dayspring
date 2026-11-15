@@ -2,18 +2,23 @@
 /**
  * Mutation proof for access isolation.
  * Asserts the unmutated tree is green, then deletes each owner filter in
- * store.ts on its own and expects access.check to fail.
+ * store.ts on its own and expects access.check to fail. Also drops the
+ * POST /api/data/query owner injection in dataQuery.ts.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 const storePath = 'worker/src/store.ts'
+const dataQueryPath = 'worker/src/dataQuery.ts'
 const originalStore = readFileSync(storePath, 'utf8')
+const originalDataQuery = readFileSync(dataQueryPath, 'utf8')
 
 const OWNER_FILTER = /(?:[\w.]+\.)?owner = \$\{store\.ownerId\}/g
+const DATA_QUERY_OWNER = "q = q.eq('owner', ownerId)"
 
 function restore() {
   writeFileSync(storePath, originalStore)
+  writeFileSync(dataQueryPath, originalDataQuery)
 }
 
 function runCheck() {
@@ -102,6 +107,12 @@ expectFail('M2 set owner filters to TRUE', () => {
     storePath,
     originalStore.replace(/(?:[\w.]+\.)?owner = \$\{store\.ownerId\}/g, 'TRUE'),
   )
+})
+
+expectFail('dataQuery drop owner eq', () => {
+  const next = originalDataQuery.replace(DATA_QUERY_OWNER, '/* mutated: owner eq dropped */')
+  if (next === originalDataQuery) throw new Error('dataQuery: could not find owner eq')
+  writeFileSync(dataQueryPath, next)
 })
 
 for (const filter of filters) {

@@ -8,7 +8,7 @@
 // session (owner defaults to auth.uid()); idempotent via the (entry_id, osis_ref)
 // unique index, so re-running only adds what's missing.
 
-import { requireSupabase } from '../supabase'
+import { remote } from '../remote'
 import { scriptureRefsOf } from './refRows'
 
 // "Have I scanned my imports" watermark — the imported-entry count at the last
@@ -28,17 +28,17 @@ export function readScanWatermark(): number {
 /** Pull the watermark from profiles into localStorage. Call before reading. */
 export async function syncScanWatermark(): Promise<void> {
   try {
-    const sb = requireSupabase()
+    const sb = remote()
     const { data, error } = await sb
       .from('profiles')
       .select('scripture_scan_watermark')
       .maybeSingle()
     if (error || data == null) return
-    const remote = data.scripture_scan_watermark ?? 0
+    const watermark = data.scripture_scan_watermark ?? 0
     // Only advance the local cache — never roll it back (local dismiss is valid too).
-    if (remote > readScanWatermark()) {
+    if (watermark > readScanWatermark()) {
       if (typeof localStorage !== 'undefined')
-        localStorage.setItem(SCAN_WATERMARK_KEY, String(remote))
+        localStorage.setItem(SCAN_WATERMARK_KEY, String(watermark))
     }
   } catch {
     // Network failure is non-fatal; fall back to whatever is in localStorage.
@@ -52,7 +52,7 @@ export function writeScanWatermark(n: number): void {
 }
 
 async function persistScanWatermark(n: number): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()
@@ -65,7 +65,7 @@ async function persistScanWatermark(n: number): Promise<void> {
 
 /** Count of imported (non-native) entries — the entries live capture never sees. */
 export async function getImportedEntryCount(): Promise<number> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { count, error } = await sb
     .from('entries')
     .select('id', { count: 'exact', head: true })
@@ -87,7 +87,7 @@ const PAGE = 500
 export async function scanAllForRefs(
   onProgress?: (done: number, total: number) => void,
 ): Promise<ScanResult> {
-  const sb = requireSupabase()
+  const sb = remote()
 
   const { count } = await sb.from('entries').select('id', { count: 'exact', head: true })
   const total = count ?? 0

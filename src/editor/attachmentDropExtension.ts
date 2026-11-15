@@ -6,8 +6,6 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { attachmentOwnerId, extFromImageFile } from '@/lib/attachments'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { beginArrivals } from '@/lib/photoArrival'
-import { isWorkersBackend } from '@/lib/env'
-import { supabase } from '@/lib/supabase'
 import {
   ATTACHMENT_DND_MIME,
   IMAGE_MAX_BYTES,
@@ -77,10 +75,6 @@ async function uploadFiles(
   focus = true,
 ): Promise<void> {
   if (files.length === 0) return
-  if (!supabase && !isWorkersBackend) {
-    console.warn('[images] drop ignored — supabase not configured')
-    return
-  }
 
   const valid = files.filter((f) => isImageFile(f) && f.size <= IMAGE_MAX_BYTES)
   if (valid.length === 0) return
@@ -100,7 +94,7 @@ async function uploadFiles(
     insertBlockPendingAttachmentsAt(view, target.pos, placeholders)
   }
 
-  const ownerId = await attachmentOwnerId(supabase)
+  const ownerId = await attachmentOwnerId()
   if (!ownerId) return
 
   for (const item of pending) {

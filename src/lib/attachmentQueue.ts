@@ -18,8 +18,6 @@
 // Only a file the server will never accept is dropped, and then the caller
 // removes the placeholder as before.
 
-import { supabase } from './supabase'
-import { isWorkersBackend } from './env'
 import { uploadImageAttachment, formatAttachmentMarkdown } from './attachments'
 import { PENDING_ATTACHMENT_REF_RE } from './attachments'
 import type { AttachmentPhotoMeta } from './attachmentCaption'
@@ -101,8 +99,6 @@ export async function uploadOrQueue(
   alt: string,
   meta?: AttachmentPhotoMeta,
 ): Promise<UploadedRef | null> {
-  const sb = supabase
-  if (!isWorkersBackend && !sb) throw new Error('Supabase is not configured')
   setArrivalStage(pendingId, 'preparing')
   const exif = await readPhotoExif(file)
   const metaWithExif: AttachmentPhotoMeta | undefined = (() => {
@@ -112,7 +108,7 @@ export async function uploadOrQueue(
   })()
   if (exif.gps) void seedExifIntoPendingEntry(pendingId, exif.gps, exif.takenAt)
   try {
-    const { hash, ext: uploadedExt } = await uploadImageAttachment(sb, file, metaWithExif, () =>
+    const { hash, ext: uploadedExt } = await uploadImageAttachment(null, file, metaWithExif, () =>
       setArrivalStage(pendingId, 'sending'),
     )
     return { hash, ext: uploadedExt }
@@ -147,8 +143,7 @@ async function seedExifIntoPendingEntry(
 }
 
 export async function drainPendingUploads(): Promise<void> {
-  const sb = supabase
-  if (!sb || !navigator.onLine) return
+  if (!navigator.onLine) return
 
   for (const row of await cache.pendingUploadAll()) {
     if (row.quarantined) continue
@@ -156,8 +151,7 @@ export async function drainPendingUploads(): Promise<void> {
       const file = new File([row.blob], `queued.${row.ext}`, {
         type: row.blob.type || `image/${row.ext}`,
       })
-      const { hash, ext } = await uploadImageAttachment(
-        sb,
+      const { hash, ext } = await uploadImageAttachment(null,
         file,
         row.meta as AttachmentPhotoMeta | undefined,
       )

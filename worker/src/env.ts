@@ -31,14 +31,11 @@ export interface Env {
   CRON_SECRET?: string
   ESV_API_KEY?: string
   WELCOME_DRIP_SENDS_ENABLED?: string
-  /** Supabase Storage stays the photo bucket; service role mints signed URLs. */
-  SUPABASE_URL?: string
-  SUPABASE_SERVICE_ROLE_KEY?: string
-  /** `r2` serves attachments from the ATTACHMENTS bucket. Unset / anything else = supabase. */
+  /** Ignored. Attachments are always R2. Kept so existing wrangler vars stay harmless. */
   STORAGE_BACKEND?: string
   /** HMAC key for `/api/storage/object` signed URLs. Secret — wrangler secret put. */
   STORAGE_SIGNING_KEY?: string
-  /** R2 bucket `dayspring-attachments`. Same object keys as Supabase Storage. */
+  /** R2 bucket `dayspring-attachments`. Object keys are `<userId>/<hash>.<ext>`. */
   ATTACHMENTS?: R2Bucket
   /** Billing. Secrets only — never put these in wrangler `vars`. */
   STRIPE_SECRET_KEY?: string

@@ -9,7 +9,7 @@ import {
 export type { SessionState }
 
 /**
- * The current Supabase auth session. Every caller reads the same shared store
+ * The current Better Auth session. Every caller reads the same shared store
  * (lib/sessionStore.ts), so a component mounting mid-session sees the session
  * on its first render instead of starting from null.
  */

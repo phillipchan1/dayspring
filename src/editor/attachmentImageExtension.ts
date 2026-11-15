@@ -13,8 +13,7 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import { RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state'
-import { supabase } from '@/lib/supabase'
-import { isWorkersBackend } from '@/lib/env'
+import { remote } from '@/lib/remote'
 import {
   PENDING_ATTACHMENT_REF_RE,
   attachmentOwnerId,
@@ -105,14 +104,14 @@ let authListenerRegistered = false
 
 async function getOwnerId(): Promise<string | null> {
   if (cachedOwnerId) return cachedOwnerId
-  cachedOwnerId = await attachmentOwnerId(supabase)
+  cachedOwnerId = await attachmentOwnerId()
   return cachedOwnerId
 }
 
 function registerAuthListener(): void {
-  if (authListenerRegistered || !supabase) return
+  if (authListenerRegistered) return
   authListenerRegistered = true
-  supabase.auth.onAuthStateChange((_event, session) => {
+  remote().auth.onAuthStateChange((_event, session) => {
     cachedOwnerId = session?.user?.id ?? null
     for (const view of activeViews) {
       if (!(view as unknown as { isDestroyed?: boolean }).isDestroyed) {
@@ -139,7 +138,7 @@ function fetchAttachmentMetaCached(hash: string): Promise<AttachmentPhotoMeta | 
   const promise = getOwnerId()
     .then((ownerId) => {
       if (!ownerId) return null
-      return fetchAttachmentMeta(supabase, ownerId, hash)
+      return fetchAttachmentMeta(null, ownerId, hash)
     })
     .then((meta) => {
       pendingMetaFetches.delete(hash)
@@ -157,7 +156,6 @@ function fetchAttachmentMetaCached(hash: string): Promise<AttachmentPhotoMeta | 
 }
 
 function fetchMissingMeta(view: EditorView): void {
-  if (!supabase && !isWorkersBackend) return
   const text = view.state.doc.toString()
   ATTACHMENT_RE.lastIndex = 0
   let m: RegExpExecArray | null
@@ -196,7 +194,7 @@ function fetchAttachmentUrl(hash: string, ext: string): Promise<string | null> {
   const promise = getOwnerId()
     .then((ownerId) => {
       if (!ownerId) return null
-      return resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext)
+      return resolveAttachmentDisplayUrl(null, ownerId, hash, ext)
     })
     .then((url) => {
       pendingFetches.delete(key)
@@ -798,7 +796,6 @@ const attachmentDecoField = StateField.define<DecorationSet>({
 // ── URL fetch ─────────────────────────────────────────────────────────────────
 
 function fetchMissingUrls(view: EditorView): void {
-  if (!supabase && !isWorkersBackend) return
   const text = view.state.doc.toString()
   ATTACHMENT_RE.lastIndex = 0
   let m: RegExpExecArray | null
@@ -1406,10 +1403,9 @@ export async function resolveCachedAttachmentPreview(
 ): Promise<string | null> {
   const key = `${hash}.${ext}`
   if (resolvedUrls.has(key)) return resolvedUrls.get(key)!
-  if (!supabase && !isWorkersBackend) return null
   const ownerId = await getOwnerId()
   if (!ownerId) return null
-  const url = await resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext)
+  const url = await resolveAttachmentDisplayUrl(null, ownerId, hash, ext)
   if (url) resolvedUrls.set(key, url)
   return url
 }

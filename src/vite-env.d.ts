@@ -6,8 +6,6 @@ declare const __APP_VERSION__: string
 declare const __TAURI_IOS__: boolean
 
 interface ImportMetaEnv {
-  readonly VITE_SUPABASE_URL: string
-  readonly VITE_SUPABASE_ANON_KEY: string
   readonly VITE_API_BASE_URL?: string
   /** `workers` | `cloudflare` — inert unless set. See docs/cloudflare-migration/cutover.md. */
   readonly VITE_BACKEND?: string

@@ -1,7 +1,7 @@
 // Offline-first entry repository.
 //
 // Writes go to the IndexedDB cache immediately (optimistic) and enqueue an
-// outbox op; a background flush pushes them to Supabase. Reads come from the
+// outbox op; a background flush pushes them to the Worker. Reads come from the
 // cache so the app opens instantly. sync() flushes pending writes then pulls
 // the server.
 //
@@ -381,12 +381,34 @@ async function pushEntry(row: Entry): Promise<void> {
   throw new Error('entry push kept conflicting — will retry')
 }
 
+/**
+ * Shipped builds (iOS 1320 / Mac 1.0.133 / 1.0.550) queued outbox ops against
+ * hosted Supabase. After the Nov 14 cutover those writes 4xx'd and, after
+ * MAX_SYNC_ATTEMPTS, quarantined. The op shape did not change — `{ kind, entryId }`
+ * plus the IndexedDB row — so a flush after this build would replay them through
+ * Worker `upsert-checked`, except flush skips quarantined ops. Clear once so
+ * those refused writes retry without waiting for an explicit "sync now".
+ */
+export const WORKERS_OUTBOX_RETRY_KEY = 'dayspring.outbox.retry-after-neon'
+
+async function releaseQuarantinedOutboxOnce(): Promise<void> {
+  try {
+    if (typeof localStorage === 'undefined') return
+    if (localStorage.getItem(WORKERS_OUTBOX_RETRY_KEY) === '1') return
+    localStorage.setItem(WORKERS_OUTBOX_RETRY_KEY, '1')
+  } catch {
+    return
+  }
+  await cache.outboxClearQuarantine()
+}
+
 async function flushOnce(): Promise<void> {
   if (localOnly) return
   if (!navigator.onLine) {
     syncStore.setOnline(false)
     return
   }
+  await releaseQuarantinedOutboxOnce()
   let reachedServer = true
   // Queue order, not `getAll`'s random-UUID order — see cache.outboxAllOrdered.
   for (const op of await cache.outboxAllOrdered()) {
@@ -464,7 +486,7 @@ export async function retryBlocked(): Promise<void> {
 }
 
 // Background push. Writes return after the local cache + outbox update — instant
-// and offline-durable — and this drains the outbox to Supabase a moment later,
+// and offline-durable — and this drains the outbox to the Worker a moment later,
 // coalescing a burst of autosaves into one round-trip instead of one per save
 // (autosave fires ~every 0.6s while typing). An un-pushed write persists in the
 // outbox, so if the timer hasn't fired it still goes out on the next flush()/

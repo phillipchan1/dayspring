@@ -1,6 +1,4 @@
 import { invoke } from '@tauri-apps/api/core'
-import { requireSupabase } from './supabase'
-import { isWorkersBackend } from './env'
 import { isDesktopTauri, isIOSTauri, isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
 import { beginExternalTrip } from './appLockSuppress'
@@ -8,13 +6,10 @@ import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
 import { selectDayspringDeepLink } from './deepLink'
 
 // Hosted HTTPS page that forwards the PKCE code to the dayspring:// deep-link
-// and shows a "you can close this tab" message to the user. Using an HTTPS URL
-// instead of the raw custom scheme avoids the browser tab hanging on an
-// unrenderable protocol. Must be in Supabase → Auth → URL Configuration allowlist.
+// and shows a "you can close this tab" message to the user.
 const DEEP_LINK_REDIRECT = 'https://dayspring-eosin.vercel.app/auth/callback'
 
-/** Where OAuth should return. The native apps use the deep-link scheme; web
- *  uses the page origin. Both must be in Supabase's redirect allow-list. */
+/** Where OAuth should return. Native apps use the deep-link scheme; web uses origin. */
 export function authRedirectUrl(): string {
   return isTauri() ? DEEP_LINK_REDIRECT : window.location.origin
 }
@@ -33,14 +28,8 @@ interface OAuthUrlResult {
 
 /** Exchange a PKCE `code` from an OAuth callback URL for a persisted session. */
 export async function exchangeOAuthCode(code: string): Promise<void> {
-  if (isWorkersBackend) {
-    const { completeWorkersOAuthCallback } = await import('./authClient')
-    await completeWorkersOAuthCallback(`?code=${encodeURIComponent(code)}`)
-    return
-  }
-  const sb = requireSupabase()
-  const { error } = await sb.auth.exchangeCodeForSession(code)
-  if (error) throw error
+  const { completeWorkersOAuthCallback } = await import('./authClient')
+  await completeWorkersOAuthCallback(`?code=${encodeURIComponent(code)}`)
 }
 
 /** Finish sign-in from a dayspring:// or bridged HTTPS callback URL. */
@@ -58,7 +47,7 @@ export async function completeOAuthCallback(callbackUrl: string): Promise<void> 
  * Web: normal in-page redirect.
  *
  * Native desktop: providers block OAuth inside embedded webviews, so we ask
- * Supabase for the provider URL WITHOUT navigating the webview
+ * Better Auth for the provider URL WITHOUT navigating the webview
  * (skipBrowserRedirect), then open it in the system browser. On success the
  * HTTPS bridge page forwards to dayspring://auth-callback, which
  * initDeepLinkAuth exchanges — completing the sign-in or the link.
@@ -111,7 +100,7 @@ async function runOAuth(
 }
 
 async function signInWithProvider(provider: OAuthProvider): Promise<OAuthHandoff> {
-  // Dev-only `?__preview=signin`: show the busy state without a live Supabase.
+  // Dev-only `?__preview=signin`: show the busy state without a live backend.
   // `import.meta.env.DEV` is statically false in production; Vite drops this.
   if (
     import.meta.env.DEV &&
@@ -121,18 +110,14 @@ async function signInWithProvider(provider: OAuthProvider): Promise<OAuthHandoff
     await new Promise((r) => setTimeout(r, 1600))
     throw new Error('Preview: the in-app OAuth sheet would open here')
   }
-  if (isWorkersBackend) {
-    const { signInWorkersSocial } = await import('./authClient')
-    return runOAuth((options) =>
-      signInWorkersSocial({
-        provider,
-        callbackURL: options.redirectTo,
-        ...(options.skipBrowserRedirect ? { disableRedirect: true } : {}),
-      }),
-    )
-  }
-  const sb = requireSupabase()
-  return runOAuth((options) => sb.auth.signInWithOAuth({ provider, options }))
+  const { signInWorkersSocial } = await import('./authClient')
+  return runOAuth((options) =>
+    signInWorkersSocial({
+      provider,
+      callbackURL: options.redirectTo,
+      ...(options.skipBrowserRedirect ? { disableRedirect: true } : {}),
+    }),
+  )
 }
 
 /** iOS native Sign in with Apple identity token (Better Auth idToken). */
@@ -167,9 +152,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
     await new Promise((r) => setTimeout(r, 1200))
     throw new Error('Preview: email sign-in would complete here')
   }
-  const sb = requireSupabase()
-  const { error } = await sb.auth.signInWithPassword({ email: trimmed, password })
-  if (error) throw error
+  const { signInWorkersEmail } = await import('./authClient')
+  await signInWorkersEmail(trimmed, password)
 }
 
 /**
@@ -177,13 +161,6 @@ export async function signInWithEmail(email: string, password: string): Promise<
  * into Dayspring for a visitor without a Google or Apple account, so it has
  * to work on its own — not just as an App Review fallback for an account that
  * already exists (that's signInWithEmail above).
- *
- * Whether the returned session is usable immediately depends on a project
- * setting we don't control from here (Supabase → Auth → Email → "Confirm
- * email"): with it off, `signUp` returns a live session and the caller can
- * treat this exactly like a sign-in; with it on, `data.session` is null until
- * the user clicks the confirmation link, so `needsConfirmation` tells the
- * caller to say so instead of silently hanging.
  */
 export async function signUpWithEmail(
   email: string,
@@ -199,36 +176,27 @@ export async function signUpWithEmail(
     await new Promise((r) => setTimeout(r, 1200))
     throw new Error('Preview: account creation would complete here')
   }
-  const sb = requireSupabase()
-  const { data, error } = await sb.auth.signUp({
-    email: trimmed,
-    password,
-    options: { emailRedirectTo: authRedirectUrl() },
-  })
-  if (error) throw error
-  return { needsConfirmation: !data.session }
+  const { signUpWorkersEmail } = await import('./authClient')
+  return signUpWorkersEmail(trimmed, password)
 }
 
 /**
  * Attach a second provider to the account that is ALREADY signed in.
  *
- * This is the answer to the Google/Apple duplicate-account problem. Supabase
- * links identities automatically when both providers report the same verified
- * email, but Apple's "Hide My Email" hands out a per-app relay address that can
- * never match the Google one — so the second sign-in silently starts an empty
- * account instead. Linking keys off the current *session*, not the email, so it
- * works through the relay.
- *
- * It only prevents the split; it cannot merge two accounts that already hold
- * entries. Offer it before they diverge.
- *
- * Requires manual linking to be enabled on the Supabase project (Dashboard →
- * Authentication → Sign In / Up → Allow manual linking). Without it Supabase
- * rejects the call, which surfaces as an error on the button.
+ * This is the answer to the Google/Apple duplicate-account problem. Linking
+ * keys off the current session, not the email, so it works through Apple's
+ * "Hide My Email" relay. It only prevents the split; it cannot merge two
+ * accounts that already hold entries. Offer it before they diverge.
  */
 export async function linkProvider(provider: OAuthProvider): Promise<OAuthHandoff> {
-  const sb = requireSupabase()
-  return runOAuth((options) => sb.auth.linkIdentity({ provider, options }))
+  const { linkWorkersSocial } = await import('./authClient')
+  return runOAuth((options) =>
+    linkWorkersSocial({
+      provider,
+      callbackURL: options.redirectTo,
+      ...(options.skipBrowserRedirect ? { disableRedirect: true } : {}),
+    }),
+  )
 }
 
 /**
@@ -237,43 +205,33 @@ export async function linkProvider(provider: OAuthProvider): Promise<OAuthHandof
  * row nobody can act on.
  */
 export async function listSignInMethods(): Promise<OAuthProvider[]> {
-  const sb = requireSupabase()
-  const { data, error } = await sb.auth.getUserIdentities()
-  if (error) throw error
-  const linked = (data?.identities ?? []).map((i) => i.provider)
+  const { listWorkersSignInMethods } = await import('./authClient')
+  const linked = await listWorkersSignInMethods()
   return SIGN_IN_PROVIDERS.filter((p) => linked.includes(p))
 }
 
 /**
  * Sign THIS device out — and only this device.
  *
- * supabase-js defaults `signOut()` to `scope: 'global'`, which revokes every
- * refresh token the account holds, so signing out of the Mac silently signs the
- * iPhone out too (it finds out at its next token refresh, up to an hour later,
- * mid-session). Every mainstream account system treats "sign out" as
- * per-device; a separate, deliberate "sign out everywhere" is the exception.
- * `local` still revokes this device's own session server-side, so its token is
- * dead — it just leaves the others alone.
- *
- * This also bounds `forceReauth`: it calls here on any 401/403, and a global
- * scope would let one device's stray rejection sign out all of them.
+ * Better Auth signOut plus dropping `dayspring.workers.bearer` leaves other
+ * devices alone. This also bounds `forceReauth`: it calls here on any 401/403.
  */
 export async function signOut(): Promise<void> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  await sb.auth.signOut({ scope: 'local' })
+  const { clearWorkersSession, getSessionState } = await import('./sessionStore')
+  const hadSession = Boolean(getSessionState().session)
+  const { signOutWorkers } = await import('./authClient')
+  await signOutWorkers()
+  clearWorkersSession()
   // Only an authenticated session owns a tenant cache that must be scrubbed.
   // A guest journal is the only copy of that writing — leave it on the device.
-  if (!session) return
+  if (!hadSession) return
   await purgeOnSignOut()
 }
 
 /**
  * Native apps (desktop + iOS): listen for dayspring:// deep links.
  *
- * `dayspring://auth-callback` finishes OAuth (Supabase PKCE `code` → session
+ * `dayspring://auth-callback` finishes OAuth (Better Auth PKCE `code` → session
  * via the origin-independent Tauri store). Highest priority when a batch
  * also contains `open`.
  *

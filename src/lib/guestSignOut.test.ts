@@ -17,16 +17,19 @@ vi.mock('./db', () => ({
   pendingUploadCount: async () => 0,
 }))
 
-const getSession = vi.fn()
-const authSignOut = vi.fn(async () => {})
+const h = vi.hoisted(() => ({
+  session: null as { user: { id: string }; access_token: string } | null,
+  signOut: vi.fn(async () => {}),
+}))
 
-vi.mock('./supabase', () => ({
-  requireSupabase: () => ({
-    auth: {
-      getSession: () => getSession(),
-      signOut: () => authSignOut(),
-    },
-  }),
+vi.mock('./sessionStore', () => ({
+  getSessionState: () => ({ session: h.session, loading: false }),
+  clearWorkersSession: () => {
+    h.session = null
+  },
+}))
+vi.mock('./authClient', () => ({
+  signOutWorkers: () => h.signOut(),
 }))
 
 import { purgeOnSignOut, readCacheOwner } from './localData'
@@ -54,8 +57,8 @@ describe('signOut / purge with no session leaves guest entries intact', () => {
     guestEntries.clear()
     guestEntries.add('guest-entry-1')
     cacheClearAll.mockClear()
-    getSession.mockReset()
-    authSignOut.mockClear()
+    h.signOut.mockClear()
+    h.session = null
     localStorage.setItem(OWNER_KEY, GUEST)
   })
 
@@ -71,9 +74,8 @@ describe('signOut / purge with no session leaves guest entries intact', () => {
   })
 
   it('signOut with no authenticated session does not purge', async () => {
-    getSession.mockResolvedValue({ data: { session: null } })
     await signOut()
-    expect(authSignOut).toHaveBeenCalled()
+    expect(h.signOut).toHaveBeenCalled()
     expect(guestEntries.has('guest-entry-1')).toBe(true)
     expect(cacheClearAll).not.toHaveBeenCalled()
     expect(readCacheOwner()).toBe(GUEST)
@@ -82,11 +84,9 @@ describe('signOut / purge with no session leaves guest entries intact', () => {
   it('signed-in sign-out still purges that account’s cached data', async () => {
     localStorage.setItem(OWNER_KEY, ACCOUNT)
     guestEntries.add('account-entry')
-    getSession.mockResolvedValue({
-      data: { session: { access_token: 't', user: { id: ACCOUNT } } },
-    })
+    h.session = { access_token: 't', user: { id: ACCOUNT } }
     await signOut()
-    expect(authSignOut).toHaveBeenCalled()
+    expect(h.signOut).toHaveBeenCalled()
     expect(cacheClearAll).toHaveBeenCalled()
     expect(guestEntries.size).toBe(0)
     expect(readCacheOwner()).toBeNull()

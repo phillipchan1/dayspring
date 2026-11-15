@@ -18,7 +18,18 @@ vi.mock('./db', () => ({
   marksReplaceSynced: async () => {},
 }))
 
-vi.mock('./supabase', () => ({ supabase: null }))
+vi.mock('./remote', () => ({
+  remote: () => ({
+    auth: { getSession: async () => ({ data: { session: null } }) },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          order: async () => ({ data: [], error: null }),
+        }),
+      }),
+    }),
+  }),
+}))
 
 const { addMark, anchorOf, listMarks, markId, marksForEntry, normalizeQuote, removeMark } =
   await import('./marks')

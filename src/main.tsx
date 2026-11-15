@@ -324,7 +324,7 @@ async function bootstrap() {
   registerServiceWorker()
 
   // Read the persisted session from disk before we choose sign-in vs journal.
-  // Not supabase.auth.getSession(): offline with an expired token that waits
+  // Not remote().auth.getSession(): offline with an expired token that waits
   // out ~25s of refresh retries per call, which was the long launch splash.
   await startSessionStore()
 

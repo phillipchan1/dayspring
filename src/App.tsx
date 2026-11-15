@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { isSupabaseConfigured, isWorkersBackend } from './lib/env'
 import { useSession } from './hooks/useSession'
 import { useSettings } from './hooks/useSettings'
 import { useSettingsSync } from './hooks/useSettingsSync'
@@ -7,7 +6,6 @@ import { useResolvedTheme } from './hooks/useResolvedTheme'
 import { isLightTheme } from './lib/resolveTheme'
 import { useSubscription } from './hooks/useSubscription'
 import { applyEditorFace } from './lib/settings'
-import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
 import { UpdateToast } from './components/UpdateToast'
@@ -112,8 +110,6 @@ export function App() {
     settings.editorFontExtra,
     settings.voice,
   ])
-
-  if (!isSupabaseConfigured && !isWorkersBackend) return <SetupNotice />
 
   if (loading) {
     return <div className="app-shell"><SurfaceLoader /></div>

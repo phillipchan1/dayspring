@@ -10,7 +10,7 @@
 // makes keeping cheap enough to do at all. See the migration for why each of
 // those is absent rather than merely unbuilt.
 
-import { requireSupabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import type { Subject } from './subjects'
 
@@ -36,7 +36,7 @@ export interface KeptSubject extends Subject {
  */
 export async function listKeptSubjects(): Promise<KeptSubject[]> {
   return withOfflineSnapshot('kept-subjects', async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const { data, error } = await sb
       .from('kept_subjects')
       .select('subject_key, label, terms, kind, kept_at')
@@ -71,7 +71,7 @@ const fromRow = (r: KeptRow): KeptSubject => ({
  * which is how a spelling learned LATER still lights.
  */
 export async function keepSubject(subject: Subject): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('kept_subjects').upsert(
     {
       subject_key: subject.key,
@@ -91,7 +91,7 @@ export async function keepSubject(subject: Subject): Promise<void> {
  * consequential would make keeping a decision, and keeping is not a decision.
  */
 export async function dropSubject(key: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('kept_subjects').delete().eq('subject_key', key)
   if (error) throw error
 }

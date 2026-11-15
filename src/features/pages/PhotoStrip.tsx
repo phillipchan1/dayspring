@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { attachmentOwnerId, resolveAttachmentDisplayUrl } from '@/lib/attachments'
 import { usePhotoLooks } from '@/lib/photoLooks'
 import { PHOTO_ROW_GAP, photoRatio } from '@/lib/photoSet'
-import { supabase } from '@/lib/supabase'
 import type { PagePhoto } from './pagePhotos'
 
 const UNKNOWN_RATIO = 4 / 3
@@ -81,10 +80,10 @@ function usePhotoUrls(photos: readonly PagePhoto[]): (string | null)[] {
     let live = true
     setUrls([])
     void (async () => {
-      const owner = await attachmentOwnerId(supabase)
+      const owner = await attachmentOwnerId()
       if (!owner || !live) return
       const resolved = await Promise.all(
-        photos.map((p) => resolveAttachmentDisplayUrl(supabase, owner, p.hash, p.ext).catch(() => null)),
+        photos.map((p) => resolveAttachmentDisplayUrl(null, owner, p.hash, p.ext).catch(() => null)),
       )
       if (live) setUrls(resolved)
     })()

@@ -5,75 +5,20 @@ export const ATTACHMENTS_BUCKET = 'attachments'
 export const SIGNED_URL_TTL_S = 3600
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
-export function storageBackend(env: Pick<Env, 'STORAGE_BACKEND'>): 'r2' | 'supabase' {
-  return env.STORAGE_BACKEND?.trim().toLowerCase() === 'r2' ? 'r2' : 'supabase'
+/**
+ * Attachments are always R2 (`ATTACHMENTS` binding). `STORAGE_BACKEND` is
+ * ignored when present so existing wrangler vars stay harmless.
+ */
+export function storageBackend(_env?: Pick<Env, 'STORAGE_BACKEND'>): 'r2' {
+  return 'r2'
 }
 
-/** Object keys are `<owner-uuid>/<sha256>.<ext>` — same as today's Supabase paths. */
+/** Object keys are `<owner-uuid>/<sha256>.<ext>`. */
 export function ownerStorageKey(ownerId: string, storageKey: string): string | null {
   const prefix = `${ownerId}/`
   if (!storageKey.startsWith(prefix) || storageKey.includes('..') || storageKey.includes('//')) return null
   if (storageKey.slice(prefix.length).includes('/')) return null
   return storageKey
-}
-
-function tokenAlreadyInUrl(rel: string): boolean {
-  try {
-    if (rel.startsWith('http')) return new URL(rel).searchParams.has('token')
-  } catch {
-    // fall through to the query-string scan
-  }
-  return /(?:^|[?&])token=/.test(rel)
-}
-
-function appendTokenOnce(rel: string, token: string): string {
-  if (!token || tokenAlreadyInUrl(rel)) return rel
-  return `${rel}${rel.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`
-}
-
-/** Build the upload URL. Never append `token=` when the path already has one. */
-export function composeSupabaseUploadUrl(base: string, rel: string, token: string): string {
-  const withToken = appendTokenOnce(rel, token)
-  return withToken.startsWith('http') ? withToken : `${base}/storage/v1${withToken}`
-}
-
-export async function supabaseSign(
-  env: Env,
-  action: 'download' | 'upload',
-  storageKey: string,
-  transform?: { width?: number; quality?: number; resize?: string },
-): Promise<{ signedUrl: string } | { error: string; status: number }> {
-  const base = env.SUPABASE_URL?.trim().replace(/\/$/, '')
-  const secret = env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-  if (!base || !secret) return { error: 'storage not configured', status: 501 }
-  const encoded = storageKey.split('/').map(encodeURIComponent).join('/')
-  const path = action === 'upload'
-    ? `/storage/v1/object/upload/sign/${ATTACHMENTS_BUCKET}/${encoded}`
-    : `/storage/v1/object/sign/${ATTACHMENTS_BUCKET}/${encoded}`
-  const body: Record<string, unknown> = { expiresIn: SIGNED_URL_TTL_S }
-  if (action === 'download' && transform) body.transform = transform
-  const res = await fetch(`${base}${path}`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${secret}`,
-      apikey: secret,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
-  const payload = await res.json().catch(() => ({})) as {
-    signedURL?: string
-    signedUrl?: string
-    url?: string
-    token?: string
-  }
-  if (!res.ok) return { error: 'sign failed', status: 502 }
-  if (action === 'upload') {
-    return { signedUrl: composeSupabaseUploadUrl(base, payload.url ?? '', payload.token ?? '') }
-  }
-  const rel = payload.signedURL ?? payload.signedUrl ?? ''
-  const signedUrl = rel.startsWith('http') ? rel : `${base}/storage/v1${rel}`
-  return { signedUrl }
 }
 
 function signPayload(
@@ -167,4 +112,22 @@ export async function sha256Hex(buf: ArrayBuffer): Promise<string> {
 export function declaredMime(header: string | undefined): string | null {
   const mime = header?.split(';')[0]?.trim()
   return mime || null
+}
+
+const R2_LIST_PAGE = 1000
+
+/** Paginated list-then-delete of every object under `<ownerId>/`. */
+export async function deleteOwnedR2Objects(
+  bucket: R2Bucket | undefined,
+  ownerId: string,
+): Promise<void> {
+  if (!bucket) return
+  const prefix = `${ownerId}/`
+  let cursor: string | undefined
+  do {
+    const page = await bucket.list({ prefix, cursor, limit: R2_LIST_PAGE })
+    const keys = page.objects.map((obj) => obj.key)
+    if (keys.length > 0) await bucket.delete(keys)
+    cursor = page.truncated ? page.cursor : undefined
+  } while (cursor)
 }

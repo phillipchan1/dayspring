@@ -1,4 +1,4 @@
-import { requireSupabase, supabase } from './supabase'
+import { remote } from './remote'
 
 export interface EchoCandidate {
   id: string
@@ -46,7 +46,7 @@ export type ResurfaceCard =
 const OPEN_PRAYER_MIN_DAYS = 21
 
 async function loadDismissedIds(
-  sb: ReturnType<typeof requireSupabase>,
+  sb: ReturnType<typeof remote>,
   owner: string,
 ): Promise<Set<string>> {
   const { data } = await sb
@@ -66,7 +66,7 @@ function isDismissed(dismissed: Set<string>, type: ResurfaceSourceType, id: stri
 }
 
 async function fetchDueReminder(
-  sb: ReturnType<typeof requireSupabase>,
+  sb: ReturnType<typeof remote>,
   dismissed: Set<string>,
 ): Promise<ResurfaceCard | null> {
   const now = new Date().toISOString()
@@ -84,7 +84,7 @@ async function fetchDueReminder(
   }
 
   const row = (data ?? []).find(
-    (r) => !isDismissed(dismissed, 'due_reminder', r.id as string),
+    (r: { id?: string }) => !isDismissed(dismissed, 'due_reminder', r.id as string),
   )
   if (!row) return null
 
@@ -98,7 +98,7 @@ async function fetchDueReminder(
 }
 
 async function fetchOpenPrayer(
-  sb: ReturnType<typeof requireSupabase>,
+  sb: ReturnType<typeof remote>,
   dismissed: Set<string>,
 ): Promise<ResurfaceCard | null> {
   const cutoff = new Date()
@@ -119,7 +119,7 @@ async function fetchOpenPrayer(
   }
 
   const row = (data ?? []).find(
-    (r) => !isDismissed(dismissed, 'open_prayer', r.id as string),
+    (r: { id?: string }) => !isDismissed(dismissed, 'open_prayer', r.id as string),
   )
   if (!row) return null
 
@@ -133,7 +133,7 @@ async function fetchOpenPrayer(
 }
 
 async function fetchEcho(
-  sb: ReturnType<typeof requireSupabase>,
+  sb: ReturnType<typeof remote>,
   dismissed: Set<string>,
 ): Promise<ResurfaceCard | null> {
   const { data, error } = await sb
@@ -157,7 +157,7 @@ async function fetchEcho(
 }
 
 async function fetchAnniversarySense(
-  sb: ReturnType<typeof requireSupabase>,
+  sb: ReturnType<typeof remote>,
   dismissed: Set<string>,
 ): Promise<ResurfaceCard | null> {
   const now = new Date()
@@ -222,7 +222,7 @@ export interface AnniversarySense {
  *     there is nothing to clear and no chore to fall behind on.
  */
 export async function fetchAnniversarySenses(limit = 3): Promise<AnniversarySense[]> {
-  const sb = supabase
+  const sb = remote()
   if (!sb) return []
   const {
     data: { session },
@@ -264,7 +264,7 @@ export async function fetchAnniversarySenses(limit = 3): Promise<AnniversarySens
 
 /** Pick one resurfacing card by priority: reminder → prayer → echo → anniversary sense. */
 export async function fetchCurrentResurface(): Promise<ResurfaceCard | null> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()
@@ -298,7 +298,7 @@ export async function fetchCurrentEcho(): Promise<EchoCandidate | null> {
 }
 
 export async function dismissResurface(card: ResurfaceCard): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()

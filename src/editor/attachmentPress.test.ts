@@ -3,7 +3,14 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/supabase', () => ({ supabase: null }))
+vi.mock('@/lib/remote', () => ({
+  remote: () => ({
+    auth: {
+      getSession: async () => ({ data: { session: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+  }),
+}))
 
 import {
   attachmentImageExtension,

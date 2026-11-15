@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sessionUser } from './auth.ts'
 import { app } from './index.ts'
 import {
-  composeSupabaseUploadUrl,
   hashFromStorageKey,
   sha256Hex,
   signR2Url,
@@ -72,6 +71,26 @@ class MemoryR2 {
       arrayBuffer: async () => obj.buf,
     }
   }
+
+  async list(opts: { prefix?: string; cursor?: string; limit?: number } = {}) {
+    const keys = [...this.data.keys()].filter((k) => !opts.prefix || k.startsWith(opts.prefix)).sort()
+    const start = opts.cursor ? keys.indexOf(opts.cursor) + 1 : 0
+    const limit = opts.limit ?? 1000
+    const slice = keys.slice(Math.max(0, start), Math.max(0, start) + limit)
+    return {
+      objects: slice.map((key) => ({ key })),
+      truncated: start + slice.length < keys.length,
+      cursor: slice.at(-1),
+    }
+  }
+
+  async delete(keys: string | string[]) {
+    for (const key of Array.isArray(keys) ? keys : [keys]) this.data.delete(key)
+  }
+
+  size() {
+    return this.data.size
+  }
 }
 
 function r2Env(bucket: MemoryR2, extra: Record<string, unknown> = {}) {
@@ -83,16 +102,6 @@ function r2Env(bucket: MemoryR2, extra: Record<string, unknown> = {}) {
     STORAGE_SIGNING_KEY: SIGNING_KEY,
     ATTACHMENTS: bucket,
     ...extra,
-  }
-}
-
-function supabaseEnv() {
-  return {
-    ENVIRONMENT: 'local',
-    BETTER_AUTH_SECRET: 'x'.repeat(32),
-    DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/dayspring',
-    SUPABASE_URL: 'https://example.supabase.co',
-    SUPABASE_SERVICE_ROLE_KEY: 'service-role',
   }
 }
 
@@ -108,29 +117,6 @@ async function sign(
     body: JSON.stringify(body),
   }, env)
 }
-
-describe('composeSupabaseUploadUrl token-dup', () => {
-  const base = 'https://example.supabase.co'
-
-  it('does not append token= when the absolute URL already has one', () => {
-    const rel = 'https://example.supabase.co/storage/v1/object/upload/sign/attachments/k?token=already'
-    expect(composeSupabaseUploadUrl(base, rel, 'already')).toBe(rel)
-    expect(composeSupabaseUploadUrl(base, rel, 'already')).not.toContain('&token=')
-  })
-
-  it('does not append token= when the relative path already has one', () => {
-    const rel = '/object/upload/sign/attachments/k?token=already'
-    expect(composeSupabaseUploadUrl(base, rel, 'already')).toBe(
-      `${base}/storage/v1${rel}`,
-    )
-  })
-
-  it('appends token once when the path has none', () => {
-    expect(composeSupabaseUploadUrl(base, '/object/upload/sign/attachments/k', 'abc')).toBe(
-      `${base}/storage/v1/object/upload/sign/attachments/k?token=abc`,
-    )
-  })
-})
 
 describe('/api/storage', () => {
   beforeEach(() => {
@@ -148,31 +134,6 @@ describe('/api/storage', () => {
     })
     expect(res.status).toBe(403)
     expect(await res.json()).toEqual({ error: 'forbidden key' })
-  })
-
-  it('does not duplicate token= on the Supabase upload path', async () => {
-    const fetch = vi.fn(async () =>
-      new Response(JSON.stringify({
-        url: 'https://example.supabase.co/storage/v1/object/upload/sign/attachments/k?token=already',
-        token: 'already',
-      }), { status: 200, headers: { 'content-type': 'application/json' } }),
-    )
-    vi.stubGlobal('fetch', fetch)
-    const hash = 'b'.repeat(64)
-    const res = await sign(supabaseEnv(), {
-      action: 'upload',
-      storageKey: `${OWNER_A}/${hash}.jpg`,
-      hash,
-      mime: 'image/jpeg',
-      bytes: 4,
-    })
-    expect(res.status).toBe(200)
-    const body = await res.json() as { signedUrl: string }
-    expect(body.signedUrl).toBe(
-      'https://example.supabase.co/storage/v1/object/upload/sign/attachments/k?token=already',
-    )
-    expect(body.signedUrl.match(/token=/g)?.length).toBe(1)
-    expect(fetch).toHaveBeenCalled()
   })
 
   it('sign → PUT → GET roundtrips through R2', async () => {
@@ -255,7 +216,7 @@ describe('/api/storage', () => {
     expect(gone.status).toBe(403)
   })
 
-  it('fails closed when STORAGE_BACKEND=r2 and STORAGE_SIGNING_KEY is missing', async () => {
+  it('fails closed when STORAGE_SIGNING_KEY is missing', async () => {
     const hash = 'd'.repeat(64)
     const res = await sign(r2Env(new MemoryR2(), { STORAGE_SIGNING_KEY: '' }), {
       action: 'download',

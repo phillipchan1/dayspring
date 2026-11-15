@@ -1,7 +1,6 @@
-import { env, isWorkersBackend } from './env'
-import { requireSupabase } from './supabase'
+import { env } from './env'
 
-/** Resolve a serverless API path for web (same-origin) or desktop (Vercel prod). */
+/** Resolve a serverless API path for web (same-origin) or desktop (API origin). */
 export function apiUrl(path: string): string {
   const normalized = path.startsWith('/') ? path : `/${path}`
   const base = env.apiBaseUrl
@@ -10,18 +9,15 @@ export function apiUrl(path: string): string {
 }
 
 async function bearerToken(): Promise<string> {
-  if (isWorkersBackend) {
-    const { getWorkersToken } = await import('./authClient')
-    const token = await getWorkersToken()
-    if (!token) throw new Error('not signed in')
-    return token
-  }
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not signed in')
-  return session.access_token
+  const { getWorkersToken } = await import('./authClient')
+  const token = await getWorkersToken()
+  if (!token) throw new Error('not signed in')
+  return token
+}
+
+async function readError(path: string, res: Response): Promise<Error> {
+  const text = await res.text().catch(() => '')
+  return Object.assign(new Error(`${path} → ${res.status} ${text}`), { status: res.status })
 }
 
 /**
@@ -33,10 +29,7 @@ export async function apiGet<T = unknown>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     headers: { authorization: `Bearer ${token}` },
   })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`${path} → ${res.status} ${text}`)
-  }
+  if (!res.ok) throw await readError(path, res)
   return res.json() as Promise<T>
 }
 
@@ -55,11 +48,29 @@ export async function apiPost<T = unknown>(path: string, body: unknown): Promise
     },
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`${path} → ${res.status} ${text}`)
-  }
+  if (!res.ok) throw await readError(path, res)
   return res.json() as Promise<T>
+}
+
+/**
+ * DELETE a user-authed `/api/*` endpoint, attaching the current session as a
+ * Bearer. Throws on a non-2xx response.
+ */
+export async function apiDelete<T = unknown>(path: string): Promise<T> {
+  const token = await bearerToken()
+  const res = await fetch(apiUrl(path), {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw await readError(path, res)
+  if (res.status === 204) return undefined as T
+  const text = await res.text().catch(() => '')
+  if (!text) return undefined as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return undefined as T
+  }
 }
 
 /**
@@ -75,10 +86,7 @@ export async function apiPostForm<T = unknown>(path: string, form: FormData): Pr
     headers: { authorization: `Bearer ${token}` },
     body: form,
   })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`${path} → ${res.status} ${text}`)
-  }
+  if (!res.ok) throw await readError(path, res)
   return res.json() as Promise<T>
 }
 
@@ -108,10 +116,7 @@ export async function apiPostFormStream(
     headers: { authorization: `Bearer ${token}` },
     body: form,
   })
-  if (!res.ok || !res.body) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`${path} → ${res.status} ${text}`)
-  }
+  if (!res.ok || !res.body) throw await readError(path, res)
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()

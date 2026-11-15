@@ -8,25 +8,14 @@ const h = vi.hoisted(() => ({
   apiPost: vi.fn(async (_path: string, _body: { key: string }) => ({ ok: true })),
 }))
 
-vi.mock('./env', () => ({
-  get isWorkersBackend() {
-    return h.workers
-  },
-}))
 vi.mock('./api', () => ({
   apiGet: h.apiGet,
   apiPost: h.apiPost,
-}))
-vi.mock('./supabase', () => ({
-  requireSupabase: () => {
-    throw new Error('supabase must not be used in workers mode')
-  },
 }))
 
 const { getAckedCompletion, setAckedCompletion } = await import('./profile')
 
 beforeEach(() => {
-  h.workers = true
   h.apiGet.mockReset()
   h.apiPost.mockReset()
   h.apiGet.mockResolvedValue({ profile: { acked_processing_completion: null } })

@@ -19,20 +19,22 @@ import {
   setAckedCompletion,
   listEntries,
   listEntriesSince,
+  isBannerProcessingJob,
   listProcessingJobs,
   makeStore,
+  deleteEntry,
   upsertAttachment,
   upsertEntryChecked,
 } from './store.ts'
+import { runDataQuery, type DataQuerySpec } from './dataQuery.ts'
 import {
   declaredMime,
+  deleteOwnedR2Objects,
   hashFromStorageKey,
   MAX_UPLOAD_BYTES,
   ownerStorageKey,
   sha256Hex,
   signR2Url,
-  storageBackend,
-  supabaseSign,
   verifyR2Sig,
 } from './storage.ts'
 
@@ -171,7 +173,17 @@ app.get('/api/data/profile', async (c) => {
 app.get('/api/data/jobs', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ jobs: await listProcessingJobs(makeStore(sqlOf(c), user.id)) })
+  const jobs = (await listProcessingJobs(makeStore(sqlOf(c), user.id))).filter(isBannerProcessingJob)
+  return json({
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      kind: job.kind,
+      status: job.status,
+      completed: job.completed,
+      total: job.total,
+      updated_at: job.updated_at,
+    })),
+  })
 })
 
 app.post('/api/profile/ensure', async (c) => {
@@ -195,6 +207,23 @@ app.delete('/api/account/delete', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
   await deleteOwnedAccount(makeStore(sqlOf(c), user.id))
+  await deleteOwnedR2Objects(c.env.ATTACHMENTS, user.id)
+  return json({ ok: true })
+})
+
+app.post('/api/data/query', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const spec = await c.req.json<DataQuerySpec>()
+  const result = await runDataQuery(sqlOf(c), user.id, spec)
+  return json(result)
+})
+
+app.delete('/api/data/entries/:id', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const ok = await deleteEntry(makeStore(sqlOf(c), user.id), c.req.param('id'))
+  if (!ok) return json({ error: 'not found' }, 404)
   return json({ ok: true })
 })
 
@@ -356,12 +385,10 @@ app.post('/api/storage/sign', async (c) => {
   const storageKey = ownerStorageKey(user.id, String(body.storageKey ?? ''))
   if (!storageKey) return json({ error: 'forbidden key' }, 403)
   const action = body.action === 'upload' ? 'upload' : 'download'
-  const signed = storageBackend(c.env) === 'r2'
-    ? await r2Sign(c.env, new URL(c.req.url).origin, action, storageKey, {
-        mime: body.mime,
-        bytes: body.bytes,
-      })
-    : await supabaseSign(c.env, action, storageKey, body.transform)
+  const signed = await r2Sign(c.env, new URL(c.req.url).origin, action, storageKey, {
+    mime: body.mime,
+    bytes: body.bytes,
+  })
   if ('error' in signed) return json({ error: signed.error }, signed.status)
   if (action === 'upload' && body.hash) {
     await upsertAttachment(makeStore(sqlOf(c), user.id), {

@@ -21,7 +21,7 @@
  */
 
 import { createEntry } from '@/lib/entries'
-import { requireSupabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import { SUMMIT_COPY } from './ascent.config'
 
 /** The marker that makes a page the naming of a particular year. */
@@ -70,7 +70,7 @@ function namingText(body: string, year: number): string {
  * pull one of them down the wire to find one line.
  */
 export async function loadNaming(year: number): Promise<YearNaming | null> {
-  const sb = requireSupabase()
+  const sb = remote()
   // Two plain LIKEs rather than one `.or()`: the patterns carry spaces, colons
   // and `<!--`, which PostgREST's or-syntax would need quoting for.
   const find = (pattern: string) =>

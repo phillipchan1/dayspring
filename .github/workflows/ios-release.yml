@@ -219,8 +219,6 @@ jobs:
       - id: build-ipa
         name: Build signed IPA
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_BASE_URL: ${{ inputs.vite_api_base_url || 'https://api.usedayspring.app' }}
           VITE_BACKEND: workers
           # The TestFlight IPA is the App Store binary if it is promoted in ASC.

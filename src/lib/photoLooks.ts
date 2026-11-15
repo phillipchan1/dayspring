@@ -22,7 +22,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { analyzeImage } from './imageCompress'
 import { attachmentOwnerId, resolveAttachmentUrl } from './attachments'
-import { supabase } from './supabase'
+import { remote } from './remote'
 
 export interface PhotoLook {
   /** `#rrggbb`, or null when the photo has none (yet). */
@@ -247,11 +247,10 @@ const SMALL = { width: 48, quality: 60, resize: 'contain' as const }
 
 const defaultDeps: PhotoLookDeps = {
   async owner() {
-    return attachmentOwnerId(supabase)
+    return attachmentOwnerId()
   },
   async read(owner, hashes) {
-    if (!supabase) return []
-    const { data, error } = await supabase
+    const { data, error } = await remote()
       .from('attachments')
       .select('hash, metadata')
       .eq('owner', owner)
@@ -260,15 +259,14 @@ const defaultDeps: PhotoLookDeps = {
     return (data ?? []) as StoredMeta[]
   },
   async measure(owner, ref) {
-    const url = await resolveAttachmentUrl(supabase, owner, ref.hash, ref.ext, SMALL)
+    const url = await resolveAttachmentUrl(null, owner, ref.hash, ref.ext, SMALL)
     if (!url) return null
     const res = await fetch(url)
     if (!res.ok) return null
     return (await analyzeImage(await res.blob())).color ?? null
   },
   async write(owner, hash, metadata) {
-    if (!supabase) return
-    await supabase.from('attachments').update({ metadata }).eq('owner', owner).eq('hash', hash)
+    await remote().from('attachments').update({ metadata }).eq('owner', owner).eq('hash', hash)
   },
   online: () => typeof navigator === 'undefined' || navigator.onLine !== false,
   storage: typeof localStorage === 'undefined' ? null : localStorage,

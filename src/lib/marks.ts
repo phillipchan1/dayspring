@@ -11,7 +11,7 @@
 // and the local id is derived from the same pair, so marking the same sentence
 // twice from two devices converges on one row.
 
-import { supabase } from './supabase'
+import { remote } from './remote'
 import * as cache from './db'
 import type { MarkRow } from './db'
 
@@ -106,7 +106,7 @@ export async function removeMark(id: string): Promise<void> {
 
 /** Pull the server's marks into the local mirror. Called on sync. */
 export async function pullMarks(): Promise<void> {
-  const sb = supabase
+  const sb = remote()
   if (!sb) return
   const {
     data: { session },
@@ -142,7 +142,7 @@ export async function drainPendingMarks(): Promise<void> {
   const pending = (await cache.marksAll()).filter((r) => r.pending)
   if (pending.length === 0) return
 
-  const sb = supabase
+  const sb = remote()
   if (!sb) return
   const {
     data: { session },
