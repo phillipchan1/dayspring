@@ -632,15 +632,36 @@ export interface ProcessingJobRow {
   completed: number
   total: number
   updated_at: string
+  cursor: unknown
+}
+
+function cursorOrigin(cursor: unknown): unknown {
+  let value = cursor
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value) as unknown
+    } catch {
+      return undefined
+    }
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return (value as { origin?: unknown }).origin
+  }
+  return undefined
+}
+
+/** Concordance is a dark engine; write-session gather is routine upkeep. */
+export function isBannerProcessingJob(job: { kind: string; cursor?: unknown }): boolean {
+  if (job.kind === 'concordance') return false
+  if (job.kind !== 'gather') return true
+  return cursorOrigin(job.cursor) === 'import'
 }
 
 export async function listProcessingJobs(store: ConnectedStore): Promise<ProcessingJobRow[]> {
   return store.sql<ProcessingJobRow[]>`
-    SELECT id, kind, status, completed, total, updated_at
+    SELECT id, kind, status, completed, total, updated_at, cursor
     FROM processing_jobs
     WHERE owner = ${store.ownerId}
-      AND kind <> 'concordance'
-      AND (kind <> 'gather' OR COALESCE(cursor->>'origin', '') = 'import')
   `
 }
 

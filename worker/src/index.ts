@@ -19,6 +19,7 @@ import {
   setAckedCompletion,
   listEntries,
   listEntriesSince,
+  isBannerProcessingJob,
   listProcessingJobs,
   makeStore,
   deleteEntry,
@@ -172,7 +173,17 @@ app.get('/api/data/profile', async (c) => {
 app.get('/api/data/jobs', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ jobs: await listProcessingJobs(makeStore(sqlOf(c), user.id)) })
+  const jobs = (await listProcessingJobs(makeStore(sqlOf(c), user.id))).filter(isBannerProcessingJob)
+  return json({
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      kind: job.kind,
+      status: job.status,
+      completed: job.completed,
+      total: job.total,
+      updated_at: job.updated_at,
+    })),
+  })
 })
 
 app.post('/api/profile/ensure', async (c) => {

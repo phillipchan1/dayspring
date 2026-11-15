@@ -145,6 +145,22 @@ function otherDeviceWrites(id: string, body: string): void {
 
 const serverBodies = (): string[] => [...h.server.values()].map((r) => r.body_markdown).sort()
 
+function queuedEntry(id: string, body: string, created: string, updated: string): Entry {
+  return {
+    id,
+    created_at: created,
+    updated_at: updated,
+    body_markdown: body,
+    title: null,
+    mood: null,
+    tags: [],
+    word_count: body.trim().split(/\s+/).length,
+    source: 'native',
+    external_id: null,
+    circumstances: {},
+  }
+}
+
 beforeEach(() => {
   vi.useFakeTimers() // keep scheduleFlush's background timer from firing mid-test
   vi.stubGlobal('navigator', { onLine: true })
@@ -293,5 +309,73 @@ describe('the stale base cannot strand', () => {
     expect(h.cached.get('entry-1')!.body_markdown).toBe(FIXED)
     expect(serverBodies()).toEqual([FIXED])
     expect(h.server.size).toBe(1)
+  })
+})
+
+describe('upgrade from shipped IndexedDB outbox', () => {
+  // iOS 1320 / Mac 1.0.133 / 1.0.550 store `{ kind, entryId }` only; the body
+  // lives on the IndexedDB cache row. Flush must POST that row to
+  // /api/data/entries/upsert-checked with created_at and OCC on updated_at.
+
+  it('replays an entryId-only upsert through upsert-checked, keeping created_at', async () => {
+    const created = '2024-06-01T08:11:00.000Z'
+    const updated = '2024-06-01T08:12:00.000Z'
+    const row = queuedEntry('queued-1', 'unsynced from 1320', created, updated)
+    h.cached.set(row.id, row)
+    h.outbox.set('op-old', { opId: 'op-old', kind: 'upsert', entryId: row.id, ts: 1 })
+    await drain()
+    expect(h.server.get('queued-1')?.created_at).toBe(created)
+    expect(h.server.get('queued-1')?.body_markdown).toBe('unsynced from 1320')
+    expect(h.outbox.size).toBe(0)
+  })
+
+  it('keeps both versions when the Worker row has moved', async () => {
+    const created = '2024-06-01T08:11:00.000Z'
+    const local = queuedEntry('queued-1', 'device unsynced', created, '2024-06-01T08:12:00.000Z')
+    const remote = queuedEntry('queued-1', 'already on neon', created, '2024-06-01T09:00:00.000Z')
+    h.cached.set(local.id, local)
+    h.server.set(remote.id, { ...remote })
+    h.outbox.set('op-old', { opId: 'op-old', kind: 'upsert', entryId: local.id, ts: 1 })
+    await drain()
+    expect(serverBodies()).toEqual(['already on neon', 'device unsynced'])
+  })
+
+  it('releases quarantined ops once so refused pre-Worker writes retry', async () => {
+    const store = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    })
+    const created = '2024-06-01T08:11:00.000Z'
+    const row = queuedEntry('queued-q', 'quarantined after supabase 4xx', created, created)
+    h.cached.set(row.id, row)
+    h.outbox.set('op-q', {
+      opId: 'op-q',
+      kind: 'upsert',
+      entryId: row.id,
+      ts: 1,
+      quarantined: true,
+      attempts: 6,
+    })
+    await drain()
+    expect(h.server.get('queued-q')?.created_at).toBe(created)
+    expect(h.outbox.size).toBe(0)
+    expect(store.get(repo.WORKERS_OUTBOX_RETRY_KEY)).toBe('1')
+
+    h.outbox.clear()
+    h.server.clear()
+    h.cached.set(row.id, row)
+    h.outbox.set('op-q2', {
+      opId: 'op-q2',
+      kind: 'upsert',
+      entryId: row.id,
+      ts: 2,
+      quarantined: true,
+      attempts: 6,
+    })
+    await repo.flush()
+    expect(h.server.size).toBe(0)
+    expect([...h.outbox.values()].some((o) => o.kind === 'upsert' && o.quarantined)).toBe(true)
   })
 })

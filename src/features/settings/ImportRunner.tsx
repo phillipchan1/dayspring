@@ -30,9 +30,9 @@ function range(r: ImportParseResult['dateRange']): string {
 }
 
 /**
- * Supabase throws a PostgrestError (a plain object). Surface its real
- * message/code, and recognise the two codes that mean the import migration
- * hasn't been applied so the writer knows exactly what to do.
+ * The Worker query client returns a PostgREST-shaped error (a plain object).
+ * Surface its real message/code, and recognise the two codes that mean the
+ * import migration hasn't been applied so the writer knows exactly what to do.
  */
 function describeWriteError(e: unknown): string {
   const pg = e as { message?: string; code?: string } | null
@@ -148,10 +148,10 @@ export function ImportRunner({ source }: Props) {
       })
       setPhase('done')
 
-      // The import writes straight to Supabase, bypassing the local cache — so
+      // The import writes straight to the Worker, bypassing the local cache — so
       // without this the device that just did the work is the last to see it,
       // waiting on a refocus or reload while every OTHER device already has the
-      // entries via realtime. Pull them into the cache now.
+      // entries via polling. Pull them into the cache now.
       void repo.sync().catch(() => {
         // Non-fatal: the entries are on the server, and the next sync collects them.
       })

@@ -63,6 +63,10 @@ export function makePgliteSql(db: PGlite): Sql {
     array(values: unknown[]) {
       return { [ARRAY_MARK]: true, value: values } satisfies ArrayParam
     },
+    async unsafe(text: string, params: unknown[] = []) {
+      const result = await db.query(text, params)
+      return result.rows
+    },
     async begin<T>(fn: (sql: Sql) => Promise<T>): Promise<T> {
       await db.query('BEGIN')
       try {

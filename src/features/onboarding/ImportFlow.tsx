@@ -170,7 +170,7 @@ export function ImportFlow({ onComplete, onBack, onBackChange }: Props) {
       })
       .catch((err) => console.warn('scripture scan failed', err))
 
-    // The import writes straight to Supabase, bypassing the local cache — pull
+    // The import writes straight to the Worker, bypassing the local cache — pull
     // the entries in now so this device is not the last to see what it imported
     // (same step the Settings import takes).
     void repo.sync().catch(() => {
