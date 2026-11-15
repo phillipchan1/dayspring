@@ -1,5 +1,5 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
-import { bearer, emailOTP } from 'better-auth/plugins'
+import { bearer, emailOTP, oneTimeToken } from 'better-auth/plugins'
 import { Pool } from 'pg'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
 import { pgClientOptions } from './db.ts'
@@ -162,6 +162,10 @@ export function createAuth(
     },
     plugins: [
       bearer({ requireSignature: true }),
+      // Native Google / Apple hand-off (worker/src/nativeAuth.ts): the sign-in
+      // sheet's session becomes a 3-minute, single-use, hashed-at-rest token
+      // the app exchanges for its own bearer.
+      oneTimeToken({ expiresIn: 3, storeToken: 'hashed' }),
       emailOTP({
         otpLength: 6,
         expiresIn: 300,

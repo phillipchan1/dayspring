@@ -25,9 +25,8 @@ async function workersAuthClient() {
     import('better-auth/client'),
     import('better-auth/client/plugins'),
   ])
-  const baseURL = env.apiBaseUrl.replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '')
   return client.createAuthClient({
-    baseURL,
+    baseURL: apiOrigin(),
     basePath: '/api/auth',
     plugins: [emailOtp.emailOTPClient()],
     fetchOptions: {
@@ -184,20 +183,65 @@ async function hydrateAfterAuth(provider?: string): Promise<void> {
   })
 }
 
-/** Finish a Better Auth OAuth redirect (code/state on the callback URL). */
+function apiOrigin(): string {
+  return env.apiBaseUrl.replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '')
+}
+
+/**
+ * Native apps only. The URL the sign-in sheet (iOS) or system browser (Mac)
+ * opens. The Worker runs the whole provider round-trip inside that browser —
+ * Better Auth's state and session cookies live there, not in the webview — and
+ * ends at `dayspring://auth-callback?code=<one-time token>`.
+ * See worker/src/nativeAuth.ts.
+ *
+ * Linking mints a one-time token with this device's bearer first, so the
+ * sheet knows which account the new provider attaches to.
+ */
+export async function nativeOAuthStartUrl(
+  provider: 'google' | 'apple',
+  intent: 'sign-in' | 'link',
+): Promise<string> {
+  const params = new URLSearchParams({ provider })
+  if (intent === 'link') {
+    const auth = await workersAuthClient()
+    const result = await auth.$fetch<{ token?: string }>('/one-time-token/generate', { method: 'GET' })
+    const token = result.data?.token
+    if (result.error || !token) throw new Error(result.error?.message || 'Could not start linking')
+    params.set('link', token)
+  }
+  return `${apiOrigin()}/api/auth/native/start?${params.toString()}`
+}
+
+/**
+ * Finish a native sign-in: the `code` on dayspring://auth-callback is a
+ * single-use token for the session the sign-in sheet just created. Verifying
+ * it returns this device's signed bearer in `set-auth-token`.
+ */
 export async function completeWorkersOAuthCallback(callbackUrl: string): Promise<void> {
   const parsed = callbackUrl.startsWith('?')
     ? new URL(`http://local.invalid${callbackUrl}`)
     : new URL(callbackUrl)
+  const error = parsed.searchParams.get('error')
+  if (error) throw new Error(oauthErrorMessage(error))
   const code = parsed.searchParams.get('code')
-  const state = parsed.searchParams.get('state')
   if (!code) throw new Error('No authorization code in OAuth callback')
   const auth = await workersAuthClient()
-  const path = parsed.pathname.includes('/api/auth/callback/')
-    ? `${parsed.pathname}${parsed.search}`
-    : `/api/auth/callback/apple?code=${encodeURIComponent(code)}${state ? `&state=${encodeURIComponent(state)}` : ''}`
-  const result = await auth.$fetch(path)
-  if (result.error) throw new Error(result.error.message || 'OAuth callback failed')
+  const result = await auth.$fetch('/one-time-token/verify', { method: 'POST', body: { token: code } })
+  if (result.error) throw new Error(result.error.message || 'Sign-in expired. Try again.')
   if (!readWorkersBearer()) throw new Error('signed bearer missing from OAuth callback')
   await hydrateAfterAuth()
+}
+
+function oauthErrorMessage(code: string): string {
+  switch (code) {
+    case 'account_not_linked':
+    case 'account_already_linked_to_different_user':
+      return 'That account is already used by another Dayspring sign-in.'
+    case 'link_expired':
+      return 'Linking took too long. Try again.'
+    case 'access_denied':
+      return 'Sign-in was cancelled.'
+    default:
+      return 'Sign-in didn’t finish. Try again, or use email.'
+  }
 }

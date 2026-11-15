@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
 import { sessionUser } from './auth.ts'
+import { resolveAuthBaseURL } from './authUrl.ts'
+import { NATIVE_FINISH_PATH, NATIVE_START_PATH, nativeFinish, nativeStart } from './nativeAuth.ts'
 import { stripGetSessionToken } from './sessionBody.ts'
 import { CPU_HEAVY_ROUTES } from './cpuLimits.ts'
 import type { Env } from './env.ts'
@@ -96,6 +98,11 @@ app.get('/api/health', (c) =>
     cpu_heavy: CPU_HEAVY_ROUTES,
   }),
 )
+
+// Top-level navigations inside the native sign-in sheet — no Origin, no CORS.
+// Registered before the /api/auth/* catch-all so Better Auth never sees them.
+app.get(NATIVE_START_PATH, (c) => nativeStart(authOf(c), c.req.raw, resolveAuthBaseURL(c.env)))
+app.get(NATIVE_FINISH_PATH, (c) => nativeFinish(authOf(c), c.req.raw))
 
 app.all('/api/auth/*', async (c) => {
   const started = beginAuthCors(c.req.header('Origin'), c.env)

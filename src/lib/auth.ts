@@ -5,20 +5,15 @@ import { beginExternalTrip } from './appLockSuppress'
 import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
 import { selectDayspringDeepLink } from './deepLink'
 
-// Hosted HTTPS page that forwards the PKCE code to the dayspring:// deep-link
-// and shows a "you can close this tab" message to the user.
-const DEEP_LINK_REDIRECT = 'https://dayspring-eosin.vercel.app/auth/callback'
-
-/** Where OAuth should return. Native apps use the deep-link scheme; web uses origin. */
+/** Where web OAuth returns. Native apps never use this — see runOAuth. */
 export function authRedirectUrl(): string {
-  return isTauri() ? DEEP_LINK_REDIRECT : window.location.origin
+  return window.location.origin
 }
 
 type OAuthProvider = AuthProvider
 
 interface OAuthOptions {
   redirectTo: string
-  skipBrowserRedirect?: boolean
 }
 
 interface OAuthUrlResult {
@@ -26,18 +21,13 @@ interface OAuthUrlResult {
   error: Error | null
 }
 
-/** Exchange a PKCE `code` from an OAuth callback URL for a persisted session. */
-export async function exchangeOAuthCode(code: string): Promise<void> {
-  const { completeWorkersOAuthCallback } = await import('./authClient')
-  await completeWorkersOAuthCallback(`?code=${encodeURIComponent(code)}`)
-}
-
-/** Finish sign-in from a dayspring:// or bridged HTTPS callback URL. */
+/**
+ * Finish sign-in from `dayspring://auth-callback?code=…` (or `?error=…`).
+ * The code is a one-time token for the session the sign-in browser created.
+ */
 export async function completeOAuthCallback(callbackUrl: string): Promise<void> {
-  const url = new URL(callbackUrl)
-  const code = url.searchParams.get('code')
-  if (!code) throw new Error('No authorization code in OAuth callback')
-  await exchangeOAuthCode(code)
+  const { completeWorkersOAuthCallback } = await import('./authClient')
+  await completeWorkersOAuthCallback(callbackUrl)
 }
 
 /**
@@ -46,15 +36,16 @@ export async function completeOAuthCallback(callbackUrl: string): Promise<void> 
  *
  * Web: normal in-page redirect.
  *
- * Native desktop: providers block OAuth inside embedded webviews, so we ask
- * Better Auth for the provider URL WITHOUT navigating the webview
- * (skipBrowserRedirect), then open it in the system browser. On success the
- * HTTPS bridge page forwards to dayspring://auth-callback, which
- * initDeepLinkAuth exchanges — completing the sign-in or the link.
+ * Native desktop: providers block OAuth inside embedded webviews, so the
+ * system browser opens the Worker's /api/auth/native/start, which runs the
+ * whole provider round-trip in that browser (Better Auth's state and session
+ * cookies have to live where the redirects happen, not in the webview) and
+ * ends at dayspring://auth-callback?code=<one-time token>. initDeepLinkAuth
+ * exchanges it — completing the sign-in or the link.
  *
- * Native iOS: same PKCE flow, but ASWebAuthenticationSession presents the
- * provider login in an in-app sheet (App Store Guideline 4). The bridge page
- * still forwards to dayspring://, which the session intercepts and returns here.
+ * Native iOS: same Worker flow, presented by ASWebAuthenticationSession as an
+ * in-app sheet (App Store Guideline 4). The session intercepts dayspring://
+ * and returns the URL here. See worker/src/nativeAuth.ts.
  *
  * Desktop returns `'waiting-for-browser'` after the system browser opens —
  * sign-in finishes later via the deep link. The sign-in screen uses that to
@@ -63,6 +54,8 @@ export async function completeOAuthCallback(callbackUrl: string): Promise<void> 
 export type OAuthHandoff = 'completed' | 'waiting-for-browser'
 
 async function runOAuth(
+  provider: OAuthProvider,
+  intent: 'sign-in' | 'link',
   start: (options: OAuthOptions) => Promise<OAuthUrlResult>,
 ): Promise<OAuthHandoff> {
   if (!isTauri()) {
@@ -71,12 +64,8 @@ async function runOAuth(
     return 'completed'
   }
 
-  const { data, error } = await start({
-    redirectTo: DEEP_LINK_REDIRECT,
-    skipBrowserRedirect: true,
-  })
-  if (error) throw error
-  if (!data?.url) throw new Error('No OAuth URL returned')
+  const { nativeOAuthStartUrl } = await import('./authClient')
+  const authUrl = await nativeOAuthStartUrl(provider, intent)
 
   // Linking a second provider happens from inside the app, so this hand-off has
   // to be marked or the app lock closes behind it and the user returns from
@@ -85,7 +74,7 @@ async function runOAuth(
 
   if (isIOSTauri()) {
     try {
-      const callbackUrl = await invoke<string>('start_oauth_session', { authUrl: data.url })
+      const callbackUrl = await invoke<string>('start_oauth_session', { authUrl })
       await completeOAuthCallback(callbackUrl)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -95,7 +84,7 @@ async function runOAuth(
   }
 
   const { openUrl } = await import('@tauri-apps/plugin-opener')
-  await openUrl(data.url)
+  await openUrl(authUrl)
   return 'waiting-for-browser'
 }
 
@@ -111,11 +100,10 @@ async function signInWithProvider(provider: OAuthProvider): Promise<OAuthHandoff
     throw new Error('Preview: the in-app OAuth sheet would open here')
   }
   const { signInWorkersSocial } = await import('./authClient')
-  return runOAuth((options) =>
+  return runOAuth(provider, 'sign-in', (options) =>
     signInWorkersSocial({
       provider,
       callbackURL: options.redirectTo,
-      ...(options.skipBrowserRedirect ? { disableRedirect: true } : {}),
     }),
   )
 }
@@ -190,11 +178,10 @@ export async function signUpWithEmail(
  */
 export async function linkProvider(provider: OAuthProvider): Promise<OAuthHandoff> {
   const { linkWorkersSocial } = await import('./authClient')
-  return runOAuth((options) =>
+  return runOAuth(provider, 'link', (options) =>
     linkWorkersSocial({
       provider,
       callbackURL: options.redirectTo,
-      ...(options.skipBrowserRedirect ? { disableRedirect: true } : {}),
     }),
   )
 }
