@@ -65,11 +65,11 @@
         "GATHER_ENGINE": "on",
         "GATHER_MODE": "gate",
         "RESEND_FROM": "Dayspring <hello@usedayspring.app>",
-        "WELCOME_DRIP_SENDS_ENABLED": "false",
+        "WELCOME_DRIP_SENDS_ENABLED": "true",
         // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
         // WORKER_MAIL_CRONS — unset (off). Set to "on" only in the switch step that
         // turns off Vercel's remind / sync-resend / welcome-drip crons.
-        "STORAGE_BACKEND": "supabase",
+        "STORAGE_BACKEND": "r2",
         // STORAGE_SIGNING_KEY — secret (wrangler secret put).
       },
       "r2_buckets": [
