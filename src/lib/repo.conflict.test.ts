@@ -157,7 +157,6 @@ function queuedEntry(id: string, body: string, created: string, updated: string)
     word_count: body.trim().split(/\s+/).length,
     source: 'native',
     external_id: null,
-    circumstances: {},
   }
 }
 
