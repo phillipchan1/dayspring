@@ -74,8 +74,8 @@ const harness = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/lib/supabase', () => ({
-  requireSupabase: () => harness.client,
+vi.mock('@/lib/remote', () => ({
+  remote: () => harness.client,
 }))
 
 const { loadAltarSource } = await import('./data')

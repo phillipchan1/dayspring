@@ -2,7 +2,7 @@
 // the normal anon client + RLS (auth.uid() = owner). The client NEVER writes
 // insights — generation happens server-side with the service-role key.
 
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { withOfflineSnapshot } from './offlineSnapshot'
 
 export type RollupType = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
@@ -162,7 +162,7 @@ export async function listRollups(type: RollupType, limit?: number): Promise<Rol
   // Kept for offline: the Ascent composes from these, and a failed read used to
   // leave every altitude empty (lib/offlineSnapshot.ts).
   return withOfflineSnapshot(`insights:list:${type}:${limit ?? 'all'}`, async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     let q = sb
       .from('insights')
       .select('id, type, period_start, period_end, source_ids, structured_payload')
@@ -189,7 +189,7 @@ export async function getRollupForPeriod(
   periodStart: string,
 ): Promise<Rollup | null> {
   return withOfflineSnapshot(`insights:period:${type}:${periodStart}`, async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const { data, error } = await sb
       .from('insights')
       .select('id, type, period_start, period_end, source_ids, structured_payload')
@@ -211,7 +211,7 @@ export async function getRollupForPeriod(
  */
 export async function listRollupPeriods(type: RollupType): Promise<string[]> {
   return withOfflineSnapshot(`insights:periods:${type}`, async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const { data, error } = await sb
       .from('insights')
       .select('period_start')
@@ -231,7 +231,7 @@ export async function listRollupPeriods(type: RollupType): Promise<string[]> {
  * arcs from scratch — these edits live until the next monthly regeneration.
  */
 export async function saveArcs(rollupId: string, arcs: Arc[]): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data, error: readErr } = await sb
     .from('insights')
     .select('structured_payload')
@@ -251,7 +251,7 @@ export async function saveArcs(rollupId: string, arcs: Arc[]): Promise<void> {
 /** One rollup by type + period start (the period switcher's key). */
 export async function getRollup(type: RollupType, periodStart: string): Promise<Rollup | null> {
   return withOfflineSnapshot(`insights:one:${type}:${periodStart}`, async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const { data, error } = await sb
       .from('insights')
       .select('id, type, period_start, period_end, source_ids, structured_payload')

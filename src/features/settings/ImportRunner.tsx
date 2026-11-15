@@ -3,7 +3,7 @@ import { upsertImportedEntries, type ImportedEntry } from '@/lib/entries'
 import type { ImportParseResult } from '@/lib/import/types'
 import type { ImportSourceDef } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
-import { requireSupabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import * as repo from '@/lib/repo'
 import { apiPost } from '@/lib/api'
 import { scanAllForRefs, getImportedEntryCount, writeScanWatermark } from '@/lib/scripture/scan'
@@ -30,9 +30,9 @@ function range(r: ImportParseResult['dateRange']): string {
 }
 
 /**
- * Supabase throws a PostgrestError (a plain object). Surface its real
- * message/code, and recognise the two codes that mean the import migration
- * hasn't been applied so the writer knows exactly what to do.
+ * The Worker query client returns a PostgREST-shaped error (a plain object).
+ * Surface its real message/code, and recognise the two codes that mean the
+ * import migration hasn't been applied so the writer knows exactly what to do.
  */
 function describeWriteError(e: unknown): string {
   const pg = e as { message?: string; code?: string } | null
@@ -41,7 +41,7 @@ function describeWriteError(e: unknown): string {
   const looksLikeMissingMigration =
     pg?.code === '42P10' || pg?.code === '23514' || /on conflict|check constraint/i.test(msg)
   return looksLikeMissingMigration
-    ? `${text} — it looks like the import database migration hasn’t been applied. Run supabase/migrations/20260530_diarly_import.sql in the Supabase SQL editor, then retry.`
+    ? `${text} — it looks like the import database migration hasn’t been applied.`
     : text
 }
 
@@ -105,7 +105,7 @@ export function ImportRunner({ source }: Props) {
         setPhase('uploading-images')
         setImgProgress({ done: 0, total: 0, uploaded: 0, skipped: 0 })
 
-        const sb = requireSupabase()
+        const sb = remote()
         const { data: { user } } = await sb.auth.getUser()
 
         if (user) {
@@ -148,10 +148,10 @@ export function ImportRunner({ source }: Props) {
       })
       setPhase('done')
 
-      // The import writes straight to Supabase, bypassing the local cache — so
+      // The import writes straight to the Worker, bypassing the local cache — so
       // without this the device that just did the work is the last to see it,
       // waiting on a refocus or reload while every OTHER device already has the
-      // entries via realtime. Pull them into the cache now.
+      // entries via polling. Pull them into the cache now.
       void repo.sync().catch(() => {
         // Non-fatal: the entries are on the server, and the next sync collects them.
       })
@@ -333,7 +333,7 @@ export function ImportRunner({ source }: Props) {
           )}
           {summary.images && summary.images.uploaded === 0 && summary.images.skipped === 0 && summary.images.failed > 0 && (
             <p className="import-hint">
-              Photos: {summary.images.failed} failed — run the attachments migration in Supabase then re-import.
+              Photos: {summary.images.failed} failed — run the attachments migration, then re-import.
             </p>
           )}
           <p className="import-hint">Date range: {range(summary.dateRange)}</p>

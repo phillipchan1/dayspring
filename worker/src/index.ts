@@ -19,11 +19,24 @@ import {
   setAckedCompletion,
   listEntries,
   listEntriesSince,
+  isBannerProcessingJob,
   listProcessingJobs,
   makeStore,
+  deleteEntry,
   upsertAttachment,
   upsertEntryChecked,
 } from './store.ts'
+import { runDataQuery, type DataQuerySpec } from './dataQuery.ts'
+import {
+  declaredMime,
+  deleteOwnedR2Objects,
+  hashFromStorageKey,
+  MAX_UPLOAD_BYTES,
+  ownerStorageKey,
+  sha256Hex,
+  signR2Url,
+  verifyR2Sig,
+} from './storage.ts'
 
 const app = new Hono<{ Bindings: Env; Variables: WorkerVars }>()
 
@@ -160,7 +173,17 @@ app.get('/api/data/profile', async (c) => {
 app.get('/api/data/jobs', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ jobs: await listProcessingJobs(makeStore(sqlOf(c), user.id)) })
+  const jobs = (await listProcessingJobs(makeStore(sqlOf(c), user.id))).filter(isBannerProcessingJob)
+  return json({
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      kind: job.kind,
+      status: job.status,
+      completed: job.completed,
+      total: job.total,
+      updated_at: job.updated_at,
+    })),
+  })
 })
 
 app.post('/api/profile/ensure', async (c) => {
@@ -184,6 +207,23 @@ app.delete('/api/account/delete', async (c) => {
   const user = await requireUser(c)
   if (!user) return json({ error: 'not authenticated' }, 401)
   await deleteOwnedAccount(makeStore(sqlOf(c), user.id))
+  await deleteOwnedR2Objects(c.env.ATTACHMENTS, user.id)
+  return json({ ok: true })
+})
+
+app.post('/api/data/query', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const spec = await c.req.json<DataQuerySpec>()
+  const result = await runDataQuery(sqlOf(c), user.id, spec)
+  return json(result)
+})
+
+app.delete('/api/data/entries/:id', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return json({ error: 'not authenticated' }, 401)
+  const ok = await deleteEntry(makeStore(sqlOf(c), user.id), c.req.param('id'))
+  if (!ok) return json({ error: 'not found' }, 404)
   return json({ ok: true })
 })
 
@@ -312,51 +352,23 @@ app.post('/api/feedback', async (c) => {
   return json({ error: 'feedback stays on Vercel until cutover' }, 501)
 })
 
-const ATTACHMENTS_BUCKET = 'attachments'
-const SIGNED_URL_TTL_S = 3600
-
-function ownerStorageKey(ownerId: string, storageKey: string): string | null {
-  const prefix = `${ownerId}/`
-  if (!storageKey.startsWith(prefix) || storageKey.includes('..') || storageKey.includes('//')) return null
-  if (storageKey.slice(prefix.length).includes('/')) return null
-  return storageKey
-}
-
-async function supabaseSign(
+async function r2Sign(
   env: Env,
+  origin: string,
   action: 'download' | 'upload',
   storageKey: string,
-  transform?: { width?: number; quality?: number; resize?: string },
+  declared?: { mime?: string; bytes?: number },
 ): Promise<{ signedUrl: string } | { error: string; status: number }> {
-  const base = env.SUPABASE_URL?.trim().replace(/\/$/, '')
-  const secret = env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-  if (!base || !secret) return { error: 'storage not configured', status: 501 }
-  const encoded = storageKey.split('/').map(encodeURIComponent).join('/')
-  const path = action === 'upload'
-    ? `/storage/v1/object/upload/sign/${ATTACHMENTS_BUCKET}/${encoded}`
-    : `/storage/v1/object/sign/${ATTACHMENTS_BUCKET}/${encoded}`
-  const body: Record<string, unknown> = { expiresIn: SIGNED_URL_TTL_S }
-  if (action === 'download' && transform) body.transform = transform
-  const res = await fetch(`${base}${path}`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${secret}`,
-      apikey: secret,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
+  const secret = env.STORAGE_SIGNING_KEY?.trim()
+  if (!secret) return { error: 'storage not configured', status: 501 }
+  return signR2Url({
+    origin,
+    method: action === 'upload' ? 'PUT' : 'GET',
+    key: storageKey,
+    secret,
+    mime: action === 'upload' ? declared?.mime : undefined,
+    bytes: action === 'upload' ? declared?.bytes : undefined,
   })
-  const payload = await res.json().catch(() => ({})) as { signedURL?: string; signedUrl?: string; url?: string; token?: string }
-  if (!res.ok) return { error: 'sign failed', status: 502 }
-  if (action === 'upload') {
-    const rel = payload.url ?? ''
-    const token = payload.token ?? ''
-    const signedUrl = rel.startsWith('http') ? (token ? `${rel}${rel.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : rel) : `${base}/storage/v1${rel}${token ? (rel.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token) : ''}`
-    return { signedUrl }
-  }
-  const rel = payload.signedURL ?? payload.signedUrl ?? ''
-  const signedUrl = rel.startsWith('http') ? rel : `${base}/storage/v1${rel}`
-  return { signedUrl }
 }
 
 app.post('/api/storage/sign', async (c) => {
@@ -373,7 +385,10 @@ app.post('/api/storage/sign', async (c) => {
   const storageKey = ownerStorageKey(user.id, String(body.storageKey ?? ''))
   if (!storageKey) return json({ error: 'forbidden key' }, 403)
   const action = body.action === 'upload' ? 'upload' : 'download'
-  const signed = await supabaseSign(c.env, action, storageKey, body.transform)
+  const signed = await r2Sign(c.env, new URL(c.req.url).origin, action, storageKey, {
+    mime: body.mime,
+    bytes: body.bytes,
+  })
   if ('error' in signed) return json({ error: signed.error }, signed.status)
   if (action === 'upload' && body.hash) {
     await upsertAttachment(makeStore(sqlOf(c), user.id), {
@@ -385,6 +400,77 @@ app.post('/api/storage/sign', async (c) => {
   }
   return json(signed)
 })
+
+function objectKeyFromParam(raw: string): string | null {
+  let key = raw
+  try {
+    key = decodeURIComponent(raw)
+  } catch {
+    return null
+  }
+  if (!key || key.includes('..') || key.includes('//') || key.startsWith('/')) return null
+  return key
+}
+
+async function serveR2Object(c: WorkerContext): Promise<Response> {
+  const cors = API_CORS
+  if (c.req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  const key = objectKeyFromParam(c.req.param('key') ?? '')
+  const secret = c.env.STORAGE_SIGNING_KEY?.trim()
+  if (!key || !secret) return json({ error: 'forbidden' }, 403, cors)
+  const url = new URL(c.req.url)
+  const ok = await verifyR2Sig({
+    method: c.req.method,
+    key,
+    exp: url.searchParams.get('exp'),
+    sig: url.searchParams.get('sig'),
+    secret,
+    mime: url.searchParams.get('mime'),
+    bytes: url.searchParams.get('bytes'),
+  })
+  if (!ok) return json({ error: 'forbidden' }, 403, cors)
+  const bucket = c.env.ATTACHMENTS
+  if (!bucket) return json({ error: 'storage not configured' }, 501, cors)
+
+  if (c.req.method === 'GET') {
+    const obj = await bucket.get(key)
+    if (!obj) return json({ error: 'not found' }, 404, cors)
+    const headers = new Headers(cors)
+    headers.set('content-type', obj.httpMetadata?.contentType || 'application/octet-stream')
+    headers.set('etag', obj.httpEtag)
+    headers.set('cache-control', 'private, max-age=3600')
+    headers.set('content-length', String(obj.size))
+    return new Response(obj.body, { status: 200, headers })
+  }
+
+  if (c.req.method === 'PUT') {
+    const mime = declaredMime(c.req.header('content-type') ?? undefined)
+    if (!mime) return json({ error: 'content-type required' }, 400, cors)
+    const declaredBytes = url.searchParams.get('bytes')
+    const buf = await c.req.arrayBuffer()
+    if (buf.byteLength > MAX_UPLOAD_BYTES) {
+      return json({ error: 'too large' }, 413, cors)
+    }
+    if (declaredBytes != null && declaredBytes !== '') {
+      const expected = Number(declaredBytes)
+      if (!Number.isFinite(expected) || expected !== buf.byteLength) {
+        return json({ error: 'bytes mismatch' }, 400, cors)
+      }
+    }
+    const declared = url.searchParams.get('mime')
+    if (declared && declared !== mime) return json({ error: 'mime mismatch' }, 400, cors)
+    const expectedHash = hashFromStorageKey(key)
+    if (expectedHash && (await sha256Hex(buf)) !== expectedHash) {
+      return json({ error: 'hash mismatch' }, 400, cors)
+    }
+    await bucket.put(key, buf, { httpMetadata: { contentType: mime } })
+    return new Response(null, { status: 200, headers: cors })
+  }
+
+  return json({ error: 'method not allowed' }, 405, cors)
+}
+
+app.on(['OPTIONS', 'GET', 'PUT'], '/api/storage/object/:key{.+}', (c) => serveR2Object(c))
 
 function waitUntilOf(c: WorkerContext): (task: Promise<unknown>) => void {
   return (task) => {

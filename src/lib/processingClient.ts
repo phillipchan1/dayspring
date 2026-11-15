@@ -1,4 +1,4 @@
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { apiPost } from './api'
 
 /**
@@ -10,7 +10,7 @@ import { apiPost } from './api'
  */
 export async function maybeBackfillOnLoad(): Promise<void> {
   try {
-    const sb = requireSupabase()
+    const sb = remote()
 
     // Already has engine jobs (queued/running/done) → nothing to kick off.
     const jobs = await sb.from('processing_jobs').select('id').limit(1)

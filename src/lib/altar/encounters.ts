@@ -3,11 +3,11 @@
 // touches this table. "Still carrying" is expressed by the ABSENCE of an
 // encounter, so clearing one is simply a delete.
 
-import { requireSupabase } from '../supabase'
+import { remote } from '../remote'
 import type { Encounter, Movement } from '../types'
 
 async function ownerId(): Promise<string> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()
@@ -33,7 +33,7 @@ export async function nameEncounter(
   movement: Movement,
   fields: NameEncounterFields = {},
 ): Promise<Encounter> {
-  const sb = requireSupabase()
+  const sb = remote()
   const owner = await ownerId()
   const { data, error } = await sb
     .from('encounters')
@@ -66,14 +66,14 @@ export async function editEncounter(
   if (fields.named_at !== undefined) patch.named_at = fields.named_at
   if (fields.reflection_text !== undefined) patch.reflection_text = fields.reflection_text
   if (Object.keys(patch).length === 0) return
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('encounters').update(patch).eq('thread_id', threadId)
   if (error) throw error
 }
 
 /** Return a thread to "still carrying" — delete its encounter. */
 export async function clearEncounter(threadId: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('encounters').delete().eq('thread_id', threadId)
   if (error) throw error
 }
@@ -86,7 +86,7 @@ export async function clearEncounter(threadId: string): Promise<void> {
  * own seed later. The thread row goes (its encounter + candidate cascade).
  */
 export async function deleteThread(threadId: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error: unlinkErr } = await sb
     .from('spiritual_items')
     .update({ thread_id: null })
@@ -105,7 +105,7 @@ export async function deleteThread(threadId: string): Promise<void> {
 
 /** Decline a surfaced candidate: it never resurfaces for this (thread, entry). */
 export async function dismissCandidate(threadId: string, entryId: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const owner = await ownerId()
   const { error } = await sb
     .from('altar_candidate_dismissals')

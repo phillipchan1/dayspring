@@ -4,7 +4,7 @@
 // throughline, themes) is generated, grounded by feeding only the level beneath
 // + strict prompt rules. Never log entry text (§8): ids and counts only.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AdminClient as SupabaseClient } from './supabaseAdmin.js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { env } from './env.js'
 import { computeFacts, type FactEntry } from './facts.js'

@@ -76,7 +76,7 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
       'Choose "All journals" (or a single journal) and save the .zip file.',
       'Drop the .zip (or the unzipped folder) below — entries are read in your browser and added to your journal.',
     ],
-    note: 'Entry dates come from each file path. Place links and weather footers become the page colophon. Photos are imported and stored in Supabase Storage.',
+    note: 'Entry dates come from each file path. Place links and weather footers become the page colophon. Photos are imported and stored with the journal.',
     parse: parseDiarlySource,
   },
   {

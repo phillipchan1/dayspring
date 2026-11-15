@@ -3,9 +3,8 @@
 
 import { isMobileTauri } from './platform'
 import { apiUrl } from './api'
-import { isWorkersBackend } from './env'
-import { requireSupabase } from './supabase'
 import { track } from './analytics'
+import { getWorkersToken, getWorkersUserId } from './authClient'
 import type { Product, Purchase } from '@spicavi/tauri-plugin-purchases'
 
 export const APPLE_PRODUCT_IDS = {
@@ -113,7 +112,7 @@ export async function purchaseApple(plan: ApplePlan): Promise<ApplePurchaseResul
     const { userId } = await appleAuth()
 
     const { purchase } = await import('@spicavi/tauri-plugin-purchases')
-    // StoreKit requires appAccountToken to be a UUID — Better Auth / Supabase ids are.
+    // StoreKit requires appAccountToken to be a UUID — Better Auth user ids are.
     const result = await purchase(appleProductId(plan), {
       appAccountToken: userId,
     })
@@ -292,19 +291,10 @@ export const DOUBLE_BILLED_WARNING =
   'Cancel it in Settings → Billing so you are not charged twice.'
 
 async function appleAuth(): Promise<{ token: string; userId: string }> {
-  if (isWorkersBackend) {
-    const { getWorkersToken, getWorkersUserId } = await import('./authClient')
-    const token = await getWorkersToken()
-    const userId = await getWorkersUserId()
-    if (!token || !userId) throw new Error('not authenticated')
-    return { token, userId }
-  }
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session?.user?.id) throw new Error('not authenticated')
-  return { token: session.access_token, userId: session.user.id }
+  const token = await getWorkersToken()
+  const userId = await getWorkersUserId()
+  if (!token || !userId) throw new Error('not authenticated')
+  return { token, userId }
 }
 
 async function syncPurchaseToServer(purchase: Purchase): Promise<SyncedPurchase> {

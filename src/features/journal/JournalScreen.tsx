@@ -20,7 +20,7 @@ import { beginArrivals, dropArrival } from '@/lib/photoArrival'
 import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount, byCreatedDesc } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
-import { isSupabaseConfigured } from '@/lib/env'
+import { getSessionState } from '@/lib/sessionStore'
 import { isTauri } from '@/lib/platform'
 import { addBreadcrumb } from '@/lib/crashReport'
 import * as repo from '@/lib/repo'
@@ -131,7 +131,7 @@ import {
 } from '@/lib/attachments'
 import { IMAGE_MAX_BYTES, isImageFile } from '@/editor/attachmentInsert'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
-import { supabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { VoiceCapture } from '@/features/capture/VoiceCapture'
 import { PageScanCapture } from '@/features/capture/PageScanCapture'
@@ -439,7 +439,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     let alive = true
     void (async () => {
       try {
-        const sb = supabase
+        const sb = remote()
         if (!sb) return
         const { data } = await sb.auth.getSession()
         const owner = data.session?.user?.id
@@ -966,11 +966,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   /** Replace a photo's bytes in place: pending placeholder → upload → swap. */
   const handleReplaceImageFile = useCallback(
     async (target: AttachmentEditTarget, file: File) => {
-      if (!isImageFile(file) || file.size > IMAGE_MAX_BYTES || !supabase) return
+      if (!isImageFile(file) || file.size > IMAGE_MAX_BYTES) return
       const pendingId = crypto.randomUUID()
       const alt = altFromFile(file) || target.alt
       const takenAt = takenAtFromFile(file)
-      const ownerId = (await supabase.auth.getUser()).data.user?.id
+      const ownerId = (await remote().auth.getUser()).data.user?.id
       if (!ownerId) return
       beginArrivals([{ id: pendingId, file }])
       inputEditor()?.replaceRange(
@@ -1491,7 +1491,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       }
     })()
 
-    if (!isSupabaseConfigured || isGuest) return () => {
+    if (isGuest) return () => {
       cancelled = true
     }
 
@@ -1566,8 +1566,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     loadedEntryIdRef.current = null
   }
 
-  // Live updates from other tabs / devices via Supabase Realtime.
-  // Shared full-reconcile helper used by realtime reconnect and the heartbeat.
+  // Live updates from other tabs / devices via Worker polling.
+  // Shared full-reconcile helper used by reconnect and the heartbeat.
   const resyncFull = useCallback(() => {
     void repo.sync(preserveEditingId()).then((list) => {
       if (list) applySyncedList(list)
@@ -1575,11 +1575,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- applySyncedList is stable; refs hold live ids
   }, [])
 
-  // Live updates from other tabs / devices via Supabase Realtime.
-  // onReconnect triggers a full reconcile when the WebSocket re-establishes
-  // after a drop — catches any events missed during the outage.
+  // Live updates from other tabs / devices via Worker polling.
+  // onReconnect triggers a full reconcile when the app returns to the
+  // foreground — catches deletes a changed-since poll cannot see.
   useEffect(() => {
-    if (!isSupabaseConfigured || isGuest) return
+    if (isGuest) return
 
     return subscribeEntryChanges({
       onBatch: (events) => {
@@ -1657,7 +1657,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // full reconcile, which bounds cross-device staleness even if realtime drops
   // silently and focus/visibility events never fire (e.g. app stays open all day).
   useEffect(() => {
-    if (!isSupabaseConfigured) return
+    if (!getSessionState().session) return
     const id = setInterval(() => {
       void repo.syncChanged(preserveEditingId()).then((list) => {
         if (list) applySyncedList(list)

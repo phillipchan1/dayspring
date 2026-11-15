@@ -14,7 +14,7 @@ import { assertSameOwner, cacheGeneration, getCache, onCacheCleared, setCache } 
 import { listEntries, onLocalEntryChange } from '@/lib/repo'
 import type { Entry } from '@/lib/types'
 import { markingsForEntries } from '@/lib/spiritual'
-import { requireSupabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import { isCapturePreview } from '@/lib/previewMode'
 import { allSubjects, type Subject } from '@/features/pages/subjects'
@@ -79,7 +79,7 @@ interface MemberRow {
 
 function loadMatters(): Promise<MatterInput[]> {
   return once('ledger:matters', async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const threads = await pageAll<ThreadRow>((a, b) =>
       sb
         .from('threads')
@@ -146,7 +146,7 @@ interface RefRow {
 
 function loadRefs(): Promise<RefInput[]> {
   return once('ledger:refs', async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const rows = await pageAll<RefRow>((a, b) =>
       sb
         .from('scripture_refs')
@@ -176,7 +176,7 @@ interface EncounterRow {
 
 function loadEncounters(): Promise<EncounterInput[]> {
   return once('ledger:encounters', async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const rows = await pageAll<EncounterRow>((a, b) =>
       sb
         .from('encounters')

@@ -1,8 +1,8 @@
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { apiUrl } from './api'
 
 export async function submitFeedback(message: string, type: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()

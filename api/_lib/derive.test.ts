@@ -6,7 +6,7 @@
 // imported one). Only the database is a double.
 
 import { describe, expect, it } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AdminClient as SupabaseClient } from './supabaseAdmin.js'
 import { deriveEntries } from './derive.js'
 import { spiritualBlockRows } from '../../src/lib/spiritualBlocks.js'
 

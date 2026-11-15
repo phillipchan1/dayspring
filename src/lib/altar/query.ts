@@ -1,5 +1,5 @@
 // All Supabase reads for the Altar surface. The view, the cairn math, and the
-// arc geometry stay free of supabase imports.
+// arc geometry stay free of network-client imports.
 //
 // Threads, encounters, and candidates are produced server-side (backfill + daily
 // cron) and read here as plain rows — no vector ops at read time. RLS scopes
@@ -9,7 +9,7 @@
 // rather than a half-truth.
 
 import { getCache, invalidateCachePrefix, setCache, windowCacheKey } from '../asyncCache'
-import { requireSupabase } from '../supabase'
+import { remote } from '../remote'
 import type { AltarCandidate, Encounter, Movement, PrayerThread } from '../types'
 
 export interface DateWindow {
@@ -78,7 +78,7 @@ interface ItemRow {
 
 /** Members (touches) for a set of threads, keyed by thread id, each list chronological. */
 async function loadMembers(threadIds: string[]): Promise<Map<string, Touch[]>> {
-  const sb = requireSupabase()
+  const sb = remote()
   const byThread = new Map<string, ItemRow[]>()
   // Chunk the thread_id IN-list (a long list overflows PostgREST's URL → 400) AND
   // paginate rows (a busy set of threads has far more than the 1000-row cap).
@@ -207,7 +207,7 @@ export async function pickAltarDefaultSeason(
 
 /** Cheap count of cairns planted in a window — drives the adaptive default season. */
 export async function countThreads(window?: DateWindow): Promise<number> {
-  const sb = requireSupabase()
+  const sb = remote()
   let q = sb.from('prayer_threads').select('id', { count: 'exact', head: true })
   q = inWindowClause(q, window)
   const { count, error } = await q
@@ -217,7 +217,7 @@ export async function countThreads(window?: DateWindow): Promise<number> {
 
 /** Every thread in the window, with derived light state. The Field/Time hero data. */
 export async function listThreads(window?: DateWindow): Promise<AltarThread[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   const threads: PrayerThread[] = []
   for (let from = 0; ; from += PAGE) {
     let q = sb
@@ -253,7 +253,7 @@ export async function listThreads(window?: DateWindow): Promise<AltarThread[]> {
 
 /** The full thread for the click-in panel: seed, returns, encounter, candidate. */
 export async function getThread(id: string): Promise<ThreadDetail | null> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data: row, error } = await sb.from('prayer_threads').select(THREAD_COLUMNS).eq('id', id).maybeSingle()
   if (error) throw error
   if (!row) return null
@@ -285,7 +285,7 @@ export interface CarriedName {
 
 /** "The names you keep bringing to God" — intercession targets across threads, by count. */
 export async function getCarries(window?: DateWindow): Promise<CarriedName[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   let q = sb.from('prayer_threads').select('carries')
   q = inWindowClause(q, window)
   const { data, error } = await q

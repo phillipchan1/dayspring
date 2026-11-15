@@ -1,5 +1,5 @@
 import { isTauri } from './platform'
-import { supabase } from './supabase'
+import { remote } from './remote'
 import { apiUrl } from './api'
 
 // ---------------------------------------------------------------------------
@@ -52,8 +52,7 @@ export interface CrashPayload {
  */
 export function reportCrash(payload: CrashPayload): void {
   try {
-    if (!supabase) return
-    void supabase.auth.getSession().then(({ data: { session } }) => {
+    void remote().auth.getSession().then(({ data: { session } }) => {
       if (!session) return
       void fetch(apiUrl('/api/feedback'), {
         method: 'POST',

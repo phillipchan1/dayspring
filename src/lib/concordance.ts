@@ -7,7 +7,7 @@
 // — the append-only log rebuildConcordance() replays — so the live table stays
 // derived, not authoritative. Extraction/merging is server-side only.
 
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { withOfflineSnapshot } from './offlineSnapshot'
 
 // Mirrored from api/_lib/concordance.ts (the api/ and src/ trees don't share
@@ -48,7 +48,7 @@ const today = () => new Date().toISOString().slice(0, 10)
  */
 export async function listConcordance(): Promise<ConcordanceItem[]> {
   return withOfflineSnapshot('concordance:list', async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const { data, error } = await sb
       .from('concordance')
       .select(
@@ -70,7 +70,7 @@ async function logEvent(
   item: { kind: ConcordanceKind; canonical: string },
   payload: Record<string, unknown> = {},
 ): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('concordance_events').insert({
     action,
     kind: item.kind,
@@ -83,7 +83,7 @@ async function logEvent(
 /** "Yes, that's right" — promote a suggested item to confirmed, confidence 1.0. */
 export async function confirmConcordanceItem(item: ConcordanceItem): Promise<void> {
   await logEvent('confirm', item)
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb
     .from('concordance')
     .update({ status: 'confirmed', confidence: CONCORDANCE.EXPLICIT_CONFIDENCE, source: 'explicit' })
@@ -108,7 +108,7 @@ export async function editConcordanceItem(
   item: ConcordanceItem,
   edit: ConcordanceEdit,
 ): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const newCanonical = edit.canonical?.trim()
   const renamed =
     newCanonical !== undefined && newCanonical.toLowerCase() !== item.canonical.toLowerCase()
@@ -174,7 +174,7 @@ export async function editConcordanceItem(
 /** "Forget this" — retire the row (supersede with no successor), never hard-delete. */
 export async function forgetConcordanceItem(item: ConcordanceItem): Promise<void> {
   await logEvent('forget', item)
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb
     .from('concordance')
     .update({ status: 'superseded', effective_end: today() })

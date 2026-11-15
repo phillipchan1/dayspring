@@ -1,14 +1,14 @@
 // Client calls for the first-run onboarding flow: the app-managed reverse-trial
 // grant and the one-time historical backfill. Both hit user-authed serverless
-// endpoints (Bearer <supabase jwt>), so they work cross-origin from the Tauri /
+// endpoints (Bearer <Better Auth token>), so they work cross-origin from the Tauri /
 // Capacitor shells as well as same-origin on the web.
 
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { apiUrl } from './api'
 import type { Plan } from './subscription'
 
 async function authedPost<T>(path: string, body: unknown): Promise<T> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()

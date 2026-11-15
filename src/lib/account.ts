@@ -1,17 +1,18 @@
 // Deleting the account, from the app.
 //
-// The server does the destroying (api/account/delete.ts). This module's job is
-// the other half of the promise: once the account is gone, nothing of it may be
-// left sitting on this device either. A local IndexedDB cache full of entries
-// that no longer exist anywhere is exactly the thing the user asked us to
-// remove — see docs/ACCOUNT_DELETION.md.
+// The Worker does the destroying (`DELETE /api/account/delete`). This module's
+// job is the other half of the promise: once the account is gone, nothing of it
+// may be left sitting on this device either. A local IndexedDB cache full of
+// entries that no longer exist anywhere is exactly the thing the user asked us
+// to remove — see docs/ACCOUNT_DELETION.md.
 
 import { claimRestart } from './accountLeave'
 import { apiUrl } from './api'
 import { purgeAfterAccountDeletion } from './localData'
-import { requireSupabase } from './supabase'
+import { clearWorkersSession, getSessionState } from './sessionStore'
+import { signOutWorkers } from './authClient'
 
-/** Why the server refused. Mirrors DeletionBlock in api/account/delete.ts. */
+/** Why the server refused. Mirrors DeletionBlock in the Worker account-delete route. */
 export type DeletionBlock = 'apple-will-renew' | 'apple-unknown'
 
 /**
@@ -42,10 +43,7 @@ export class AccountDeletionBlocked extends Error {
  * plain Error otherwise, both carrying the server's own wording.
  */
 export async function deleteAccount(): Promise<void> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
+  const session = getSessionState().session
   if (!session) throw new Error('not authenticated')
 
   const res = await fetch(apiUrl('/api/account/delete'), {
@@ -60,17 +58,18 @@ export async function deleteAccount(): Promise<void> {
     throw new Error(message)
   }
 
-  // The user this token belongs to no longer exists, so Supabase may well
-  // reject the sign-out. That is not a failure worth surfacing — the account is
-  // already gone, and the local scrub below is what actually matters here.
+  // The user this token belongs to no longer exists, so sign-out may well
+  // reject. That is not a failure worth surfacing — the account is already
+  // gone, and the local scrub below is what actually matters here.
   // This flow scrubs flags as well as content and reloads below; the general
   // leave-an-account restart (App.tsx) must not cut that short.
   claimRestart()
   try {
-    await sb.auth.signOut()
+    await signOutWorkers()
   } catch {
     /* the session died with the account */
   }
+  clearWorkersSession()
   await purgeAfterAccountDeletion()
 
   window.location.reload()

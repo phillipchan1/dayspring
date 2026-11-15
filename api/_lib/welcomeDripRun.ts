@@ -1,7 +1,7 @@
 // Supabase + Resend orchestration for the welcome drip. Keep HTTP handlers
 // thin: enroll, skip, send, and backfill all go through here.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AdminClient as SupabaseClient } from './supabaseAdmin.js'
 import { env } from './env.js'
 import { liveResendTransport, nameFromAuthMetadata, type ResendTransport } from './resendAudience.js'
 import { mailSender, mailSenderWelcomeTransport } from './mailSender.js'

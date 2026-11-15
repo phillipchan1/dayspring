@@ -1,5 +1,5 @@
 // All Supabase access for the Scripture surface lives here. Everything else
-// (the parser, the canon, the formatters, the view) stays free of supabase
+// (the parser, the canon, the formatters, the view) stays free of the Worker
 // imports.
 //
 // Source of truth is the scripture_refs table (populated by the backfill and,
@@ -20,7 +20,7 @@ import { inWindow, readWindowCache, unionWindows, writeWindowCache } from '../wi
 import { bookByOsis } from '../bible/canon'
 import * as cache from '../db'
 import { fetchEntriesByIds } from '../entries'
-import { requireSupabase } from '../supabase'
+import { remote } from '../remote'
 import { isCapturePreview } from '../previewMode'
 import { scriptureRefsOf } from './refRows'
 import { writerWords } from '../writerWords'
@@ -145,7 +145,7 @@ async function loadRefsOnce(window?: DateWindow): Promise<RefLike[]> {
 }
 
 async function fetchRefs(window?: DateWindow): Promise<RefLike[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   const out: RefLike[] = []
   for (let from = 0; ; from += REF_PAGE) {
     let q = sb
@@ -324,7 +324,7 @@ async function loadSuggestedDatesOnce(window?: DateWindow): Promise<string[]> {
 }
 
 async function fetchSuggestedDates(window?: DateWindow): Promise<string[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   const out: string[] = []
   for (let from = 0; ; from += REF_PAGE) {
     let q = sb
@@ -392,7 +392,7 @@ export async function getVerseThread(osisRef: string, window?: DateWindow): Prom
  * suggested refs live only in the table (they are never re-derived from prose).
  */
 export async function getVerseMoments(osisRef: string, window?: DateWindow): Promise<VerseMoment[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   let q = sb
     .from('scripture_refs')
     .select('id, entry_id, entry_created_at, status, char_start')

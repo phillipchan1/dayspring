@@ -10,7 +10,7 @@
  */
 
 import { assertSameOwner, cacheGeneration, onCacheCleared } from '@/lib/asyncCache'
-import { requireSupabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import { isCapturePreview } from '@/lib/previewMode'
 import {
@@ -191,7 +191,7 @@ export async function loadAltarSource(): Promise<AltarSource> {
 
 async function loadAltarSourceOnce(): Promise<AltarSource> {
   const gen = cacheGeneration()
-  const sb = requireSupabase()
+  const sb = remote()
 
   // Threads and lines are independent filters, so they run together. A cold open
   // that fits in one page costs one round-trip of latency, not a walk of every subject.
@@ -240,7 +240,7 @@ async function loadAltarSourceOnce(): Promise<AltarSource> {
   return { rawThreads, rawMembers, meta }
 }
 
-type SB = ReturnType<typeof requireSupabase>
+type SB = ReturnType<typeof remote>
 
 /** Page 0 rides with the count. A short page is the whole table; a full one
  *  fetches the rest in waves sized by the count (or serially, if the count
@@ -413,7 +413,7 @@ export async function loadAltarStrand(id: string): Promise<AltarStrandDetail | n
 }
 
 async function loadAltarStrandOnce(id: string): Promise<AltarStrandDetail | null> {
-  const sb = requireSupabase()
+  const sb = remote()
 
   // The error has to be looked at: a failed read used to fall through to
   // `return null`, which told the panel the strand did not exist.

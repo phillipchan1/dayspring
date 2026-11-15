@@ -8,7 +8,7 @@ export interface AuthedUser {
 }
 
 /**
- * Validates the Supabase JWT from the Authorization: Bearer header.
+ * Validates the Better Auth bearer from the Authorization header.
  * Returns the authenticated user or null on failure.
  */
 export async function getAuthedUser(req: Request): Promise<AuthedUser | null> {
@@ -24,7 +24,7 @@ export async function getAuthedUser(req: Request): Promise<AuthedUser | null> {
   if (error || !user) return null
   return {
     id: user.id,
-    email: user.email,
+    email: user.email ?? undefined,
     user_metadata: (user.user_metadata ?? null) as Record<string, unknown> | null,
   }
 }

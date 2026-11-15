@@ -140,7 +140,7 @@ export function createAuth(
     baseURL,
     basePath: '/api/auth',
     database: db as Pool,
-    emailAndPassword: { enabled: false },
+    emailAndPassword: { enabled: true },
     user: authModels.user,
     session: authModels.session,
     account: authModels.account,

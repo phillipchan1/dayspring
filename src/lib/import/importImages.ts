@@ -2,14 +2,13 @@
 //
 // Called after the text entries have been upserted. Scans entry bodies for
 // image references, reads each file lazily from the archive (a zip stays
-// compressed, a folder reads straight off disk), uploads to Supabase Storage
+// compressed, a folder reads straight off disk), uploads via the Worker
 // via ensureAttachment, then rewrites the body reference to the stable
 // `attachment:<sha256>.<ext>` form.
 //
 // Day One:  `![alt](attachment-pending:<UUID>)` → `![alt](attachment:<sha256>.<ext>)`
 // Diarly:   `![alt](data/<hash>.<ext>)` → `![alt](attachment:<sha256>.<ext>)`
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { baseName, findByName, type ArchiveFile, type ImportArchive } from './archive'
 import type { ImportedEntry } from './types'
 import type { AttachmentPhotoMeta } from '../attachmentCaption'
@@ -58,7 +57,7 @@ const DAY_ONE_PENDING_RE = /!\[([^\]]*)\]\(attachment-pending:([0-9A-Fa-f-]{32,}
 export async function importDayOneImages(
   archive: ImportArchive,
   entries: ImportedEntry[],
-  supabase: SupabaseClient,
+  _client: unknown,
   ownerId: string,
   onProgress: (p: ImageImportProgress) => void,
 ): Promise<ImageImportResult> {
@@ -107,7 +106,7 @@ export async function importDayOneImages(
 
       try {
         const blob = await photoFile.blob()
-        const { hash, isNew } = await ensureAttachment(supabase, ownerId, blob, ext, await photoMeta(blob))
+        const { hash, isNew } = await ensureAttachment(null, ownerId, blob, ext, await photoMeta(blob))
         body = body.replace(full!, `![${alt ?? ''}](attachment:${hash}.${ext})`)
         if (isNew) prog.uploaded++
         else prog.skipped++
@@ -141,7 +140,7 @@ const DAYSPRING_IMG_RE =
 export async function importDayspringImages(
   archive: ImportArchive,
   entries: ImportedEntry[],
-  supabase: SupabaseClient,
+  _client: unknown,
   ownerId: string,
   onProgress: (p: ImageImportProgress) => void,
 ): Promise<ImageImportResult> {
@@ -205,7 +204,7 @@ export async function importDayspringImages(
 
       try {
         const blob = await photoFile.blob()
-        const { hash, isNew } = await ensureAttachment(supabase, ownerId, blob, ext, metaByHash.get(origHash!))
+        const { hash, isNew } = await ensureAttachment(null, ownerId, blob, ext, metaByHash.get(origHash!))
         // The re-derived hash should equal the original; rewrite only on the rare
         // chance it doesn't, so the ref still points at what we just stored.
         if (hash !== origHash) {
@@ -240,7 +239,7 @@ const DIARLY_IMG_RE = /!\[([^\]]*)\]\(data\/([a-f0-9]+)\.([a-zA-Z0-9]+)\)/g
 export async function importDiarlyImages(
   archive: ImportArchive,
   entries: ImportedEntry[],
-  supabase: SupabaseClient,
+  _client: unknown,
   ownerId: string,
   onProgress: (p: ImageImportProgress) => void,
 ): Promise<ImageImportResult> {
@@ -301,7 +300,7 @@ export async function importDiarlyImages(
 
       try {
         const blob = await photoFile.blob()
-        const { hash: sha, isNew } = await ensureAttachment(supabase, ownerId, blob, ext, await photoMeta(blob))
+        const { hash: sha, isNew } = await ensureAttachment(null, ownerId, blob, ext, await photoMeta(blob))
         body = body.replace(full!, `![${alt ?? ''}](attachment:${sha}.${ext})`)
         if (isNew) prog.uploaded++
         else prog.skipped++

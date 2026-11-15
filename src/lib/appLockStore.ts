@@ -12,7 +12,7 @@
 // runs ABOVE `fenceCacheToOwner` in the tree, so it cannot assume the fence has
 // already scrubbed a previous user's mirror and has to check for itself.
 
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { autoSubmitLength, isAppLockConfig, type AppLockConfig } from './appLock'
 
 const MIRROR_KEY = 'dayspring.applock'
@@ -104,7 +104,7 @@ export const lockState = {
  * open the journal.
  */
 export async function getAppLock(): Promise<AppLockConfig | null> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data, error } = await sb.from('profiles').select('app_lock').maybeSingle()
   if (error) throw error
   const value = data?.app_lock
@@ -117,7 +117,7 @@ export async function getAppLock(): Promise<AppLockConfig | null> {
 
 /** Persist a lock for the signed-in account, and refresh the mirror. */
 export async function saveAppLock(config: AppLockConfig): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()
@@ -161,7 +161,7 @@ export async function rememberPinLength(config: AppLockConfig, length: number): 
 
 /** Turn the lock off for the account, and clear the mirror. */
 export async function clearAppLock(): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()

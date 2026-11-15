@@ -31,8 +31,8 @@ function builder(kind: 'delete' | 'select') {
   return chain
 }
 
-vi.mock('./supabase', () => ({
-  requireSupabase: () => ({
+vi.mock('./remote', () => ({
+  remote: () => ({
     auth: { getSession: async () => ({ data: { session: { user: { id: 'owner-1' } } } }) },
     from: () => ({
       upsert: async (rows: Record<string, unknown>[]) => {

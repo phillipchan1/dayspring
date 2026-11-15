@@ -175,8 +175,6 @@ jobs:
       - id: build
         name: Build and sign the app
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_BASE_URL: ${{ inputs.vite_api_base_url || 'https://api.usedayspring.app' }}
           VITE_BACKEND: workers
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

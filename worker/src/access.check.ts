@@ -63,6 +63,7 @@ import {
   upsertProfile,
   TRIAL_EXTENDED_FLAG,
 } from './store.ts'
+import { runDataQuery } from './dataQuery.ts'
 
 const OWNER_A = '11111111-1111-1111-1111-111111111111'
 const OWNER_B = '22222222-2222-2222-2222-222222222222'
@@ -114,6 +115,50 @@ ok((await updateEntry(storeA, ENTRY_B, { title: 'stolen' })) === null, 'updateEn
 ok(
   (await scalar<string>('SELECT title FROM entries WHERE id = $1', [ENTRY_B])) === 'Ben day',
   'updateEntry: B title unchanged',
+)
+
+// POST /api/data/query is the path createEntry / updateEntryBody / listEntries(limit)
+// still use. Owner injection there must be load-bearing too.
+const queryList = await runDataQuery(sql, OWNER_A, { table: 'entries', mode: 'select', columns: 'id' })
+ok(
+  Array.isArray(queryList.data) && queryList.data.every((row: { id: string }) => row.id !== ENTRY_B),
+  'dataQuery listEntries: A misses B',
+)
+const querySince = await runDataQuery(sql, OWNER_A, {
+  table: 'entries',
+  mode: 'select',
+  columns: 'id',
+  filters: [{ op: 'gt', args: ['updated_at', '1970-01-01T00:00:00.000Z'] }],
+})
+ok(
+  Array.isArray(querySince.data) && querySince.data.every((row: { id: string }) => row.id !== ENTRY_B),
+  'dataQuery listEntriesSince: A misses B',
+)
+const queryGet = await runDataQuery(sql, OWNER_A, {
+  table: 'entries',
+  mode: 'select',
+  columns: 'id',
+  filters: [{ op: 'eq', args: ['id', ENTRY_B] }],
+  single: 'maybe',
+})
+ok(queryGet.data == null, 'dataQuery getEntry: A cannot read B entry')
+const queryCount = await runDataQuery(sql, OWNER_A, {
+  table: 'entries',
+  mode: 'select',
+  columns: 'id',
+  count: 'exact',
+  head: true,
+})
+ok(queryCount.count === 1, 'dataQuery countEntries: A count is 1')
+await runDataQuery(sql, OWNER_A, {
+  table: 'entries',
+  mode: 'update',
+  values: { title: 'stolen-via-query' },
+  filters: [{ op: 'eq', args: ['id', ENTRY_B] }],
+})
+ok(
+  (await scalar<string>('SELECT title FROM entries WHERE id = $1', [ENTRY_B])) === 'Ben day',
+  'dataQuery updateEntry: B title unchanged',
 )
 
 ok((await deleteEntry(storeA, ENTRY_B)) === false, 'deleteEntry: A cannot delete B')
