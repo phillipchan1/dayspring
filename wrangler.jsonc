@@ -25,7 +25,14 @@
     // AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS — unset here so the flag stays off.
     // APPLE_CLIENT_ID / APPLE_APP_BUNDLE_IDENTIFIER / GOOGLE_CLIENT_ID — dashboard vars.
     // APPLE_CLIENT_SECRET / GOOGLE_CLIENT_SECRET — wrangler secret put. Never vars.
+    // STORAGE_BACKEND — supabase until the R2 cutover. Code also defaults to supabase.
+    "STORAGE_BACKEND": "supabase",
+    // STORAGE_SIGNING_KEY — secret (wrangler secret put). HMAC for /api/storage/object.
   },
+  // Named envs do not inherit r2_buckets. Same object keys as Supabase Storage.
+  "r2_buckets": [
+    { "binding": "ATTACHMENTS", "bucket_name": "dayspring-attachments" },
+  ],
   // HYPERDRIVE_ID_PLACEHOLDER — replace with a real Hyperdrive config id before
   // any paid deploy. Hyperdrive is a Workers Paid feature and is NOT inherited
   // by named envs; each env that needs it must declare this binding.
@@ -62,7 +69,12 @@
         // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
         // WORKER_MAIL_CRONS — unset (off). Set to "on" only in the switch step that
         // turns off Vercel's remind / sync-resend / welcome-drip crons.
+        "STORAGE_BACKEND": "supabase",
+        // STORAGE_SIGNING_KEY — secret (wrangler secret put).
       },
+      "r2_buckets": [
+        { "binding": "ATTACHMENTS", "bucket_name": "dayspring-attachments" },
+      ],
       "send_email": [
         { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
       ],
@@ -93,7 +105,12 @@
         "WELCOME_DRIP_SENDS_ENABLED": "false",
         "BETTER_AUTH_URL": "https://dayspring-preview.nq-morning-briefing.workers.dev",
         // AI_GATEWAY_API_KEY — secret. AI_GATEWAY_ZDR / AI_GATEWAY_ZDR_PROVIDERS unset.
+        "STORAGE_BACKEND": "supabase",
+        // STORAGE_SIGNING_KEY — secret (wrangler secret put).
       },
+      "r2_buckets": [
+        { "binding": "ATTACHMENTS", "bucket_name": "dayspring-attachments" },
+      ],
       "send_email": [
         { "name": "EMAIL", "allowed_sender_addresses": ["hello@usedayspring.app"] },
       ],

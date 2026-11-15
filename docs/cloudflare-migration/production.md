@@ -21,6 +21,7 @@ Do not put values in this file. Do not commit values in `wrangler.jsonc` `vars`.
 |---|---|
 | `HYPERDRIVE` | Hyperdrive binding (prod). Placeholder id until create. |
 | `ASSETS` | Static assets from `dist/` (wrangler `assets`, not operator-set). |
+| `ATTACHMENTS` | R2 bucket `dayspring-attachments`. Unused until `STORAGE_BACKEND=r2`. |
 
 ### Vars (`wrangler.jsonc` `env.production.vars` or dashboard vars)
 
@@ -44,6 +45,7 @@ Do not put values in this file. Do not commit values in `wrangler.jsonc` `vars`.
 | `VITE_POSTHOG_KEY` |
 | `VITE_POSTHOG_HOST` |
 | `META_PIXEL_ID` |
+| `STORAGE_BACKEND` |
 
 `BETTER_AUTH_URL` is required at runtime outside `ENVIRONMENT=local`. Leave it
 **unset** in committed production vars until the public origin exists. It must
@@ -51,7 +53,8 @@ not be `localhost` or `*.workers.dev`.
 
 `AI_GATEWAY_ZDR` unset (or anything other than `on` / `true`) leaves Worker
 AI routes 501. Do not set `ENVIRONMENT` in production. The Worker does not
-read `OPENAI_API_KEY`.
+read `OPENAI_API_KEY`. `STORAGE_BACKEND` is `supabase` until the R2 cutover;
+rollback is `STORAGE_BACKEND=supabase`.
 
 ### Secrets (`wrangler secret put --env production`)
 
@@ -74,6 +77,7 @@ read `OPENAI_API_KEY`.
 | `APPLE_PRIVATE_KEY` | `.p8` contents (`\n` or real newlines). Sandbox |
 | `META_CAPI_ACCESS_TOKEN` | Optional. Growth ledger (Purchase/Cancel/StartTrial) |
 | `REVENUECAT_WEBHOOK_SECRET` | Legacy Apple IAP webhook. 401 if unset or wrong |
+| `STORAGE_SIGNING_KEY` | HMAC for `/api/storage/object` when `STORAGE_BACKEND=r2`. Fail closed if missing |
 
 Never list those secret names under `vars`. `npm run check:worker` fails if
 production vars contain `localhost`, a `workers.dev` `BETTER_AUTH_URL`, or a
