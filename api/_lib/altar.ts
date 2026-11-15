@@ -15,7 +15,7 @@
 // movement label or a verdict — only a quote + a gentle question. Logs counts
 // only, never entry/prayer text (§8).
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AdminClient as SupabaseClient } from './supabaseAdmin.js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { callModel } from './openai.js'
 import { embed, toVectorLiteral } from './embeddings.js'

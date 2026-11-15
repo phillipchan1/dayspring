@@ -30,7 +30,7 @@
 // has synced). Deleting from here could erase a prayer the writer just typed.
 // Adding is always safe: every write below is an idempotent upsert.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AdminClient as SupabaseClient } from './supabaseAdmin.js'
 import { spiritualBlockRows, type SpiritualBlockRow } from '../../src/lib/spiritualBlocks.js'
 import { planScriptureRefs, type ExistingRefRow } from '../../src/lib/scripture/refRows.js'
 

@@ -1,6 +1,5 @@
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import { apiGet } from './api'
 import { isCircumstances } from './circumstances'
-import { supabase } from './supabase'
 import type { Entry } from './types'
 
 function toEntry(row: Record<string, unknown>): Entry {
@@ -26,31 +25,44 @@ export type EntryChangeEvent =
 
 const BATCH_MS = 80
 
+/** Slow poll while the app is visible. Focus/visibility already refetch. */
+export const ENTRY_POLL_IDLE_MS = 45_000
+
 interface SubscribeOptions {
   /** Called with each coalesced batch of change events. */
   onBatch: (events: EntryChangeEvent[]) => void
   /**
-   * Called when the realtime channel reconnects after having been
-   * disconnected — signals that events may have been missed and a full
-   * reconcile is needed.
+   * Called when events may have been missed (app returns to the foreground)
+   * so the caller can trigger a full reconcile — needed for deletes, which
+   * a changed-since query cannot see.
    */
   onReconnect?: () => void
 }
 
+function isoCursor(entries: Entry[], fallback: string | null): string | null {
+  let latest = fallback
+  for (const entry of entries) {
+    if (!latest || entry.updated_at > latest) latest = entry.updated_at
+  }
+  return latest
+}
+
 /**
- * Live entry feed for the signed-in user (RLS-scoped). Coalesces rapid
- * bursts (bulk delete, import). Calls `onReconnect` when the WebSocket
- * channel re-establishes after a drop so the caller can trigger a full sync.
+ * Live entry feed for the signed-in user. Polls the Worker for rows changed
+ * since the last pull: refetch on focus/visibility, plus a slow interval
+ * while the document is visible. Deletes are caught by `onReconnect` on
+ * return-to-foreground (changed-since cannot see removed rows).
  */
 export function subscribeEntryChanges({ onBatch, onReconnect }: SubscribeOptions): () => void {
-  const sb = supabase
-  if (!sb) return () => {}
-
-  let queue: EntryChangeEvent[] = []
+  let cursor: string | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
-  // Track whether we've ever been SUBSCRIBED so we can detect reconnects
-  // (status goes SUBSCRIBED → CLOSED/TIMED_OUT → SUBSCRIBED again).
-  let everSubscribed = false
+  let interval: ReturnType<typeof setInterval> | null = null
+  let queue: EntryChangeEvent[] = []
+  let alive = true
+  let inflight: Promise<void> | null = null
+  let hiddenAt: number | null = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+    ? Date.now()
+    : null
 
   const flushQueue = () => {
     timer = null
@@ -65,40 +77,80 @@ export function subscribeEntryChanges({ onBatch, onReconnect }: SubscribeOptions
     timer = setTimeout(flushQueue, BATCH_MS)
   }
 
-  const channel = sb
-    .channel(`entries-live:${crypto.randomUUID()}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'entries' },
-      (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-        if (payload.eventType === 'DELETE') {
-          const entryId = payload.old?.id as string | undefined
-          if (!entryId) return
-          queue.push({ eventType: 'DELETE', entryId })
-        } else {
-          const row = payload.new
-          if (!row?.id) return
-          queue.push({ eventType: payload.eventType, entry: toEntry(row) })
-        }
-        schedule()
-      },
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        if (everSubscribed) {
-          // Channel re-established after a drop — events were missed during
-          // the outage. Flush the queue (stale) and request a full reconcile.
-          if (timer) { clearTimeout(timer); timer = null }
-          queue = []
-          onReconnect?.()
-        }
-        everSubscribed = true
+  const emit = (entries: Entry[]) => {
+    for (const entry of entries) {
+      queue.push({ eventType: 'UPDATE', entry })
+    }
+    if (entries.length) schedule()
+  }
+
+  const pollChanged = async () => {
+    if (!alive) return
+    try {
+      if (!cursor) {
+        const data = await apiGet<{ entries: Entry[] }>('/api/data/entries')
+        cursor = isoCursor(data.entries ?? [], null)
+        return
       }
+      const data = await apiGet<{ entries: Entry[] }>(
+        `/api/data/entries?since=${encodeURIComponent(cursor)}`,
+      )
+      const rows = (data.entries ?? []).map((row) => toEntry(row as unknown as Record<string, unknown>))
+      emit(rows)
+      cursor = isoCursor(rows, cursor)
+    } catch {
+      /* offline — keep the cursor; the next focus/interval retries */
+    }
+  }
+
+  const run = (fn: () => Promise<void>) => {
+    inflight = (inflight ?? Promise.resolve()).then(fn).finally(() => {
+      inflight = null
     })
+    return inflight
+  }
+
+  const onFocus = () => {
+    if (!alive) return
+    if (hiddenAt != null) {
+      hiddenAt = null
+      onReconnect?.()
+    }
+    void run(pollChanged)
+  }
+
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = Date.now()
+      return
+    }
+    onFocus()
+  }
+
+  const startInterval = () => {
+    if (interval) return
+    interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      void run(pollChanged)
+    }, ENTRY_POLL_IDLE_MS)
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+  }
+  startInterval()
+  void run(pollChanged)
+  onReconnect?.()
 
   return () => {
+    alive = false
     if (timer) clearTimeout(timer)
+    if (interval) clearInterval(interval)
     queue = []
-    void sb.removeChannel(channel)
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }
 }

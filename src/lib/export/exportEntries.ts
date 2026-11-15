@@ -1,6 +1,5 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type JSZip from 'jszip'
-import { requireSupabase } from '../supabase'
+import { remote } from '../remote'
 import { ATTACHMENT_REF_RE, downloadAttachmentBlob } from '../attachments'
 import type { AttachmentPhotoMeta } from '../attachmentCaption'
 import type { Entry } from '../types'
@@ -49,7 +48,7 @@ export async function exportEntriesToZip(
   onProgress?: (fetched: number, total: number) => void,
   onImageProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
-  const sb = requireSupabase()
+  const sb = remote()
 
   const { count, error: countError } = await sb
     .from('entries')
@@ -109,7 +108,7 @@ interface AttachmentManifestEntry {
  * unreadable object is skipped rather than failing the whole export.
  */
 async function bundleAttachments(
-  sb: SupabaseClient,
+  sb: ReturnType<typeof remote>,
   zip: JSZip,
   entries: Entry[],
   onProgress?: (done: number, total: number) => void,
@@ -149,7 +148,7 @@ async function bundleAttachments(
   const manifest: Record<string, AttachmentManifestEntry> = {}
   let done = 0
   for (const [hash, ext] of refs) {
-    const blob = await downloadAttachmentBlob(sb, ownerId, hash, ext)
+    const blob = await downloadAttachmentBlob(null, ownerId, hash, ext)
     if (blob) {
       folder.file(`${hash}.${ext}`, blob)
       const meta = metaByHash.get(hash)

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { apiGet } from '@/lib/api'
 import { useSession } from './useSession'
 
 export type ProcessingKind =
@@ -48,7 +48,10 @@ interface JobRow {
   updated_at: string
 }
 
-const SELECT = 'kind,status,completed,total,updated_at'
+/** Fast poll only while a job is queued/running. */
+export const JOB_POLL_ACTIVE_MS = 4_000
+/** Slow poll once nothing is in flight (or skip entirely if the tab is hidden). */
+export const JOB_POLL_IDLE_MS = 45_000
 
 export function isActive(status: string): boolean {
   return status === 'queued' || status === 'running'
@@ -56,21 +59,22 @@ export function isActive(status: string): boolean {
 
 /**
  * Live view of the current owner's processing_jobs (the import backfill engine),
- * via Supabase Realtime. Surfaces read this to show honest PROCESSING progress
+ * via Worker polling. Surfaces read this to show honest PROCESSING progress
  * instead of a blank "empty" state while an archive is still being built.
  */
 export function useProcessingJobs(): ProcessingState {
   const { session } = useSession()
   const owner = session?.user?.id ?? null
   const [byKind, setByKind] = useState<Partial<Record<ProcessingKind, ProcessingJob>>>({})
+  const anyActiveRef = useRef(false)
 
   useEffect(() => {
-    const sb = supabase
-    if (!sb || !owner) {
+    if (!owner) {
       setByKind({})
       return
     }
     let alive = true
+    let timeout: ReturnType<typeof setTimeout> | null = null
 
     const reduce = (rows: JobRow[]) => {
       const map: Partial<Record<ProcessingKind, ProcessingJob>> = {}
@@ -89,45 +93,47 @@ export function useProcessingJobs(): ProcessingState {
         }
       }
       if (alive) setByKind(map)
+      anyActiveRef.current = Object.values(map).some((j) => j && isActive(j.status))
     }
 
-    const refetch = () => {
-      void sb
-        .from('processing_jobs')
-        .select(SELECT)
-        .eq('owner', owner)
-        // The Concordance is a DARK engine — its backfill must never surface in
-        // the user-facing "still preparing…" banner. Exclude it at the source so
-        // its (large, slow) job can't drag the aggregate or trigger a celebration.
-        .neq('kind', 'concordance')
-        // A `gather` job has two origins. An IMPORT's is the archive being read
-        // and belongs in the banner. The one that follows an ordinary writing
-        // session (cursor.origin='write') is routine upkeep: surfacing it would
-        // raise "still preparing…" — and then celebrate — every time someone
-        // writes an entry.
-        .or('kind.neq.gather,cursor->>origin.eq.import')
-        .then(({ data }) => {
-          if (data) reduce(data as JobRow[])
-        })
+    const refetch = async () => {
+      try {
+        const data = await apiGet<{ jobs: JobRow[] }>('/api/data/jobs')
+        if (data.jobs) reduce(data.jobs)
+      } catch {
+        /* offline — keep the last snapshot */
+      }
     }
 
-    refetch()
+    const schedule = () => {
+      if (!alive) return
+      if (timeout) clearTimeout(timeout)
+      const ms = anyActiveRef.current ? JOB_POLL_ACTIVE_MS : JOB_POLL_IDLE_MS
+      timeout = setTimeout(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          schedule()
+          return
+        }
+        void refetch().then(schedule)
+      }, ms)
+    }
 
-    // Unique suffix avoids collisions with channels from React StrictMode's
-    // effect double-fire — sb.channel() returns an already-subscribed channel
-    // when one with the same name exists, and .on() throws after subscribe().
-    const channel = sb
-      .channel(`processing_jobs:${owner}:${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'processing_jobs', filter: `owner=eq.${owner}` },
-        refetch,
-      )
-      .subscribe()
+    const onFocus = () => {
+      void refetch().then(schedule)
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') onFocus()
+    }
+
+    void refetch().then(schedule)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       alive = false
-      void sb.removeChannel(channel)
+      if (timeout) clearTimeout(timeout)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [owner])
 

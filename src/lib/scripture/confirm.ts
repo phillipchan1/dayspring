@@ -5,11 +5,11 @@
 // this" — never an automatic one. Suggested refs are otherwise read faintly and
 // never counted in the heat/returning aggregations (which are confirmed-only).
 
-import { requireSupabase } from '../supabase'
+import { remote } from '../remote'
 
 /** Promote a single suggested ref to `confirmed` by row id. Idempotent. */
 export async function confirmScriptureRef(refId: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb
     .from('scripture_refs')
     .update({ status: 'confirmed' })

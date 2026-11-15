@@ -18,7 +18,7 @@
  * which is exactly the mistake the old name invited.
  */
 
-import { requireSupabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import {
   buildBands, buildTended, reframeFor,
   type RawThread, type RawRope, type RawMember, type RawTendedMember,
@@ -47,7 +47,7 @@ function resolveLabel(row: { label?: string | null; label_ai?: string | null; la
 // ── field ─────────────────────────────────────────────────────────────────────
 
 export async function loadField(horizon: Horizon): Promise<FieldItem[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   const days = HORIZON_DAYS[horizon]
   const windowStart = days !== null
     ? new Date(Date.now() - days * 24 * 3600_000).toISOString()
@@ -144,7 +144,7 @@ export async function loadField(horizon: Horizon): Promise<FieldItem[]> {
  * the window widens. See ./bands for the encoding.
  */
 export async function getRopesAtHorizon(horizon: Horizon): Promise<WarmthBand[]> {
-  const sb = requireSupabase()
+  const sb = remote()
 
   // Visible threads (engine drops dismissed; RLS scopes to the owner).
   const { data: tdata, error: terr } = await sb
@@ -194,7 +194,7 @@ export async function getRopesAtHorizon(horizon: Horizon): Promise<WarmthBand[]>
  * deduped by entry) or a standalone thread; assembly is pure (buildTended).
  */
 export async function getBandTimeline(id: string, kind: 'rope' | 'thread'): Promise<BandTended | null> {
-  const sb = requireSupabase()
+  const sb = remote()
 
   // Resolve the band's threads, label, and hue lenses (domain ?? rope ?? lens).
   let threadIds: string[] = []
@@ -250,7 +250,7 @@ export async function getBandTimeline(id: string, kind: 'rope' | 'thread'): Prom
 // ── rope decompose ────────────────────────────────────────────────────────────
 
 export async function loadRope(ropeId: string): Promise<ThreadItem[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data, error } = await sb
     .from('threads')
     .select('id, label, label_ai, label_user, lens, span_start, span_end, weight')
@@ -273,7 +273,7 @@ export async function loadRope(ropeId: string): Promise<ThreadItem[]> {
 // ── thread timeline ───────────────────────────────────────────────────────────
 
 export async function loadThread(threadId: string): Promise<ThreadDetail | null> {
-  const sb = requireSupabase()
+  const sb = remote()
 
   const { data: tdata, error: terr } = await sb
     .from('threads')
@@ -322,7 +322,7 @@ export async function loadThread(threadId: string): Promise<ThreadDetail | null>
 // ── source entry ──────────────────────────────────────────────────────────────
 
 export async function loadEntry(entryId: string): Promise<EntryDetail | null> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data, error } = await sb
     .from('entries')
     .select('id, body_markdown, created_at')

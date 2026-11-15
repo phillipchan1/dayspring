@@ -7,7 +7,7 @@ export function SetupNotice() {
         <Brand size={28} wordmarkRem={1.6} style={{ marginBottom: '0.75rem' }} />
         <p style={{ color: 'var(--text-dim)' }}>
           Almost there. Create a <code>.env.local</code> file (copy{' '}
-          <code>.env.example</code>) and add your Supabase keys:
+          <code>.env.example</code>) and point the app at the Worker:
         </p>
         <pre
           style={{
@@ -21,8 +21,8 @@ export function SetupNotice() {
             fontSize: '0.85rem',
           }}
         >
-{`VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...`}
+{`VITE_BACKEND=workers
+VITE_API_BASE_URL=http://127.0.0.1:8787`}
         </pre>
         <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>
           Then restart <code>npm run dev</code>.

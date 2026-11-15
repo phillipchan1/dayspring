@@ -26,7 +26,7 @@
 // The LLM only ever PROPOSES candidates; the deterministic merge below is the
 // only thing that writes rows. Entry prose is never mutated.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AdminClient as SupabaseClient } from './supabaseAdmin.js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { callModel } from './openai.js'
 import { writerWords } from './writerWords.js'
@@ -699,7 +699,7 @@ export async function consolidateConcordance(
         .eq('concordance_id', dup.id)
       if (occs && occs.length > 0) {
         const { error } = await sb.from('concordance_occurrences').upsert(
-          occs.map((o) => ({
+          occs.map((o: { entry_id: string; entry_created_at: string }) => ({
             concordance_id: keeper.id,
             entry_id: o.entry_id as string,
             owner,
@@ -744,7 +744,7 @@ export async function consolidateConcordance(
       .select('entry_created_at')
       .eq('concordance_id', row.id)
     if (error) throw error
-    const dates = (occs ?? []).map((o) => o.entry_created_at as string).sort()
+    const dates = (occs ?? []).map((o: { entry_created_at: string }) => o.entry_created_at as string).sort()
 
     const patch: Record<string, unknown> = {}
     const forms = dedupSurfaceForms(row.canonical, row.surface_forms)

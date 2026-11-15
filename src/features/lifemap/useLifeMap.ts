@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getCache, setCache } from '@/lib/asyncCache'
-import { requireSupabase } from '@/lib/supabase'
+import { remote } from '@/lib/remote'
 import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import { listKeptSubjects, dropSubject, type KeptSubject } from '@/features/pages/keptSubjects'
 import { forgetConcordanceItem, type ConcordanceKind } from '@/lib/concordance'
@@ -27,7 +27,7 @@ const COLUMNS =
  * vanish for going quiet.
  */
 async function listForLifeMap(floor: number): Promise<ConcordanceItem[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data, error } = await sb
     .from('concordance')
     .select(COLUMNS)
@@ -45,7 +45,7 @@ async function listForLifeMap(floor: number): Promise<ConcordanceItem[]> {
  * integer, not three thousand rows.
  */
 async function pageCount(): Promise<number> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { count, error } = await sb.from('entries').select('id', { count: 'exact', head: true })
   if (error) throw error
   return count ?? 0
@@ -98,7 +98,7 @@ export async function removeItem(item: LifeMapItem): Promise<void> {
 export async function addTyped(raw: string, section: SectionId): Promise<void> {
   const label = raw.trim()
   if (label.length < 2) return
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('kept_subjects').upsert(
     { subject_key: `word:${label}`, label, terms: [label], kind: section },
     { onConflict: 'owner,subject_key' },

@@ -1,4 +1,4 @@
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 
 export type ReminderHorizon = '1w' | '1m' | '3m' | '1y'
 
@@ -40,7 +40,7 @@ function remindAtFromHorizon(horizon: ReminderHorizon): string {
 }
 
 export async function createReminder(item: NewReminder): Promise<Reminder> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()
@@ -63,7 +63,7 @@ export async function createReminder(item: NewReminder): Promise<Reminder> {
 
 /** List all reminders for the current user, newest first. */
 export async function listReminders(): Promise<Reminder[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data, error } = await sb
     .from('reminders')
     .select('*')

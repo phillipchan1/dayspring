@@ -1,6 +1,5 @@
 /**
- * Better Auth client. Imported only when `isWorkersBackend` is true so the
- * shipped Supabase build never loads it.
+ * Better Auth client for the Cloudflare Worker.
  *
  * iOS (Tauri) and web both send `Authorization: Bearer`. After
  * `bearer({ requireSignature: true })` that value must be the signed
@@ -9,6 +8,7 @@
 import { env } from './env'
 import {
   captureSignedBearer,
+  clearWorkersBearer,
   readWorkersBearer,
 } from './workersBearer'
 
@@ -47,11 +47,29 @@ export async function getWorkersToken(): Promise<string | null> {
 }
 
 export async function getWorkersUserId(): Promise<string | null> {
+  const session = await getWorkersSession()
+  return session?.id ?? null
+}
+
+export async function getWorkersSession(): Promise<{
+  id: string
+  email?: string | null
+  provider?: string
+} | null> {
   if (!readWorkersBearer()) return null
   const auth = await workersAuthClient()
-  const { data } = await auth.getSession()
-  const row = data as { user?: { id?: string }; session?: { user?: { id?: string } } } | null
-  return row?.user?.id ?? row?.session?.user?.id ?? null
+  const { data, error } = await auth.getSession()
+  if (error) {
+    const status = (error as { status?: number }).status
+    if (status === 401 || status === 403) throw Object.assign(new Error(error.message || 'unauthorized'), { status })
+  }
+  const row = data as {
+    user?: { id?: string; email?: string | null }
+    session?: { user?: { id?: string; email?: string | null } }
+  } | null
+  const user = row?.user ?? row?.session?.user
+  if (!user?.id) return null
+  return { id: user.id, email: user.email ?? null }
 }
 
 export async function signInWorkersEmailOtp(email: string, otp: string): Promise<void> {
@@ -59,6 +77,7 @@ export async function signInWorkersEmailOtp(email: string, otp: string): Promise
   const result = await auth.signIn.emailOtp({ email, otp })
   if (result.error) throw new Error(result.error.message || 'Sign-in failed')
   if (!readWorkersBearer()) throw new Error('signed bearer missing from sign-in')
+  await hydrateAfterAuth()
 }
 
 export async function sendWorkersEmailOtp(email: string): Promise<void> {
@@ -95,6 +114,74 @@ export async function signInWorkersSocialIdToken(
   })
   if (result.error) throw new Error(result.error.message || 'Sign-in failed')
   if (!readWorkersBearer()) throw new Error('signed bearer missing from social sign-in')
+  await hydrateAfterAuth(provider)
+}
+
+export async function signOutWorkers(): Promise<void> {
+  try {
+    const auth = await workersAuthClient()
+    await auth.signOut()
+  } catch {
+    /* token may already be dead */
+  }
+  clearWorkersBearer()
+}
+
+export async function signInWorkersEmail(email: string, password: string): Promise<void> {
+  const auth = await workersAuthClient()
+  const result = await auth.signIn.email({ email, password })
+  if (result.error) throw new Error(result.error.message || 'Sign-in failed')
+  if (!readWorkersBearer()) throw new Error('signed bearer missing from sign-in')
+  await hydrateAfterAuth()
+}
+
+export async function signUpWorkersEmail(email: string, password: string): Promise<{ needsConfirmation: boolean }> {
+  const auth = await workersAuthClient()
+  const name = email.split('@')[0] || 'Dayspring'
+  const result = await auth.signUp.email({ email, password, name })
+  if (result.error) throw new Error(result.error.message || 'Could not create account')
+  await hydrateAfterAuth()
+  return { needsConfirmation: !readWorkersBearer() }
+}
+
+export async function linkWorkersSocial(opts: {
+  provider: 'google' | 'apple'
+  callbackURL: string
+  disableRedirect?: boolean
+}): Promise<{ data: { url?: string | null } | null; error: Error | null }> {
+  const auth = await workersAuthClient()
+  const result = await auth.linkSocial({
+    provider: opts.provider,
+    callbackURL: opts.callbackURL,
+    disableRedirect: opts.disableRedirect,
+  })
+  if (result.error) return { data: null, error: new Error(result.error.message || 'Link failed') }
+  const url = (result.data as { url?: string } | null)?.url ?? null
+  return { data: { url }, error: null }
+}
+
+export async function listWorkersSignInMethods(): Promise<Array<'google' | 'apple'>> {
+  const auth = await workersAuthClient()
+  const result = await auth.listAccounts()
+  if (result.error) throw new Error(result.error.message || 'Could not list sign-in methods')
+  const rows = (result.data ?? []) as Array<{ provider?: string; providerId?: string }>
+  const linked = rows.map((r) => r.provider ?? r.providerId)
+  return (['google', 'apple'] as const).filter((p) => linked.includes(p))
+}
+
+async function hydrateAfterAuth(provider?: string): Promise<void> {
+  const token = readWorkersBearer()
+  if (!token) return
+  const session = await getWorkersSession()
+  if (!session) return
+  const { applyWorkersSession } = await import('./sessionStore')
+  applyWorkersSession({
+    token,
+    userId: session.id,
+    email: session.email ?? null,
+    ...(provider ? { provider } : {}),
+    event: 'SIGNED_IN',
+  })
 }
 
 /** Finish a Better Auth OAuth redirect (code/state on the callback URL). */
@@ -112,4 +199,5 @@ export async function completeWorkersOAuthCallback(callbackUrl: string): Promise
   const result = await auth.$fetch(path)
   if (result.error) throw new Error(result.error.message || 'OAuth callback failed')
   if (!readWorkersBearer()) throw new Error('signed bearer missing from OAuth callback')
+  await hydrateAfterAuth()
 }

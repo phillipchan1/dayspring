@@ -10,8 +10,6 @@ import {
 } from '@/lib/attachments'
 import { mountPhotoRows, type PhotoRowsHandle } from '@/lib/photoRowsDom'
 import { formatPhotoSetLine, photoRatio } from '@/lib/photoSet'
-import { supabase } from '@/lib/supabase'
-
 const ATTACHMENT_URL_RE =
   /^attachment:([a-f0-9]{64})\.([a-z0-9]+)(?:\?size=([smf]))?$/
 
@@ -67,11 +65,11 @@ function makeLookable(el: HTMLElement, label: string, open: () => void): void {
 
 const defaultDeps: ReadAttachmentDeps = {
   async resolve(hash, ext) {
-    const ownerId = await attachmentOwnerId(supabase)
+    const ownerId = await attachmentOwnerId()
     if (!ownerId) return { url: null, meta: null }
     const [url, meta] = await Promise.all([
-      resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext),
-      fetchAttachmentMeta(supabase, ownerId, hash),
+      resolveAttachmentDisplayUrl(null, ownerId, hash, ext),
+      fetchAttachmentMeta(null, ownerId, hash),
     ])
     return { url, meta }
   },

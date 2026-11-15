@@ -1,7 +1,8 @@
 import { isCircumstances } from './circumstances'
 import { cacheGetAll } from './db'
 import { stripSpiritualBlocks } from './spiritualBlocks'
-import { requireSupabase } from './supabase'
+import { apiDelete, apiGet, apiPost } from './api'
+import { remote } from './remote'
 import { writerWords } from './writerWords'
 import type { Entry, EntrySource, NewEntry } from './types'
 
@@ -32,8 +33,7 @@ export function byCreatedDesc(a: { created_at: string }, b: { created_at: string
 
 /** Insert a new native entry and return the persisted row. */
 export async function createEntry(input: NewEntry): Promise<Entry> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
+  const { data, error } = await remote()
     .from('entries')
     .insert({
       body_markdown: input.body_markdown,
@@ -72,24 +72,21 @@ export async function upsertEntryChecked(
   entry: Entry,
   baseUpdatedAt: string | null,
 ): Promise<CheckedUpsertResult> {
-  const sb = requireSupabase()
-  const { data, error } = await sb.rpc('upsert_entry_checked', {
-    p_id: entry.id,
-    p_created_at: entry.created_at,
-    p_body_markdown: entry.body_markdown,
-    p_title: entry.title,
-    p_mood: entry.mood,
-    p_tags: entry.tags,
-    p_word_count: entry.word_count,
-    p_source: entry.source,
-    p_external_id: entry.external_id,
-    p_base_updated_at: baseUpdatedAt,
-    p_circumstances: entry.circumstances ?? {},
+  const result = await apiPost<CheckedUpsertResult>('/api/data/entries/upsert-checked', {
+    id: entry.id,
+    created_at: entry.created_at,
+    body_markdown: entry.body_markdown,
+    title: entry.title,
+    mood: entry.mood,
+    tags: entry.tags,
+    word_count: entry.word_count,
+    source: entry.source,
+    external_id: entry.external_id,
+    base_updated_at: baseUpdatedAt,
+    circumstances: entry.circumstances ?? {},
   })
-  if (error) throw error
-  const result = data as { conflicted: boolean; entry: Entry } | null
   if (!result?.entry) throw new Error('upsert_entry_checked returned no row')
-  return { conflicted: result.conflicted, entry: result.entry }
+  return result
 }
 
 /** A row ready to import from an external source (e.g. a Diarly export). */
@@ -109,8 +106,8 @@ const IMPORT_BATCH_SIZE = 500
  * Upsert imported rows in batches, deduping on (owner, source, external_id) so
  * re-importing the same export never creates duplicates — and two different
  * users' imports can't collide on a shared external_id. `owner` is set explicitly
- * (matching the composite conflict target); RLS still requires it equal auth.uid().
- * `onProgress(done, total)` fires after each batch.
+ * (matching the composite conflict target). `onProgress(done, total)` fires after
+ * each batch.
  *
  * `ignoreDuplicates` (default true): existing entries are left untouched so any
  * manual edits made after the first import are preserved. Pass false only when
@@ -123,10 +120,9 @@ export async function upsertImportedEntries(
   onProgress?: (done: number, total: number) => void,
   { ignoreDuplicates = true }: { ignoreDuplicates?: boolean } = {},
 ): Promise<void> {
-  const sb = requireSupabase()
   const {
     data: { user },
-  } = await sb.auth.getUser()
+  } = await remote().auth.getUser()
   if (!user) throw new Error('not signed in')
   for (let i = 0; i < rows.length; i += IMPORT_BATCH_SIZE) {
     const batch = rows.slice(i, i + IMPORT_BATCH_SIZE).map((r) => ({
@@ -141,7 +137,7 @@ export async function upsertImportedEntries(
       external_id: r.external_id,
       circumstances: isCircumstances(r.circumstances) ? r.circumstances : {},
     }))
-    const { error } = await sb
+    const { error } = await remote()
       .from('entries')
       .upsert(batch, { onConflict: 'owner,source,external_id', ignoreDuplicates })
     if (error) throw error
@@ -151,8 +147,7 @@ export async function upsertImportedEntries(
 
 /** Update an entry's body (recomputes word_count). Returns the persisted row. */
 export async function updateEntryBody(id: string, body_markdown: string): Promise<Entry> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
+  const { data, error } = await remote()
     .from('entries')
     .update({ body_markdown, word_count: wordCount(body_markdown) })
     .eq('id', id)
@@ -165,28 +160,29 @@ export async function updateEntryBody(id: string, body_markdown: string): Promis
 
 /** Delete an entry. */
 export async function deleteEntry(id: string): Promise<void> {
-  const sb = requireSupabase()
-  const { error } = await sb.from('entries').delete().eq('id', id)
-  if (error) throw error
+  await apiDelete(`/api/data/entries/${encodeURIComponent(id)}`)
 }
 
 /** Fetch one entry by id — for history beyond the locally-cached recent window. */
 export async function getEntryById(id: string): Promise<Entry | null> {
-  const sb = requireSupabase()
-  const { data, error } = await sb.from('entries').select(ENTRY_COLUMNS).eq('id', id).maybeSingle()
-  if (error) throw error
-  return (data as Entry | null) ?? null
+  try {
+    const data = await apiGet<{ entry: Entry }>(`/api/data/entries/${encodeURIComponent(id)}`)
+    return data.entry ?? null
+  } catch (err) {
+    const status = (err as { status?: number }).status
+    if (status === 404) return null
+    throw err
+  }
 }
 
-/** Fetch specific entries by id (chunked to stay under PostgREST URL limits). */
+/** Fetch specific entries by id (chunked to stay under URL limits). */
 export async function fetchEntriesByIds(ids: string[]): Promise<Entry[]> {
   if (ids.length === 0) return []
   try {
-    const sb = requireSupabase()
     const out: Entry[] = []
     for (let i = 0; i < ids.length; i += 200) {
       const chunk = ids.slice(i, i + 200)
-      const { data, error } = await sb.from('entries').select(ENTRY_COLUMNS).in('id', chunk)
+      const { data, error } = await remote().from('entries').select(ENTRY_COLUMNS).in('id', chunk)
       if (error) throw error
       for (const e of (data ?? []) as Entry[]) out.push(e)
     }
@@ -214,8 +210,7 @@ async function localEntries(): Promise<Entry[] | null> {
 
 /** List entries newest-first. */
 export async function listEntries(limit = 50): Promise<Entry[]> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
+  const { data, error } = await remote()
     .from('entries')
     .select(ENTRY_COLUMNS)
     .order('created_at', { ascending: false })
@@ -233,8 +228,7 @@ export async function listEntries(limit = 50): Promise<Entry[]> {
  */
 export async function listEntriesInWindow(fromISO: string, toExclusiveISO: string): Promise<Entry[]> {
   try {
-    const sb = requireSupabase()
-    const { data, error } = await sb
+    const { data, error } = await remote()
       .from('entries')
       .select(ENTRY_COLUMNS)
       .gte('created_at', fromISO)
@@ -259,29 +253,12 @@ export async function listEntriesInWindow(fromISO: string, toExclusiveISO: strin
   }
 }
 
-const ENTRY_PAGE = 1000
-
 /**
- * Every entry, newest-first — paginated past PostgREST's ~1000-row cap so the
- * whole journal can be cached locally (not just a recent window). One-time cost
- * on first sync; cheap thereafter.
+ * Every entry, newest-first. One-time cost on first sync; cheap thereafter.
  */
 export async function listAllEntries(): Promise<Entry[]> {
-  const sb = requireSupabase()
-  const out: Entry[] = []
-  for (let from = 0; ; from += ENTRY_PAGE) {
-    const { data, error } = await sb
-      .from('entries')
-      .select(ENTRY_COLUMNS)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .range(from, from + ENTRY_PAGE - 1)
-    if (error) throw error
-    const rows = (data ?? []) as Entry[]
-    out.push(...rows)
-    if (rows.length < ENTRY_PAGE) break
-  }
-  return out
+  const data = await apiGet<{ entries: Entry[] }>('/api/data/entries')
+  return (data.entries ?? []).sort(byCreatedDesc)
 }
 
 /**
@@ -289,23 +266,11 @@ export async function listAllEntries(): Promise<Entry[]> {
  * sync — only what changed since the last pull, instead of the whole library.
  * Ordered by `updated_at` so paging is stable. Note: server-side deletes are
  * invisible to this query (a deleted row simply isn't returned); callers rely on
- * realtime + a periodic full reconcile to drop deleted rows.
+ * a periodic full reconcile to drop deleted rows.
  */
 export async function listEntriesSince(cursorISO: string): Promise<Entry[]> {
-  const sb = requireSupabase()
-  const out: Entry[] = []
-  for (let from = 0; ; from += ENTRY_PAGE) {
-    const { data, error } = await sb
-      .from('entries')
-      .select(ENTRY_COLUMNS)
-      .gt('updated_at', cursorISO)
-      .order('updated_at', { ascending: true })
-      .order('id', { ascending: false })
-      .range(from, from + ENTRY_PAGE - 1)
-    if (error) throw error
-    const rows = (data ?? []) as Entry[]
-    out.push(...rows)
-    if (rows.length < ENTRY_PAGE) break
-  }
-  return out
+  const data = await apiGet<{ entries: Entry[] }>(
+    `/api/data/entries?since=${encodeURIComponent(cursorISO)}`,
+  )
+  return data.entries ?? []
 }

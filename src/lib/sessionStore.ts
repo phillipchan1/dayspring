@@ -1,29 +1,25 @@
-import type { AuthChangeEvent, Session, SupabaseClient } from '@supabase/supabase-js'
-import { supabase, hasAuthCallbackInUrl } from './supabase'
-import { authStorage } from './authStorage'
+import { isGuestOwnerId } from './guestOwner'
 import { isAuthInvalidation, forceReauth } from './authError'
 import { rememberAuthProvider } from './lastAuthProvider'
 import { applyAuthAnalytics, track } from './analytics'
+import { readCacheOwner } from './localData'
+import {
+  clearWorkersBearer,
+  readWorkersBearer,
+} from './workersBearer'
 
-// The ONE answer to "who is signed in on this device", shared by every caller.
-//
-// Offline first. The signed-in person is whoever's session is on disk — read
-// straight from storage at boot, not asked of Supabase. Asking Supabase means
-// waiting for it to refresh an expired access token, and offline it retries
-// that refresh with backoff for ~25s, several times over, before answering
-// "nobody". That was the long splash, and the "nobody" dropped a paying user
-// into guest mode, whose privacy fence then purged their journal and outbox.
-//
-// An expired access token is not a signed-out person. Only an explicit
-// SIGNED_OUT (our sign-out, or Supabase rejecting the refresh token outright)
-// ends the session. Every API call still gets its token through supabase-js,
-// which refreshes it once the network is back, so nothing here ever sends a
-// stale JWT.
-//
-// Previously each useSession() call subscribed on its own and started at
-// `session: null`. useSubscription saw that null on its first render and
-// wiped the cached plan; offline, the refetch then failed and "no plan" stuck —
-// "your trial has ended" for a paying subscriber.
+/**
+ * The signed-in person on this device. Better Auth is the only path.
+ * `access_token` is the signed Workers bearer (`dayspring.workers.bearer`).
+ */
+export interface Session {
+  access_token: string
+  user: {
+    id: string
+    email?: string | null
+    app_metadata?: { provider?: string }
+  }
+}
 
 export interface SessionState {
   session: Session | null
@@ -31,11 +27,10 @@ export interface SessionState {
   loading: boolean
 }
 
+const WORKERS_USER_KEY = 'dayspring.workers.user'
+
 let state: SessionState = { session: null, loading: true }
 const listeners = new Set<() => void>()
-/** Set once Supabase has given a definitive answer (a session, or a sign-out),
- *  so the boot read never overwrites it with the older value on disk. */
-let heardFromAuth = false
 
 function set(next: Partial<SessionState>): void {
   state = { ...state, ...next }
@@ -51,148 +46,145 @@ export function subscribeSession(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
-/**
- * A persisted Supabase session, or null if the value isn't one. The access
- * token's expiry is deliberately NOT checked: a session whose token lapsed
- * while the device was offline still belongs to the person who owns it.
- */
-export function parseStoredSession(raw: unknown): Session | null {
-  let value = raw
-  if (typeof value === 'string') {
-    try {
-      value = JSON.parse(value)
-    } catch {
-      return null
-    }
-  }
-  if (!value || typeof value !== 'object') return null
-  const s = value as Partial<Session>
-  if (typeof s.access_token !== 'string' || typeof s.refresh_token !== 'string') return null
-  // No refresh token, no way back to the server — not a session worth keeping.
-  if (!s.refresh_token) return null
-  if (!s.user || typeof s.user.id !== 'string' || !s.user.id) return null
-  return s as Session
+interface CachedUser {
+  id: string
+  email?: string | null
+  provider?: string
 }
 
-function storageKeyOf(sb: SupabaseClient): string {
-  return (sb.auth as unknown as { storageKey: string }).storageKey
-}
-
-/** The session on disk (Tauri store on native, localStorage on web). */
-export async function readStoredSession(): Promise<Session | null> {
-  const sb = supabase
-  if (!sb) return null
+function readCachedUser(): CachedUser | null {
   try {
-    const key = storageKeyOf(sb)
-    const raw = authStorage ? await authStorage.getItem(key) : window.localStorage.getItem(key)
-    return parseStoredSession(raw)
+    const raw = localStorage.getItem(WORKERS_USER_KEY)
+    if (!raw) return null
+    const value = JSON.parse(raw) as Partial<CachedUser>
+    if (typeof value.id !== 'string' || !value.id) return null
+    const user: CachedUser = {
+      id: value.id,
+      email: typeof value.email === 'string' ? value.email : null,
+    }
+    if (typeof value.provider === 'string') user.provider = value.provider
+    return user
   } catch {
     return null
   }
 }
 
-export type SessionDecision =
-  /** Take this value. */
-  | { session: Session | null }
-  /** Nothing to change. */
-  | 'keep'
-  /** Supabase answered "no session" while we hold one. Offline, that means a
-   *  refresh failed and the session is still on disk — look before dropping it. */
-  | 'recheck-storage'
-
-/** What an auth event means for the session the app is running on. */
-export function decideSession(
-  event: AuthChangeEvent,
-  incoming: Session | null,
-  current: Session | null,
-): SessionDecision {
-  if (incoming) return { session: incoming }
-  if (event === 'SIGNED_OUT') return { session: null }
-  if (!current) return 'keep'
-  return 'recheck-storage'
+function writeCachedUser(user: CachedUser | null): void {
+  try {
+    if (!user) localStorage.removeItem(WORKERS_USER_KEY)
+    else localStorage.setItem(WORKERS_USER_KEY, JSON.stringify(user))
+  } catch {
+    /* ignore */
+  }
 }
 
-/**
- * Confirm a restored session against the server. On a definitive rejection
- * (deleted or disabled account — never a network failure) sign out.
- */
-function validateUser(sb: SupabaseClient): void {
-  void sb.auth.getUser().then(({ error }) => {
-    if (error && isAuthInvalidation(error)) void forceReauth()
-  })
+function sessionFrom(token: string, user: CachedUser): Session {
+  return {
+    access_token: token,
+    user: {
+      id: user.id,
+      email: user.email ?? null,
+      ...(user.provider ? { app_metadata: { provider: user.provider } } : {}),
+    },
+  }
 }
 
-function onAuthEvent(sb: SupabaseClient, event: AuthChangeEvent, next: Session | null): void {
-  // Remember which button worked, so the sign-in screen can remind this
-  // device next time instead of letting it start a second account.
-  if (next) rememberAuthProvider(next.user?.app_metadata?.provider)
-
-  // Join this device's anonymous PostHog person to the account. Only an
-  // explicit sign-out resets; a null from a failed offline refresh is not one.
-  if (next || event === 'SIGNED_OUT') applyAuthAnalytics(next?.user?.id ?? null, event === 'SIGNED_OUT')
-
-  // Only a genuine interactive sign-in, never a restored/refreshed session.
-  if (event === 'SIGNED_IN' && next) {
-    const method = authMethodFor(next.user?.app_metadata?.provider)
-    if (method) track('auth_completed', { method })
-  }
-
-  if (event === 'INITIAL_SESSION' && next) validateUser(sb)
-
-  const decision = decideSession(event, next, state.session)
-  if (decision === 'keep') {
-    if (state.loading) set({ loading: false })
-    return
-  }
-  if (decision === 'recheck-storage') {
-    void readStoredSession().then((stored) => {
-      if (!stored) set({ session: null, loading: false })
-    })
-    return
-  }
-  heardFromAuth = true
-  set({ session: decision.session, loading: false })
+function cachedUserId(): string | null {
+  const cached = readCachedUser()
+  if (cached?.id) return cached.id
+  const owner = readCacheOwner()
+  if (owner && !isGuestOwnerId(owner)) return owner
+  return null
 }
 
-/** Narrows the untyped `app_metadata.provider` to the closed vocabulary
- *  `auth_completed` is allowed to carry. */
 function authMethodFor(provider: unknown): 'apple' | 'google' | 'email' | null {
   return provider === 'apple' || provider === 'google' || provider === 'email' ? provider : null
 }
 
+/** Apply a live Better Auth session (after sign-in, OAuth, or getSession). */
+export function applyWorkersSession(input: {
+  token: string
+  userId: string
+  email?: string | null
+  provider?: string
+  event?: 'SIGNED_IN' | 'TOKEN_REFRESHED'
+}): void {
+  const user: CachedUser = {
+    id: input.userId,
+    email: input.email ?? null,
+  }
+  if (input.provider) user.provider = input.provider
+  writeCachedUser(user)
+  if (input.provider) rememberAuthProvider(input.provider)
+  applyAuthAnalytics(input.userId, false)
+  if (input.event === 'SIGNED_IN') {
+    const method = authMethodFor(input.provider)
+    if (method) track('auth_completed', { method })
+  }
+  set({ session: sessionFrom(input.token, user), loading: false })
+}
+
+export function clearWorkersSession(): void {
+  writeCachedUser(null)
+  clearWorkersBearer()
+  applyAuthAnalytics(null, true)
+  set({ session: null, loading: false })
+}
+
 let started: Promise<void> | null = null
 
-/**
- * Start listening and settle the session. Awaited once in main.tsx before the
- * first render; resolves as soon as the stored session has been read — never
- * on the network, except for an OAuth / magic-link return, where the session
- * only exists once the code has been exchanged.
- */
 export function startSessionStore(): Promise<void> {
   started ??= boot()
   return started
 }
 
 async function boot(): Promise<void> {
-  const sb = supabase
-  if (!sb) {
+  const token = readWorkersBearer()
+  if (!token) {
     set({ session: null, loading: false })
     return
   }
+  const userId = cachedUserId()
+  const cached = readCachedUser()
+  if (userId) {
+    applyAuthAnalytics(userId)
+    const user: CachedUser = { id: userId, email: cached?.email ?? null }
+    if (cached?.provider) user.provider = cached.provider
+    set({
+      session: sessionFrom(token, user),
+      loading: false,
+    })
+  }
+  await refreshFromNetwork()
+}
 
-  sb.auth.onAuthStateChange((event, next) => onAuthEvent(sb, event, next))
-
-  if (hasAuthCallbackInUrl()) {
-    const { data } = await sb.auth.getSession()
-    if (!heardFromAuth) set({ session: data.session, loading: false })
+/** Confirm the bearer against the Worker. Network failure keeps the held session. */
+export async function refreshFromNetwork(): Promise<void> {
+  const token = readWorkersBearer()
+  if (!token) {
+    if (state.session) clearWorkersSession()
+    else if (state.loading) set({ session: null, loading: false })
     return
   }
-
-  const stored = await readStoredSession()
-  if (heardFromAuth) {
+  try {
+    const { getWorkersSession } = await import('./authClient')
+    const remote = await getWorkersSession()
+    if (!remote) {
+      // Definitive empty session — only drop if the server rejected us.
+      return
+    }
+    applyWorkersSession({
+      token,
+      userId: remote.id,
+      email: remote.email ?? null,
+      ...(remote.provider ? { provider: remote.provider } : {}),
+      event: 'TOKEN_REFRESHED',
+    })
+  } catch (err) {
+    if (isAuthInvalidation(err)) {
+      await forceReauth()
+      return
+    }
     if (state.loading) set({ loading: false })
-    return
   }
-  if (stored) applyAuthAnalytics(stored.user.id)
-  set({ session: stored, loading: false })
 }

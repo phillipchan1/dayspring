@@ -1,6 +1,6 @@
 import { apiUrl } from './api'
 import { spiritualBlockRows } from './spiritualBlocks'
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import { withOfflineSnapshot } from './offlineSnapshot'
 import type { NewSpiritualItem, SpiritualItem, SpiritualItemType } from './types'
 
@@ -9,7 +9,7 @@ import type { NewSpiritualItem, SpiritualItem, SpiritualItemType } from './types
 const ITEM_COLUMNS = 'id, owner, entry_id, type, content, metadata, created_at, resolved_at, thread_id'
 
 export async function createSpiritualItem(item: NewSpiritualItem): Promise<SpiritualItem> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()
@@ -33,7 +33,7 @@ export async function createSpiritualItem(item: NewSpiritualItem): Promise<Spiri
 }
 
 export async function listSpiritualItems(type?: SpiritualItemType): Promise<SpiritualItem[]> {
-  const sb = requireSupabase()
+  const sb = remote()
   let q = sb
     .from('spiritual_items')
     .select(ITEM_COLUMNS)
@@ -47,7 +47,7 @@ export async function listSpiritualItems(type?: SpiritualItemType): Promise<Spir
 }
 
 export async function getSpiritualItem(id: string): Promise<SpiritualItem | null> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { data, error } = await sb.from('spiritual_items').select(ITEM_COLUMNS).eq('id', id).maybeSingle()
   if (error) throw error
   return (data as SpiritualItem | null) ?? null
@@ -60,7 +60,7 @@ export async function getSpiritualItem(id: string): Promise<SpiritualItem | null
  * isn't lost; do not call from new code.
  */
 export async function markPrayerAnswered(id: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb
     .from('spiritual_items')
     .update({ resolved_at: new Date().toISOString() })
@@ -77,13 +77,13 @@ export async function updateSpiritualItem(
   if (fields.content !== undefined) patch.content = fields.content
   if (fields.metadata !== undefined) patch.metadata = fields.metadata
   if (Object.keys(patch).length === 0) return
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('spiritual_items').update(patch).eq('id', id)
   if (error) throw error
 }
 
 export async function deleteSpiritualItem(id: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb.from('spiritual_items').delete().eq('id', id)
   if (error) throw error
 }
@@ -123,7 +123,7 @@ export async function syncSpiritualBlocksFromMarkdown(
   markdown: string,
 ): Promise<void> {
   if (!entryId) return
-  const sb = requireSupabase()
+  const sb = remote()
   // Rows come from the shared planner, so the server's gather engine writes
   // exactly what a save does (src/lib/spiritualBlocks.ts). The owner is filled
   // in below: an entry with no fences needs no session at all.
@@ -176,7 +176,7 @@ export interface MarkingRef {
  */
 export async function listMarkings(): Promise<MarkingRef[]> {
   return withOfflineSnapshot('markings:all', async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const out: MarkingRef[] = []
     const PAGE = 1000
     for (let from = 0; ; from += PAGE) {
@@ -226,7 +226,7 @@ export interface PageMarking {
  */
 export async function markingsForEntry(entryId: string): Promise<PageMarking[]> {
   return withOfflineSnapshot(`markings:entry:${entryId}`, async () => {
-    const sb = requireSupabase()
+    const sb = remote()
     const { data, error } = await sb
       .from('spiritual_items')
       .select('id, type, content, source')
@@ -272,7 +272,7 @@ function toPageMarkings(data: unknown, fallbackEntryId?: string): PageMarking[] 
  */
 export async function markingsForEntries(entryIds: string[]): Promise<PageMarking[]> {
   if (entryIds.length === 0) return []
-  const sb = requireSupabase()
+  const sb = remote()
   const out: PageMarking[] = []
   for (let i = 0; i < entryIds.length; i += 200) {
     const { data, error } = await sb
@@ -286,7 +286,7 @@ export async function markingsForEntries(entryIds: string[]): Promise<PageMarkin
 }
 
 export async function unmarkPrayerAnswered(id: string): Promise<void> {
-  const sb = requireSupabase()
+  const sb = remote()
   const { error } = await sb
     .from('spiritual_items')
     .update({ resolved_at: null })
@@ -311,7 +311,7 @@ export interface ResolvedRef {
 }
 
 async function authHeader(): Promise<string> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()

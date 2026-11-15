@@ -625,9 +625,22 @@ export async function insertThreadMember(
   return rows[0]?.id ?? null
 }
 
-export async function listProcessingJobs(store: ConnectedStore): Promise<Array<{ id: string; kind: string; status: string }>> {
-  return store.sql<{ id: string; kind: string; status: string }[]>`
-    SELECT id, kind, status FROM processing_jobs WHERE owner = ${store.ownerId}
+export interface ProcessingJobRow {
+  id: string
+  kind: string
+  status: string
+  completed: number
+  total: number
+  updated_at: string
+}
+
+export async function listProcessingJobs(store: ConnectedStore): Promise<ProcessingJobRow[]> {
+  return store.sql<ProcessingJobRow[]>`
+    SELECT id, kind, status, completed, total, updated_at
+    FROM processing_jobs
+    WHERE owner = ${store.ownerId}
+      AND kind <> 'concordance'
+      AND (kind <> 'gather' OR COALESCE(cursor->>'origin', '') = 'import')
   `
 }
 

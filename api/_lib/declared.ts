@@ -38,7 +38,7 @@
 // encounter is the user's own word about how God moved and must never be
 // collateral damage of a re-derivation. Logs counts only, never prayer text (§8).
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AdminClient as SupabaseClient } from './supabaseAdmin.js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { callModel } from './openai.js'
 import { cosine, embed } from './embeddings.js'

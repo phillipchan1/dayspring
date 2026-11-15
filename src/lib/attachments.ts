@@ -1,25 +1,24 @@
-// Image attachment storage via Supabase Storage.
+// Image attachment storage via the Worker (R2).
 //
 // Object key layout: `<owner-uuid>/<sha256-hex>.<ext>`
-// Storage bucket: 'attachments' (private, RLS enforced by path prefix).
+// Bucket: R2 `ATTACHMENTS` (private, owner prefix).
 //
 // Stable markdown reference format: `![alt](attachment:<sha256>.<ext>)`
 // Never store expiring signed URLs in entry bodies — resolve them at render time.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { analyzeImage, makeDisplayVariant, prepareImageForUpload } from './imageCompress'
 import { attachmentCacheGet, attachmentCachePut } from './db'
 import { isTauri } from './platform'
 import type { AttachmentPhotoMeta } from './attachmentCaption'
-import { isWorkersBackend } from './env'
 import { apiPost } from './api'
+import { remote } from './remote'
+import { getSessionState } from './sessionStore'
 
-const BUCKET = 'attachments'
 const SIGNED_URL_TTL_S = 3600 // 1 hour
 
 type SignedTransform = { width: number; quality: number; resize: 'contain' }
 
-// Display transform requested from Supabase Storage (Pro feature): a ~1400px,
+// Display transform for the viewport: a ~1400px,
 // quality-72 render so we ship a fraction of the stored bytes to the viewport.
 const DISPLAY_TRANSFORM = { width: 1400, quality: 72, resize: 'contain' as const }
 
@@ -132,16 +131,10 @@ export const PENDING_ATTACHMENT_REF_RE =
 
 /**
  * Upload an image for the signed-in user. Idempotent by content hash.
- * @throws when Supabase is unavailable or the user is not signed in.
+ * @throws when the user is not signed in.
  */
-export async function attachmentOwnerId(supabase?: SupabaseClient | null): Promise<string | null> {
-  if (isWorkersBackend) {
-    const { getWorkersUserId } = await import('./authClient')
-    return getWorkersUserId()
-  }
-  if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
-  return data.session?.user?.id ?? null
+export async function attachmentOwnerId(_client?: unknown): Promise<string | null> {
+  return getSessionState().session?.user.id ?? null
 }
 
 async function workersSign(body: {
@@ -156,7 +149,7 @@ async function workersSign(body: {
 }
 
 export async function uploadImageAttachment(
-  supabase: SupabaseClient | null,
+  _client: unknown,
   file: File,
   meta?: AttachmentPhotoMeta,
   /** The photo is read and resized; what is left is the network. */
@@ -165,7 +158,7 @@ export async function uploadImageAttachment(
   // The session already in memory, not a round trip to ask the server who this
   // is: that was one wait per photo before a single byte moved, and storage
   // checks the same token on the upload itself.
-  const ownerId = await attachmentOwnerId(supabase)
+  const ownerId = await attachmentOwnerId()
   if (!ownerId) throw new Error('Sign in to add photos')
   const prepared = await prepareImageForUpload(file)
   const ext = extFromImageFile(prepared)
@@ -174,7 +167,7 @@ export async function uploadImageAttachment(
   const analysis = await analyzeImage(prepared)
   const fullMeta: AttachmentPhotoMeta = { ...meta, ...analysis }
   onSending?.()
-  const result = await ensureAttachment(supabase, ownerId, prepared, ext, fullMeta)
+  const result = await ensureAttachment(_client, ownerId, prepared, ext, fullMeta)
   // Seed the local cache with a display variant so the photo we just added is
   // instant on this device (and other devices fill their cache on first view).
   void cacheDisplayVariant(ownerId, result.hash, ext, prepared)
@@ -205,7 +198,7 @@ async function cacheDisplayVariant(
  * Returns the SHA-256 hash and whether the file was newly uploaded.
  */
 export async function ensureAttachment(
-  supabase: SupabaseClient | null,
+  _client: unknown,
   ownerId: string,
   blob: Blob,
   ext: string,
@@ -214,64 +207,44 @@ export async function ensureAttachment(
   const hash = await computeSha256(blob)
   const storageKey = `${ownerId}/${hash}.${ext}`
 
-  if (isWorkersBackend) {
-    const { signedUrl } = await workersSign({
-      action: 'upload',
-      storageKey,
-      hash,
-      mime: blob.type || `image/${ext}`,
-      bytes: blob.size,
-    })
-    const put = await fetch(signedUrl, {
-      method: 'PUT',
-      headers: { 'content-type': blob.type || `image/${ext}` },
-      body: blob,
-    })
-    if (!put.ok) throw new Error(`Storage upload failed: ${put.status}`)
-    return { hash, isNew: true }
-  }
-
-  if (!supabase) throw new Error('Supabase is not configured')
-
-  const { data: existing } = await supabase
-    .from('attachments')
-    .select('hash')
-    .eq('owner', ownerId)
-    .eq('hash', hash)
-    .maybeSingle()
-
-  if (existing) return { hash, isNew: false }
-
-  const { error: uploadErr } = await supabase.storage
-    .from(BUCKET)
-    .upload(storageKey, blob, { contentType: blob.type || `image/${ext}`, upsert: false })
-
-  if (uploadErr && !uploadErr.message.toLowerCase().includes('already exists')) {
-    throw new Error(`Storage upload failed: ${uploadErr.message}`)
-  }
-
-  const row: Record<string, unknown> = {
-    owner: ownerId,
+  const { signedUrl } = await workersSign({
+    action: 'upload',
+    storageKey,
     hash,
-    storage_key: storageKey,
-    mime: blob.type || null,
+    mime: blob.type || `image/${ext}`,
     bytes: blob.size,
+  })
+  const put = await fetch(signedUrl, {
+    method: 'PUT',
+    headers: { 'content-type': blob.type || `image/${ext}` },
+    body: blob,
+  })
+  if (!put.ok) throw new Error(`Storage upload failed: ${put.status}`)
+  if (meta && Object.keys(meta).length > 0) {
+    await remote()
+      .from('attachments')
+      .upsert(
+        {
+          owner: ownerId,
+          hash,
+          storage_key: storageKey,
+          mime: blob.type || null,
+          bytes: blob.size,
+          metadata: meta,
+        },
+        { onConflict: 'owner,hash' },
+      )
   }
-  if (meta && Object.keys(meta).length > 0) row.metadata = meta
-
-  await supabase.from('attachments').upsert(row, { onConflict: 'owner,hash', ignoreDuplicates: true })
-
   return { hash, isNew: true }
 }
 
 /** Load stored metadata for a photo (capture time, etc.). */
 export async function fetchAttachmentMeta(
-  supabase: SupabaseClient | null,
+  _client: unknown,
   ownerId: string,
   hash: string,
 ): Promise<AttachmentPhotoMeta | null> {
-  if (isWorkersBackend || !supabase) return null
-  const { data } = await supabase
+  const { data } = await remote()
     .from('attachments')
     .select('metadata')
     .eq('owner', ownerId)
@@ -292,7 +265,7 @@ export async function fetchAttachmentMeta(
  * (resized) render. Results are cached until 60 s before the URL expires.
  */
 export async function resolveAttachmentUrl(
-  supabase: SupabaseClient | null,
+  _client: unknown,
   ownerId: string,
   hash: string,
   ext: string,
@@ -303,31 +276,16 @@ export async function resolveAttachmentUrl(
   const cached = urlCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.url
 
-  if (isWorkersBackend) {
-    const { signedUrl } = await workersSign({
-      action: 'download',
-      storageKey,
-      ...(transform ? { transform } : {}),
-    })
-    urlCache.set(cacheKey, {
-      url: signedUrl,
-      expiresAt: Date.now() + (SIGNED_URL_TTL_S - 60) * 1000,
-    })
-    return signedUrl
-  }
-
-  if (!supabase) return null
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(storageKey, SIGNED_URL_TTL_S, transform ? { transform } : undefined)
-
-  if (error || !data) return null
-
+  const { signedUrl } = await workersSign({
+    action: 'download',
+    storageKey,
+    ...(transform ? { transform } : {}),
+  })
   urlCache.set(cacheKey, {
-    url: data.signedUrl,
+    url: signedUrl,
     expiresAt: Date.now() + (SIGNED_URL_TTL_S - 60) * 1000,
   })
-  return data.signedUrl
+  return signedUrl
 }
 
 /**
@@ -338,7 +296,7 @@ export async function resolveAttachmentUrl(
  * Returns null only when even a signed URL can't be obtained.
  */
 export async function resolveAttachmentDisplayUrl(
-  supabase: SupabaseClient | null,
+  _client: unknown,
   ownerId: string,
   hash: string,
   ext: string,
@@ -355,7 +313,7 @@ export async function resolveAttachmentDisplayUrl(
     return url
   }
 
-  const signed = await resolveAttachmentUrl(supabase, ownerId, hash, ext, DISPLAY_TRANSFORM)
+  const signed = await resolveAttachmentUrl(_client, ownerId, hash, ext, DISPLAY_TRANSFORM)
   if (!signed) return null
 
   try {
@@ -380,20 +338,14 @@ export async function resolveAttachmentDisplayUrl(
  * Returns null if the object is missing or unreadable.
  */
 export async function downloadAttachmentBlob(
-  supabase: SupabaseClient | null,
+  _client: unknown,
   ownerId: string,
   hash: string,
   ext: string,
 ): Promise<Blob | null> {
   const storageKey = `${ownerId}/${hash}.${ext}`
-  if (isWorkersBackend) {
-    const { signedUrl } = await workersSign({ action: 'download', storageKey })
-    const res = await fetch(signedUrl)
-    if (!res.ok) return null
-    return res.blob()
-  }
-  if (!supabase) return null
-  const { data, error } = await supabase.storage.from(BUCKET).download(storageKey)
-  if (error || !data) return null
-  return data
+  const { signedUrl } = await workersSign({ action: 'download', storageKey })
+  const res = await fetch(signedUrl)
+  if (!res.ok) return null
+  return res.blob()
 }

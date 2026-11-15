@@ -1,5 +1,5 @@
 import { apiUrl } from './api'
-import { requireSupabase } from './supabase'
+import { remote } from './remote'
 import type { SpiritualItemType } from './types'
 
 /**
@@ -35,7 +35,7 @@ export const NOTICE_MIN_DELTA = 40
 export const NOTICE_PAUSE_MS = 4000
 
 async function authHeader(): Promise<string> {
-  const sb = requireSupabase()
+  const sb = remote()
   const {
     data: { session },
   } = await sb.auth.getSession()

@@ -24,11 +24,9 @@ function viteEnv(key: string): string | undefined {
 }
 
 export const env = {
-  supabaseUrl: viteEnv('VITE_SUPABASE_URL') ?? '',
-  supabaseAnonKey: viteEnv('VITE_SUPABASE_ANON_KEY') ?? '',
   /** Absolute API origin for Tauri; empty on web → same-origin relative /api paths. */
   apiBaseUrl: viteEnv('VITE_API_BASE_URL') ?? (isTauri() ? DEFAULT_API_BASE : ''),
-  /** `workers` | `cloudflare` flips the client onto the Worker. Unset = today's path. */
+  /** `workers` | `cloudflare` — Worker is the only runtime backend. */
   backend: viteEnv('VITE_BACKEND') ?? '',
   /** PostHog project API key. Unset → analytics transport stays a console-only no-op. */
   posthogKey: viteEnv('VITE_POSTHOG_KEY') ?? '',
@@ -44,14 +42,11 @@ function workersHost(url: string): boolean {
 }
 
 /**
- * True only when an explicit Workers flag is set.
- * A Vercel `VITE_API_BASE_URL` (today's desktop/iOS default) is NOT Workers.
+ * True when this build talks to the Cloudflare Worker.
+ * A Vercel `VITE_API_BASE_URL` (legacy desktop default) is not Workers.
  */
 export const isWorkersBackend = (() => {
   const flag = env.backend.trim().toLowerCase()
   if (flag === 'workers' || flag === 'cloudflare') return true
   return workersHost(viteEnv('VITE_API_BASE_URL') ?? '')
 })()
-
-/** True once the Supabase keys are present. Lets the UI render a shell without keys. */
-export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey)

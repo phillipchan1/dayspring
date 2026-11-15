@@ -5,14 +5,14 @@
 // sync engine / outbox untouched.
 //
 // Seam for later: if refs ever need true offline parity, this is the function to
-// reroute through the IndexedDB outbox instead of writing supabase directly.
+// reroute through the IndexedDB outbox instead of writing the Worker directly.
 //
 // Provenance: 'parsed' (backfill) and 'inline' (this) and 'command' (/scripture)
 // all live in the body, so reconcile manages them. 'manual' and 'suggested'
 // (allusions) are never derived from prose, so reconcile never deletes them.
 
 import * as cache from '../db'
-import { requireSupabase } from '../supabase'
+import { remote } from '../remote'
 import { parseReferences } from './parse'
 import { dedupeByOsis, planScriptureRefs, type ExistingRefRow } from './refRows'
 
@@ -31,7 +31,7 @@ export async function syncScriptureRefsFromMarkdown(
   markdown: string,
 ): Promise<void> {
   if (!entryId) return
-  const sb = requireSupabase()
+  const sb = remote()
 
   const { data, error } = await sb
     .from('scripture_refs')
@@ -73,7 +73,7 @@ export async function recordScriptureCommandRef(
   if (!entryId) return
   const parsed = dedupeByOsis(parseReferences(reference))
   if (parsed.size === 0) return
-  const sb = requireSupabase()
+  const sb = remote()
   const created_at_src = await entryDate(entryId)
 
   const rows = [...parsed.values()].map((r) => ({

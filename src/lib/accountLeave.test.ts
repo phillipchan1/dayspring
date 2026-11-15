@@ -41,6 +41,6 @@ describe('the app restarts when an account is left', () => {
   it('leaves account deletion to finish its own scrub', () => {
     const account = readFileSync(resolve(__dirname, 'account.ts'), 'utf8')
     expect(account).toMatch(/claimRestart\(\)/)
-    expect(account.indexOf('claimRestart()')).toBeLessThan(account.indexOf('await sb.auth.signOut()'))
+    expect(account.indexOf('claimRestart()')).toBeLessThan(account.indexOf('await signOutWorkers()'))
   })
 })

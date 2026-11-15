@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('./env', () => ({
   env: { apiBaseUrl: '', backend: 'workers' },
   isWorkersBackend: true,
-  isSupabaseConfigured: false,
 }))
 
 const apiGet = vi.fn()
@@ -19,7 +18,7 @@ describe('fetchSubscription (workers mode)', () => {
     apiGet.mockReset()
   })
 
-  it('reads entitlements from GET /api/data/profile, not supabase.from(profiles)', async () => {
+  it('reads entitlements from GET /api/data/profile', async () => {
     apiGet.mockResolvedValue({
       profile: {
         plan: 'active',
