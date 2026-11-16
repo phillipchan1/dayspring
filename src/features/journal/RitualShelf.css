@@ -75,6 +75,12 @@
 }
 @media (max-width: 767px) {
   .ritual-shelf { padding: 1rem 1.2rem calc(env(safe-area-inset-bottom, 0px) + 1.4rem); gap: 0.35rem 1rem; }
+  /* On a phone the trial / signed-out pill floats just above the tab bar —
+     right where the shelf sits. Lift the shelf clear of it rather than let
+     the two print on top of each other. */
+  html[data-trial-banner] .ritual-shelf {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.4rem + 7rem);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .ritual-shelf { transition: none; }

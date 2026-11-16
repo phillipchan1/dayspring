@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
-import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
+import { API_CORS, API_SECURITY, beginAuthCors, json, webAuthOrigins } from './cors.ts'
 import { sessionUser } from './auth.ts'
-import { stripGetSessionToken } from './sessionBody.ts'
+import { resolveAuthBaseURL } from './authUrl.ts'
+import { NATIVE_FINISH_PATH, NATIVE_START_PATH, nativeFinish, nativeStart } from './nativeAuth.ts'
+import { echoCallerBearer, stripGetSessionToken } from './sessionBody.ts'
 import { CPU_HEAVY_ROUTES } from './cpuLimits.ts'
 import type { Env } from './env.ts'
 import { closeSql, createSql } from './db.ts'
@@ -51,6 +53,14 @@ app.use('*', async (c, next) => {
       for (const [key, value] of Object.entries(API_SECURITY)) {
         c.res.headers.set(key, value)
       }
+      // Bearer-authed /api/* calls come cross-origin from the native apps
+      // (tauri://localhost). The OPTIONS preflight already answers with
+      // API_CORS; the real response needs Allow-Origin too or WebKit drops it
+      // ("Load failed") and the app shows "We couldn't reach your account".
+      // /api/auth/* and R2 objects set their own (credentialed) CORS — keep it.
+      if (!path.startsWith('/api/auth/') && !c.res.headers.has('Access-Control-Allow-Origin')) {
+        c.res.headers.set('Access-Control-Allow-Origin', API_CORS['Access-Control-Allow-Origin'])
+      }
     }
   } finally {
     await finishRequest(c)
@@ -97,6 +107,11 @@ app.get('/api/health', (c) =>
   }),
 )
 
+// Top-level navigations inside the native sign-in sheet — no Origin, no CORS.
+// Registered before the /api/auth/* catch-all so Better Auth never sees them.
+app.get(NATIVE_START_PATH, (c) => nativeStart(authOf(c), c.req.raw, resolveAuthBaseURL(c.env), webAuthOrigins(c.env)))
+app.get(NATIVE_FINISH_PATH, (c) => nativeFinish(authOf(c), c.req.raw, webAuthOrigins(c.env)))
+
 app.all('/api/auth/*', async (c) => {
   const started = beginAuthCors(c.req.header('Origin'), c.env)
   if (!started.ok) return started.response
@@ -106,6 +121,7 @@ app.all('/api/auth/*', async (c) => {
     const auth = authOf(c)
     const res = await stripGetSessionToken(await auth.handler(c.req.raw), new URL(c.req.url).pathname)
     const headers = new Headers(res.headers)
+    echoCallerBearer(c.req.raw, res, headers)
     for (const [k, v] of Object.entries(cors)) {
       if (k === 'Access-Control-Allow-Origin' || !headers.has(k)) headers.set(k, v)
     }
@@ -345,12 +361,6 @@ for (const route of PORTED_ROUTES) {
   else app.on(['GET', 'POST'], route.path, (c) => servePorted(c, route))
 }
 
-app.post('/api/circumstances/snap', () => json({ error: 'geocode stays on Vercel until cutover' }, 501))
-app.post('/api/feedback', async (c) => {
-  const user = await requireUser(c)
-  if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ error: 'feedback stays on Vercel until cutover' }, 501)
-})
 
 async function r2Sign(
   env: Env,

@@ -58,6 +58,10 @@ export const PORTED_ROUTES: PortedRoute[] = [
   post('/api/onboarding/backfill', 'ai-gateway', () => import('../../../api/onboarding/backfill.ts')),
   post('/api/concordance/rebuild', 'ai-gateway', () => import('../../../api/concordance/rebuild.ts')),
   post('/api/processing/enqueue', 'none', () => import('../../../api/processing/enqueue.ts')),
+  // Free reverse-geocode + weather APIs, no keys (was a 501 stub until the move).
+  post('/api/circumstances/snap', 'none', () => import('../../../api/circumstances/snap.ts')),
+  // Beta feedback + crash reports → GitHub issues. Needs the GITHUB_TOKEN secret.
+  post('/api/feedback', 'none', () => import('../../../api/feedback.ts')),
   // Synthetic-only gateway probe. 404 unless ZDR_SELFTEST_TOKEN is set and presented.
   getOrPost('/api/zdr-selftest', 'none', () => import('../../../api/zdr-selftest.ts')),
   cron('/api/cron/synthesize', 'ai-gateway', () => import('../../../api/cron/synthesize.ts')),

@@ -94,6 +94,12 @@
       // Binding to this same Worker: the processing engine's self-kick
       // (worker/src/vercel/selfKick.ts). Not inherited, so each env names itself.
       "services": [{ "binding": "SELF", "service": "dayspring" }],
+      // Background jobs (UTC). Must match CRON_PATHS in worker/src/vercel/routes.ts;
+      // wranglerProd.check enforces it. Vercel no longer runs any crons, so these
+      // are the only schedule. Mail jobs still need WORKER_MAIL_CRONS=on.
+      "triggers": {
+        "crons": ["0 8 * * *", "* * * * *", "0 9 * * *", "15 9 * * *", "30 9 * * *", "0 10 * * 1"],
+      },
     },
     "preview": {
       "name": "dayspring-preview",

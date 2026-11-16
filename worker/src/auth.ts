@@ -1,6 +1,9 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
-import { bearer, emailOTP } from 'better-auth/plugins'
+import { bearer, emailOTP, oneTimeToken } from 'better-auth/plugins'
+import { verifyPassword as verifyBetterAuthPassword } from 'better-auth/crypto'
+import bcrypt from 'bcryptjs'
 import { Pool } from 'pg'
+import { NATIVE_APP_ORIGINS } from './cors.ts'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
 import { pgClientOptions } from './db.ts'
 import { databaseUrl, type Env } from './env.ts'
@@ -92,6 +95,21 @@ export type AuthDatabase = Pool | {
   options: object
 }
 
+/**
+ * Supabase stored passwords as bcrypt (`$2a$…`); the Neon copy carries those
+ * hashes over as `credential` accounts (scripts/migrate-neon.mjs). Better
+ * Auth's own hashes are scrypt (`salt:key`). Accept both so people who
+ * signed up before the Cloudflare move keep their password; new and changed
+ * passwords are always scrypt.
+ */
+export async function verifyPassword({ hash, password }: { hash: string; password: string }): Promise<boolean> {
+  if (/^\$2[aby]\$\d{2}\$/.test(hash)) return bcrypt.compare(password, hash)
+  return verifyBetterAuthPassword({ hash, password })
+}
+
+export const SESSION_EXPIRES_IN = 60 * 60 * 24 * 365
+export const SESSION_UPDATE_AGE = 60 * 60 * 24
+
 const DEEP_LINK_ORIGIN = 'https://dayspring-eosin.vercel.app'
 
 /** Apple + Google only when client id and secret are both set. */
@@ -140,15 +158,22 @@ export function createAuth(
     baseURL,
     basePath: '/api/auth',
     database: db as Pool,
-    emailAndPassword: { enabled: true },
+    emailAndPassword: { enabled: true, password: { verify: verifyPassword } },
     user: authModels.user,
-    session: authModels.session,
+    session: {
+      ...authModels.session,
+      // Supabase kept people signed in until they signed out. Better Auth's
+      // default is 7 days, which signs out anyone who skips a week of
+      // journaling. A year, refreshed at most once a day while in use.
+      expiresIn: SESSION_EXPIRES_IN,
+      updateAge: SESSION_UPDATE_AGE,
+    },
     account: authModels.account,
     verification: authModels.verification,
     socialProviders: socialProvidersFromEnv(env),
     trustedOrigins: isLocalAuthHost(baseURL)
-      ? [baseURL, DEEP_LINK_ORIGIN, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
-      : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://'],
+      ? [baseURL, DEEP_LINK_ORIGIN, ...NATIVE_APP_ORIGINS, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
+      : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://', ...NATIVE_APP_ORIGINS],
     advanced: {
       database: {
         generateId: () => crypto.randomUUID(),
@@ -162,6 +187,10 @@ export function createAuth(
     },
     plugins: [
       bearer({ requireSignature: true }),
+      // Native Google / Apple hand-off (worker/src/nativeAuth.ts): the sign-in
+      // sheet's session becomes a 3-minute, single-use, hashed-at-rest token
+      // the app exchanges for its own bearer.
+      oneTimeToken({ expiresIn: 3, storeToken: 'hashed' }),
       emailOTP({
         otpLength: 6,
         expiresIn: 300,

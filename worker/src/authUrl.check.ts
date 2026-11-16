@@ -9,6 +9,7 @@ import { HYPERDRIVE_ID_PLACEHOLDER, asWranglerFile, parseJsonc } from './wrangle
 import { nextMigrationVersions, schemaFileVersion } from './isolationDb.ts'
 import { app } from './index.ts'
 import { authConfigErrorResponse, beginAuthCors } from './cors.ts'
+import { echoCallerBearer } from './sessionBody.ts'
 import { timingSafeEqualString } from './safeEqual.ts'
 import {
   authCookieSecure,
@@ -329,6 +330,15 @@ const prodEnv = {
   DATABASE_URL: prodWithLocalUser,
   BETTER_AUTH_SECRET: 'x'.repeat(32),
 }
+{
+  // Native apps (iOS + macOS Tauri) call /api/auth/* from tauri://localhost.
+  const live = { BETTER_AUTH_URL: 'https://api.dayspring.example', BETTER_AUTH_SECRET: 'x'.repeat(32) }
+  const app = beginAuthCors('tauri://localhost', live)
+  ok(app.ok && app.cors['Access-Control-Allow-Origin'] === 'tauri://localhost', 'auth CORS echoes the native app origin')
+  ok(app.ok && app.cors['Access-Control-Allow-Credentials'] === 'true', 'native app origin gets credentials')
+  const evil = beginAuthCors('https://evil.example', live)
+  ok(evil.ok && evil.cors['Access-Control-Allow-Origin'] === 'https://api.dayspring.example', 'unknown origins are not echoed')
+}
 const started = beginAuthCors('https://dayspring.example', prodEnv)
 ok(!started.ok, 'beginAuthCors fails closed when URL unset outside local')
 if (!started.ok) {
@@ -393,6 +403,38 @@ ok(
   (await app.request('http://localhost/api/health')).status === 200,
   'GET /api/health is 200 without auth',
 )
+
+{
+  // The native apps read /api/* cross-origin from tauri://localhost. Every
+  // response — success or error — must carry Allow-Origin or WebKit drops it.
+  const fromApp = { headers: { origin: 'tauri://localhost' } }
+  const health = await app.request('http://localhost/api/health', fromApp)
+  ok(health.headers.get('access-control-allow-origin') === '*', 'data responses allow the native app origin')
+  const denied = await app.request('http://localhost/api/data/profile', fromApp, { ENVIRONMENT: 'local', BETTER_AUTH_SECRET: 'x'.repeat(32) })
+  ok(denied.status >= 400, `profile without a session is refused (got ${denied.status})`)
+  ok(denied.headers.get('access-control-allow-origin') === '*', 'error responses allow the native app origin too')
+  const authOk = await app.request('http://localhost/api/auth/ok', fromApp, { ENVIRONMENT: 'local', BETTER_AUTH_SECRET: 'x'.repeat(32) })
+  ok(authOk.headers.get('access-control-allow-origin') === 'tauri://localhost', 'auth keeps its credentialed origin echo')
+}
+
+{
+  // Builds <= 1.0.1357 erase their bearer when set-auth-token is missing.
+  const call = (path: string, auth: string | null, status = 200, minted?: string) => {
+    const req = new Request(`https://api.dayspring.example/api/auth/${path}`, auth ? { headers: { authorization: auth } } : {})
+    const res = new Response('{}', { status, headers: minted ? { 'set-auth-token': minted } : {} })
+    const headers = new Headers(res.headers)
+    echoCallerBearer(req, res, headers)
+    return headers
+  }
+  const echoed = call('get-session', 'Bearer tok.sig')
+  ok(echoed.get('set-auth-token') === 'tok.sig', 'get-session echoes the caller bearer')
+  ok((echoed.get('access-control-expose-headers') ?? '').includes('set-auth-token'), 'echoed bearer is exposed to the webview')
+  ok(call('get-session', 'Bearer tok.sig', 200, 'new.sig').get('set-auth-token') === 'new.sig', 'a freshly minted bearer wins')
+  ok(call('sign-out', 'Bearer tok.sig').get('set-auth-token') === null, 'sign-out never echoes')
+  ok(call('get-session', 'Bearer tok.sig', 401).get('set-auth-token') === null, 'errors never echo')
+  ok(call('get-session', 'Bearer raw-unsigned').get('set-auth-token') === null, 'unsigned bearers are not echoed')
+  ok(call('get-session', null).get('set-auth-token') === null, 'no bearer, no echo')
+}
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {
