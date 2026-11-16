@@ -329,6 +329,15 @@ const prodEnv = {
   DATABASE_URL: prodWithLocalUser,
   BETTER_AUTH_SECRET: 'x'.repeat(32),
 }
+{
+  // Native apps (iOS + macOS Tauri) call /api/auth/* from tauri://localhost.
+  const live = { BETTER_AUTH_URL: 'https://api.dayspring.example', BETTER_AUTH_SECRET: 'x'.repeat(32) }
+  const app = beginAuthCors('tauri://localhost', live)
+  ok(app.ok && app.cors['Access-Control-Allow-Origin'] === 'tauri://localhost', 'auth CORS echoes the native app origin')
+  ok(app.ok && app.cors['Access-Control-Allow-Credentials'] === 'true', 'native app origin gets credentials')
+  const evil = beginAuthCors('https://evil.example', live)
+  ok(evil.ok && evil.cors['Access-Control-Allow-Origin'] === 'https://api.dayspring.example', 'unknown origins are not echoed')
+}
 const started = beginAuthCors('https://dayspring.example', prodEnv)
 ok(!started.ok, 'beginAuthCors fails closed when URL unset outside local')
 if (!started.ok) {

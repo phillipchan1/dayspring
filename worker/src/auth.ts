@@ -3,6 +3,7 @@ import { bearer, emailOTP, oneTimeToken } from 'better-auth/plugins'
 import { verifyPassword as verifyBetterAuthPassword } from 'better-auth/crypto'
 import bcrypt from 'bcryptjs'
 import { Pool } from 'pg'
+import { NATIVE_APP_ORIGINS } from './cors.ts'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
 import { pgClientOptions } from './db.ts'
 import { databaseUrl, type Env } from './env.ts'
@@ -171,8 +172,8 @@ export function createAuth(
     verification: authModels.verification,
     socialProviders: socialProvidersFromEnv(env),
     trustedOrigins: isLocalAuthHost(baseURL)
-      ? [baseURL, DEEP_LINK_ORIGIN, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
-      : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://'],
+      ? [baseURL, DEEP_LINK_ORIGIN, ...NATIVE_APP_ORIGINS, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
+      : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://', ...NATIVE_APP_ORIGINS],
     advanced: {
       database: {
         generateId: () => crypto.randomUUID(),

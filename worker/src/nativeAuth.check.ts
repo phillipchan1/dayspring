@@ -121,7 +121,8 @@ async function sheetRoundTrip(startQuery: string): Promise<{ res: Response; jar:
 async function exchange(code: string): Promise<Response> {
   return auth.handler(new Request(`${BASE}/api/auth/one-time-token/verify`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: BASE },
+    // The real caller: the Tauri webview on iOS / macOS.
+    headers: { 'content-type': 'application/json', origin: 'tauri://localhost' },
     body: JSON.stringify({ token: code }),
   }))
 }
@@ -152,6 +153,7 @@ const verified = await exchange(code)
 const bearer = verified.headers.get('set-auth-token') ?? ''
 ok(verified.status === 200, `app exchange succeeds (got ${verified.status})`)
 ok(bearer.includes('.'), 'app receives a signed bearer')
+ok((verified.headers.get('access-control-expose-headers') ?? '').includes('set-auth-token'), 'webview may read set-auth-token')
 const body = await verified.json() as { user?: { email?: string }; session?: { expiresAt?: string } }
 ok(body.user?.email === 'native@example.test', 'exchange returns the Google user')
 const daysLeft = (new Date(body.session?.expiresAt ?? 0).getTime() - Date.now()) / 86_400_000
