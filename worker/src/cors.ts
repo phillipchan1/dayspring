@@ -30,9 +30,17 @@ const AUTH_CORS_ALLOW = {
  */
 export const NATIVE_APP_ORIGINS = ['tauri://localhost'] as const
 
+/** Web origins a browser sign-in may return to (never the native scheme). */
+export function webAuthOrigins(env: Env): string[] {
+  return trustedAuthOrigins(env).filter((o) => !(NATIVE_APP_ORIGINS as readonly string[]).includes(o))
+}
+
+/** The production web app is still reached through this Vercel proxy. */
+export const WEB_PROXY_ORIGIN = 'https://dayspring-eosin.vercel.app'
+
 export function trustedAuthOrigins(env: Env): string[] {
   const base = resolveAuthBaseURL(env)
-  if (!isLocalAuthHost(base)) return [base, ...NATIVE_APP_ORIGINS]
+  if (!isLocalAuthHost(base)) return [base, WEB_PROXY_ORIGIN, ...NATIVE_APP_ORIGINS]
   return [...new Set([
     base,
     ...NATIVE_APP_ORIGINS,

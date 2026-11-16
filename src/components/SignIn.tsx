@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/auth'
+import { WEB_AUTH_ERROR_KEY, signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/auth'
 import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSettings } from '@/hooks/useSettings'
@@ -19,7 +19,24 @@ export interface SignInProps {
 }
 
 export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
-  const [error, setError] = useState<string | null>(null)
+  // A web Google / Apple sign-in that came back with an error (initWebOAuthReturn).
+  const [error, setError] = useState<string | null>(() => {
+    try {
+      const pending = sessionStorage.getItem(WEB_AUTH_ERROR_KEY)
+      if (pending) sessionStorage.removeItem(WEB_AUTH_ERROR_KEY)
+      return pending
+    } catch {
+      return null
+    }
+  })
+  useEffect(() => {
+    const onWebAuthError = (e: Event) => {
+      try { sessionStorage.removeItem(WEB_AUTH_ERROR_KEY) } catch { /* ignore */ }
+      setError((e as CustomEvent<string>).detail)
+    }
+    window.addEventListener(WEB_AUTH_ERROR_KEY, onWebAuthError)
+    return () => window.removeEventListener(WEB_AUTH_ERROR_KEY, onWebAuthError)
+  }, [])
   const [busy, setBusy] = useState<'apple' | 'google' | 'email' | null>(null)
   // Desktop: browser is open and we're waiting on the dayspring:// callback.
   // iOS never sets this — the in-app sheet reports cancel itself.

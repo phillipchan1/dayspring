@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
+import { API_CORS, API_SECURITY, beginAuthCors, json, webAuthOrigins } from './cors.ts'
 import { sessionUser } from './auth.ts'
 import { resolveAuthBaseURL } from './authUrl.ts'
 import { NATIVE_FINISH_PATH, NATIVE_START_PATH, nativeFinish, nativeStart } from './nativeAuth.ts'
@@ -109,8 +109,8 @@ app.get('/api/health', (c) =>
 
 // Top-level navigations inside the native sign-in sheet — no Origin, no CORS.
 // Registered before the /api/auth/* catch-all so Better Auth never sees them.
-app.get(NATIVE_START_PATH, (c) => nativeStart(authOf(c), c.req.raw, resolveAuthBaseURL(c.env)))
-app.get(NATIVE_FINISH_PATH, (c) => nativeFinish(authOf(c), c.req.raw))
+app.get(NATIVE_START_PATH, (c) => nativeStart(authOf(c), c.req.raw, resolveAuthBaseURL(c.env), webAuthOrigins(c.env)))
+app.get(NATIVE_FINISH_PATH, (c) => nativeFinish(authOf(c), c.req.raw, webAuthOrigins(c.env)))
 
 app.all('/api/auth/*', async (c) => {
   const started = beginAuthCors(c.req.header('Origin'), c.env)
@@ -361,12 +361,6 @@ for (const route of PORTED_ROUTES) {
   else app.on(['GET', 'POST'], route.path, (c) => servePorted(c, route))
 }
 
-app.post('/api/circumstances/snap', () => json({ error: 'geocode stays on Vercel until cutover' }, 501))
-app.post('/api/feedback', async (c) => {
-  const user = await requireUser(c)
-  if (!user) return json({ error: 'not authenticated' }, 401)
-  return json({ error: 'feedback stays on Vercel until cutover' }, 501)
-})
 
 async function r2Sign(
   env: Env,

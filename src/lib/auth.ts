@@ -5,21 +5,7 @@ import { beginExternalTrip } from './appLockSuppress'
 import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
 import { selectDayspringDeepLink } from './deepLink'
 
-/** Where web OAuth returns. Native apps never use this — see runOAuth. */
-export function authRedirectUrl(): string {
-  return window.location.origin
-}
-
 type OAuthProvider = AuthProvider
-
-interface OAuthOptions {
-  redirectTo: string
-}
-
-interface OAuthUrlResult {
-  data: { url?: string | null } | null
-  error: Error | null
-}
 
 /**
  * Finish sign-in from `dayspring://auth-callback?code=…` (or `?error=…`).
@@ -56,11 +42,14 @@ export type OAuthHandoff = 'completed' | 'waiting-for-browser'
 async function runOAuth(
   provider: OAuthProvider,
   intent: 'sign-in' | 'link',
-  start: (options: OAuthOptions) => Promise<OAuthUrlResult>,
 ): Promise<OAuthHandoff> {
   if (!isTauri()) {
-    const { error } = await start({ redirectTo: authRedirectUrl() })
-    if (error) throw error
+    // Web runs the same Worker flow as the apps, with the browser as the sheet:
+    // Better Auth's state and session cookies live on the auth origin, not on
+    // dayspring-eosin.vercel.app (a proxy). The page comes back with
+    // ?auth_code=, which initWebOAuthReturn exchanges on load.
+    const { nativeOAuthStartUrl } = await import('./authClient')
+    window.location.assign(await nativeOAuthStartUrl(provider, intent, window.location.origin))
     return 'completed'
   }
 
@@ -99,13 +88,7 @@ async function signInWithProvider(provider: OAuthProvider): Promise<OAuthHandoff
     await new Promise((r) => setTimeout(r, 1600))
     throw new Error('Preview: the in-app OAuth sheet would open here')
   }
-  const { signInWorkersSocial } = await import('./authClient')
-  return runOAuth(provider, 'sign-in', (options) =>
-    signInWorkersSocial({
-      provider,
-      callbackURL: options.redirectTo,
-    }),
-  )
+  return runOAuth(provider, 'sign-in')
 }
 
 /** iOS native Sign in with Apple identity token (Better Auth idToken). */
@@ -177,13 +160,7 @@ export async function signUpWithEmail(
  * accounts that already hold entries. Offer it before they diverge.
  */
 export async function linkProvider(provider: OAuthProvider): Promise<OAuthHandoff> {
-  const { linkWorkersSocial } = await import('./authClient')
-  return runOAuth(provider, 'link', (options) =>
-    linkWorkersSocial({
-      provider,
-      callbackURL: options.redirectTo,
-    }),
-  )
+  return runOAuth(provider, 'link')
 }
 
 /**
@@ -259,6 +236,35 @@ export async function initDeepLinkAuth(): Promise<void> {
     await handle(await getCurrent())
   } catch (err) {
     console.error('[auth] deep-link init failed', err)
+  }
+}
+
+export const WEB_AUTH_ERROR_KEY = 'dayspring.authError'
+
+/**
+ * Web: finish a Google / Apple sign-in or link that returned to this page with
+ * `?auth_code=` (or `?auth_error=`). Strips the params first so a reload or a
+ * shared URL never replays them. A failure is left in sessionStorage for the
+ * sign-in screen to show. No-op in the native apps and on ordinary loads.
+ */
+export async function initWebOAuthReturn(): Promise<void> {
+  if (isTauri() || typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  const code = url.searchParams.get('auth_code')
+  const error = url.searchParams.get('auth_error')
+  if (!code && !error) return
+  url.searchParams.delete('auth_code')
+  url.searchParams.delete('auth_error')
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  const query = code ? `?code=${encodeURIComponent(code)}` : `?error=${encodeURIComponent(error ?? '')}`
+  try {
+    await completeOAuthCallback(query)
+    try { sessionStorage.removeItem(WEB_AUTH_ERROR_KEY) } catch { /* ignore */ }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Sign-in didn’t finish. Try again.'
+    try { sessionStorage.setItem(WEB_AUTH_ERROR_KEY, message) } catch { /* ignore */ }
+    window.dispatchEvent(new CustomEvent(WEB_AUTH_ERROR_KEY, { detail: message }))
+    console.error('[auth] web sign-in return failed', err)
   }
 }
 

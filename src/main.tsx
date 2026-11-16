@@ -90,7 +90,7 @@ import { applyPlatformClass } from './lib/platform'
 import { installGlobalHandlers } from './lib/crashReport'
 import { installDropGuard } from './lib/dropGuard'
 import { startSessionStore } from './lib/sessionStore'
-import { initDeepLinkAuth } from './lib/auth'
+import { initDeepLinkAuth, initWebOAuthReturn } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
 import { initPostHog } from './lib/posthog'
 import { track } from './lib/analytics'
@@ -318,6 +318,7 @@ async function bootstrap() {
   // Native: start listening for dayspring:// (OAuth + open) before anything
   // else, so a cold launch via the deep link is captured. No-op on web.
   void initDeepLinkAuth()
+  void initWebOAuthReturn()
 
   // Web only: register the PWA service worker so the app is installable on a
   // phone and opens offline. No-op inside the Tauri apps and in dev.

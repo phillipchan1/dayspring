@@ -85,22 +85,6 @@ export async function sendWorkersEmailOtp(email: string): Promise<void> {
   if (result.error) throw new Error(result.error.message || 'Could not send code')
 }
 
-export async function signInWorkersSocial(opts: {
-  provider: 'google' | 'apple'
-  callbackURL: string
-  disableRedirect?: boolean
-}): Promise<{ data: { url?: string | null } | null; error: Error | null }> {
-  const auth = await workersAuthClient()
-  const result = await auth.signIn.social({
-    provider: opts.provider,
-    callbackURL: opts.callbackURL,
-    disableRedirect: opts.disableRedirect,
-  })
-  if (result.error) return { data: null, error: new Error(result.error.message || 'Sign-in failed') }
-  const url = (result.data as { url?: string } | null)?.url ?? null
-  return { data: { url }, error: null }
-}
-
 export async function signInWorkersSocialIdToken(
   provider: 'google' | 'apple',
   token: string,
@@ -141,22 +125,6 @@ export async function signUpWorkersEmail(email: string, password: string): Promi
   if (result.error) throw new Error(result.error.message || 'Could not create account')
   await hydrateAfterAuth()
   return { needsConfirmation: !readWorkersBearer() }
-}
-
-export async function linkWorkersSocial(opts: {
-  provider: 'google' | 'apple'
-  callbackURL: string
-  disableRedirect?: boolean
-}): Promise<{ data: { url?: string | null } | null; error: Error | null }> {
-  const auth = await workersAuthClient()
-  const result = await auth.linkSocial({
-    provider: opts.provider,
-    callbackURL: opts.callbackURL,
-    disableRedirect: opts.disableRedirect,
-  })
-  if (result.error) return { data: null, error: new Error(result.error.message || 'Link failed') }
-  const url = (result.data as { url?: string } | null)?.url ?? null
-  return { data: { url }, error: null }
 }
 
 export async function listWorkersSignInMethods(): Promise<Array<'google' | 'apple'>> {
@@ -200,8 +168,11 @@ function apiOrigin(): string {
 export async function nativeOAuthStartUrl(
   provider: 'google' | 'apple',
   intent: 'sign-in' | 'link',
+  /** Web only: the origin to come back to with `?auth_code=`. */
+  returnTo?: string,
 ): Promise<string> {
   const params = new URLSearchParams({ provider })
+  if (returnTo) params.set('return', returnTo)
   if (intent === 'link') {
     const auth = await workersAuthClient()
     const result = await auth.$fetch<{ token?: string }>('/one-time-token/generate', { method: 'GET' })

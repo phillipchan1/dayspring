@@ -10,6 +10,7 @@ import {
   parseJsonc,
   productionEnvProblems,
 } from './wranglerProd.ts'
+import { CRON_PATHS } from './vercel/routes.ts'
 
 const fails: string[] = []
 let checks = 0
@@ -37,6 +38,13 @@ ok(
 )
 ok(config.env?.preview?.name === 'dayspring-preview', 'preview worker name is dayspring-preview')
 ok(config.env?.production?.name === 'dayspring', 'production worker name is dayspring')
+{
+  const prod = config.env?.production as { triggers?: { crons?: string[] } } | undefined
+  const crons = [...(prod?.triggers?.crons ?? [])].sort()
+  ok(JSON.stringify(crons) === JSON.stringify(Object.keys(CRON_PATHS).sort()), 'production cron triggers match CRON_PATHS exactly')
+  const preview = config.env?.preview as { triggers?: { crons?: string[] } } | undefined
+  ok((preview?.triggers?.crons ?? []).length === 0, 'preview runs no crons')
+}
 
 const liveProblems = productionEnvProblems(config)
 ok(liveProblems.length === 0, `committed production env is clean (${liveProblems.join('; ')})`)

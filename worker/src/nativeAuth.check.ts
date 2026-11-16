@@ -176,6 +176,41 @@ ok(Boolean(appParams(link.res)?.get('code')), `link round-trip returns to the ap
 const badLink = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&link=nope`), BASE)
 ok(appParams(badLink)?.get('error') === 'link_expired', 'bad link ticket returns an error to the app')
 
+// 2b. Web: the browser is the sheet, entering through the Vercel proxy origin.
+{
+  const WEB = 'https://dayspring-eosin.vercel.app'
+  const origins = [BASE, WEB]
+  const jar = new Jar()
+  const first = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&return=${encodeURIComponent(WEB)}`), BASE, origins)
+  const hop = first.headers.get('location') ?? ''
+  ok(first.status === 302 && hop.startsWith(`${BASE}/api/auth/native/start?`) && hop.includes('hop=1'), `web start hops to the auth origin first (got ${hop})`)
+  ok(first.headers.getSetCookie().length === 0, 'the hop sets no cookie on the proxy origin')
+  const start = await nativeStart(auth, new Request(hop), BASE, origins)
+  jar.take(start)
+  const providerUrl = new URL(start.headers.get('location') ?? 'about:blank')
+  ok(providerUrl.host === 'accounts.google.com' && jar.has('state'), 'web start sets state on the auth origin and goes to Google')
+  const cb = await auth.handler(new Request(`${BASE}/api/auth/callback/google?code=google-code&state=${encodeURIComponent(providerUrl.searchParams.get('state') ?? '')}`, { headers: { cookie: jar.header() } }))
+  jar.take(cb)
+  const cbLoc = cb.headers.get('location') ?? ''
+  ok(cbLoc.startsWith(`${BASE}${NATIVE_FINISH_PATH}?return=`), `web callback returns to finish with its origin (got ${cbLoc})`)
+  const finish = await nativeFinish(auth, new Request(cbLoc, { headers: { cookie: jar.header() } }), origins)
+  const back = new URL(finish.headers.get('location') ?? 'about:blank')
+  ok(back.origin === WEB && Boolean(back.searchParams.get('auth_code')), `web finish returns to the web app with a code (got ${back.href.replace(/auth_code=[^&]+/, 'auth_code=X')})`)
+  const webVerified = await auth.handler(new Request(`${BASE}/api/auth/one-time-token/verify`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: WEB },
+    body: JSON.stringify({ token: back.searchParams.get('auth_code') }),
+  }))
+  ok(webVerified.status === 200 && (webVerified.headers.get('set-auth-token') ?? '').includes('.'), 'web page exchanges the code for a bearer')
+
+  const evil = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&return=${encodeURIComponent('https://evil.example')}`), BASE, origins)
+  ok(evil.status === 400, 'an unknown return origin is refused')
+  const evilFinish = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?return=${encodeURIComponent('https://evil.example')}&error=x`), origins)
+  ok((evilFinish.headers.get('location') ?? '').startsWith(NATIVE_CALLBACK), 'finish never redirects to an unknown origin')
+  const webErr = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?return=${encodeURIComponent(WEB)}&error=access_denied`), origins)
+  ok(webErr.headers.get('location') === `${WEB}/?auth_error=access_denied`, 'web errors come back as auth_error')
+}
+
 // 3. Errors pass through to the app instead of stranding the sheet.
 const denied = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?error=access_denied`))
 ok(appParams(denied)?.get('error') === 'access_denied', 'provider error reaches the app')

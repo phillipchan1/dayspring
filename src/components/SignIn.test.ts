@@ -12,6 +12,7 @@ const signInWithEmail = vi.fn()
 const signUpWithEmail = vi.fn()
 
 vi.mock('@/lib/auth', () => ({
+  WEB_AUTH_ERROR_KEY: 'dayspring.authError',
   signInWithApple: () => signInWithApple(),
   signInWithGoogle: () => signInWithGoogle(),
   signInWithEmail: (email: string, password: string) => signInWithEmail(email, password),
