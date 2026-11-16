@@ -1,0 +1,68 @@
+# Marketing site (site/, www.usedayspring.app) → the dayspring-site Worker.
+# Every push to master that touches site/ tests, builds and deploys it, so the
+# site is live a few minutes after the push. Run it by hand from the Actions
+# tab to redeploy without a change.
+#
+# Needs repo secrets CLOUDFLARE_API_TOKEN (Workers Scripts:Edit on the Dayspring
+# account) and CLOUDFLARE_ACCOUNT_ID, and repo variables for the PUBLIC_* values
+# Astro inlines at build time (analytics; see site/CUTOVER.md). A missing
+# variable builds a site with that integration switched off, so the build step
+# names any that are empty.
+name: Site deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "site/**"
+      - ".github/workflows/site-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: site-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - id: checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - id: setup-node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - id: npm-ci
+        run: npm ci
+      - id: test
+        run: npm test
+      - id: build
+        env:
+          TZ: UTC
+          PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
+          PUBLIC_GOOGLE_TAG_ID: ${{ vars.PUBLIC_GOOGLE_TAG_ID }}
+          PUBLIC_GADS_DOWNLOAD_SEND_TO: ${{ vars.PUBLIC_GADS_DOWNLOAD_SEND_TO }}
+          PUBLIC_GADS_START_TRIAL_SEND_TO: ${{ vars.PUBLIC_GADS_START_TRIAL_SEND_TO }}
+          PUBLIC_META_PIXEL_ID: ${{ vars.PUBLIC_META_PIXEL_ID }}
+          PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.PUBLIC_TURNSTILE_SITE_KEY }}
+        run: |
+          set -euo pipefail
+          for v in PUBLIC_POSTHOG_KEY PUBLIC_POSTHOG_HOST PUBLIC_GOOGLE_TAG_ID PUBLIC_GADS_DOWNLOAD_SEND_TO PUBLIC_GADS_START_TRIAL_SEND_TO PUBLIC_META_PIXEL_ID PUBLIC_TURNSTILE_SITE_KEY; do
+            test -n "${!v:-}" || echo "::warning::$v is not set; that integration is off in this build"
+          done
+          npm run build
+      - id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy

@@ -404,6 +404,42 @@
       "sha256": "efb4b9e9c497cd54691a044eb79db6cb4c5d9410cd73a6189b7bdbdae61316be"
     },
     {
+      "file": "site-deploy.yml",
+      "job": "deploy",
+      "id": "checkout",
+      "sha256": "9fdf12a4ebb3ee25bb2f5b0546c4800e67fb4471629958674f1db986935e3dac"
+    },
+    {
+      "file": "site-deploy.yml",
+      "job": "deploy",
+      "id": "setup-node",
+      "sha256": "f91274a2a3c2e11b8fe7e0111083889b3a6877624b99efbe66b5c39e96bda09c"
+    },
+    {
+      "file": "site-deploy.yml",
+      "job": "deploy",
+      "id": "npm-ci",
+      "sha256": "fc537b300fa1509aca6fdb846cde599df2e8653d7a76598c3add6d9ed4237c60"
+    },
+    {
+      "file": "site-deploy.yml",
+      "job": "deploy",
+      "id": "test",
+      "sha256": "323b66eb08527aa16af9688ee7ab55a10a9a8e88a1f8088f9378e2c84949043d"
+    },
+    {
+      "file": "site-deploy.yml",
+      "job": "deploy",
+      "id": "build",
+      "sha256": "b3558cc3a4de2beb01c45bccb50052cb9b2eef9d208c27041caea2b9a067584c"
+    },
+    {
+      "file": "site-deploy.yml",
+      "job": "deploy",
+      "id": "deploy",
+      "sha256": "edc88d9a09c95a6a0a15edd39062f2b34e0cc53593ac916c2cfd56c6ba6d98d6"
+    },
+    {
       "file": "support-manifest.yml",
       "job": "publish",
       "id": "checkout",
@@ -596,6 +632,19 @@
       "sha256": "99201e1c17e05e9cab16846387a6940aff21dff8fa6f2e884eec280a34b25c1b"
     },
     {
+      "file": "site-deploy.yml",
+      "job": "deploy",
+      "ids": [
+        "checkout",
+        "setup-node",
+        "npm-ci",
+        "test",
+        "build",
+        "deploy"
+      ],
+      "sha256": "e2ecf9ab8141895e6afaf23cf0fc14603b90c9751e428f584d51b9b2fb68fd91"
+    },
+    {
       "file": "support-manifest.yml",
       "job": "publish",
       "ids": [
@@ -665,6 +714,13 @@
         "release"
       ],
       "sha256": "19d4e159ed8287d960b36b555f66477ef86a0b5cd8198a19c1415c4dccf6c9db"
+    },
+    {
+      "file": "site-deploy.yml",
+      "jobs": [
+        "deploy"
+      ],
+      "sha256": "a662bc6a43859d46cf033a3336963972d1ba28df4ee3655f32a6ef8021825822"
     },
     {
       "file": "support-manifest.yml",
