@@ -152,8 +152,10 @@ const verified = await exchange(code)
 const bearer = verified.headers.get('set-auth-token') ?? ''
 ok(verified.status === 200, `app exchange succeeds (got ${verified.status})`)
 ok(bearer.includes('.'), 'app receives a signed bearer')
-const body = await verified.json() as { user?: { email?: string } }
+const body = await verified.json() as { user?: { email?: string }; session?: { expiresAt?: string } }
 ok(body.user?.email === 'native@example.test', 'exchange returns the Google user')
+const daysLeft = (new Date(body.session?.expiresAt ?? 0).getTime() - Date.now()) / 86_400_000
+ok(daysLeft > 364 && daysLeft <= 365, `sessions last a year, like Supabase (got ${daysLeft.toFixed(1)} days)`)
 
 const replay = await exchange(code)
 ok(replay.status !== 200, 'one-time token cannot be replayed')

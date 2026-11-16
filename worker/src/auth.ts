@@ -106,6 +106,9 @@ export async function verifyPassword({ hash, password }: { hash: string; passwor
   return verifyBetterAuthPassword({ hash, password })
 }
 
+export const SESSION_EXPIRES_IN = 60 * 60 * 24 * 365
+export const SESSION_UPDATE_AGE = 60 * 60 * 24
+
 const DEEP_LINK_ORIGIN = 'https://dayspring-eosin.vercel.app'
 
 /** Apple + Google only when client id and secret are both set. */
@@ -156,7 +159,14 @@ export function createAuth(
     database: db as Pool,
     emailAndPassword: { enabled: true, password: { verify: verifyPassword } },
     user: authModels.user,
-    session: authModels.session,
+    session: {
+      ...authModels.session,
+      // Supabase kept people signed in until they signed out. Better Auth's
+      // default is 7 days, which signs out anyone who skips a week of
+      // journaling. A year, refreshed at most once a day while in use.
+      expiresIn: SESSION_EXPIRES_IN,
+      updateAge: SESSION_UPDATE_AGE,
+    },
     account: authModels.account,
     verification: authModels.verification,
     socialProviders: socialProvidersFromEnv(env),
