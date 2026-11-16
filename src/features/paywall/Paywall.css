@@ -409,7 +409,12 @@
   flex-direction: column;
   gap: 0.05rem;
   padding: 0.3rem 0.5rem 0.3rem 0.85rem;
-  background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-elevated));
+  /* --accent-soft is translucent, so tint over an opaque base — otherwise
+     whatever the pill floats over (the ritual list on an empty entry) reads
+     straight through it. */
+  background:
+    linear-gradient(color-mix(in srgb, var(--accent-soft) 70%, transparent), color-mix(in srgb, var(--accent-soft) 70%, transparent)),
+    var(--bg-elevated);
   border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-2);
@@ -1259,10 +1264,29 @@ html[data-trial-banner='value'] {
 }
 
 @media (max-width: 767px) {
+  /* left:50% + translateX(-50%) caps a fixed box's shrink-to-fit width at half
+     the viewport, which wrapped the copy one word per line on a phone. Span
+     the gutters instead and centre with auto margins. */
   .trial-banner {
     top: auto;
     bottom: calc(var(--mobile-chrome-h) + 0.5rem);
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    width: fit-content;
+    max-width: none;
+    margin-inline: auto;
+    border-radius: var(--radius-lg, 1rem);
+    line-height: 1.3;
   }
+}
+
+.trial-banner__action {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.trial-banner__dismiss {
+  flex-shrink: 0;
 }
 
 /* 3.1.2(c): the billed amount is the most conspicuous thing in the banner —
