@@ -34,6 +34,12 @@ describe('signed Workers bearer', () => {
     expect(readWorkersBearer()).toBeNull()
   })
 
+  it('a response without set-auth-token keeps the stored bearer', () => {
+    rememberWorkersBearer('kept.sig')
+    expect(captureSignedBearer(new Headers({ 'content-type': 'application/json' }))).toBeNull()
+    expect(readWorkersBearer()).toBe('kept.sig')
+  })
+
   it('getWorkersToken returns only the signed stored bearer', async () => {
     expect(await getWorkersToken()).toBeNull()
     rememberWorkersBearer('tok.sig')

@@ -3,7 +3,7 @@ import { API_CORS, API_SECURITY, beginAuthCors, json } from './cors.ts'
 import { sessionUser } from './auth.ts'
 import { resolveAuthBaseURL } from './authUrl.ts'
 import { NATIVE_FINISH_PATH, NATIVE_START_PATH, nativeFinish, nativeStart } from './nativeAuth.ts'
-import { stripGetSessionToken } from './sessionBody.ts'
+import { echoCallerBearer, stripGetSessionToken } from './sessionBody.ts'
 import { CPU_HEAVY_ROUTES } from './cpuLimits.ts'
 import type { Env } from './env.ts'
 import { closeSql, createSql } from './db.ts'
@@ -121,6 +121,7 @@ app.all('/api/auth/*', async (c) => {
     const auth = authOf(c)
     const res = await stripGetSessionToken(await auth.handler(c.req.raw), new URL(c.req.url).pathname)
     const headers = new Headers(res.headers)
+    echoCallerBearer(c.req.raw, res, headers)
     for (const [k, v] of Object.entries(cors)) {
       if (k === 'Access-Control-Allow-Origin' || !headers.has(k)) headers.set(k, v)
     }

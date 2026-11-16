@@ -41,11 +41,20 @@ export function clearWorkersBearer(): void {
   storage()?.removeItem(WORKERS_BEARER_KEY)
 }
 
-/** Persist `set-auth-token` from a Better Auth sign-in (the signed form). */
+/**
+ * Persist `set-auth-token` from a Better Auth response (the signed form).
+ *
+ * Better Auth only sends the header when the response creates or refreshes a
+ * session, so most responses (get-session, list-accounts, …) have none. A
+ * missing header must leave the stored bearer alone: clearing it here signed
+ * the native apps out right after a successful sign-in ("We couldn't reach
+ * your account"). Signing out clears it explicitly (clearWorkersBearer).
+ */
 export function captureSignedBearer(
   headers: Headers | { get(name: string): string | null },
 ): string | null {
   const token = headers.get('set-auth-token')
+  if (token === null) return null
   rememberWorkersBearer(token)
   return isSignedWorkersBearer(token) ? token : null
 }

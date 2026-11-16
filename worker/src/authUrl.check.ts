@@ -9,6 +9,7 @@ import { HYPERDRIVE_ID_PLACEHOLDER, asWranglerFile, parseJsonc } from './wrangle
 import { nextMigrationVersions, schemaFileVersion } from './isolationDb.ts'
 import { app } from './index.ts'
 import { authConfigErrorResponse, beginAuthCors } from './cors.ts'
+import { echoCallerBearer } from './sessionBody.ts'
 import { timingSafeEqualString } from './safeEqual.ts'
 import {
   authCookieSecure,
@@ -414,6 +415,25 @@ ok(
   ok(denied.headers.get('access-control-allow-origin') === '*', 'error responses allow the native app origin too')
   const authOk = await app.request('http://localhost/api/auth/ok', fromApp, { ENVIRONMENT: 'local', BETTER_AUTH_SECRET: 'x'.repeat(32) })
   ok(authOk.headers.get('access-control-allow-origin') === 'tauri://localhost', 'auth keeps its credentialed origin echo')
+}
+
+{
+  // Builds <= 1.0.1357 erase their bearer when set-auth-token is missing.
+  const call = (path: string, auth: string | null, status = 200, minted?: string) => {
+    const req = new Request(`https://api.dayspring.example/api/auth/${path}`, auth ? { headers: { authorization: auth } } : {})
+    const res = new Response('{}', { status, headers: minted ? { 'set-auth-token': minted } : {} })
+    const headers = new Headers(res.headers)
+    echoCallerBearer(req, res, headers)
+    return headers
+  }
+  const echoed = call('get-session', 'Bearer tok.sig')
+  ok(echoed.get('set-auth-token') === 'tok.sig', 'get-session echoes the caller bearer')
+  ok((echoed.get('access-control-expose-headers') ?? '').includes('set-auth-token'), 'echoed bearer is exposed to the webview')
+  ok(call('get-session', 'Bearer tok.sig', 200, 'new.sig').get('set-auth-token') === 'new.sig', 'a freshly minted bearer wins')
+  ok(call('sign-out', 'Bearer tok.sig').get('set-auth-token') === null, 'sign-out never echoes')
+  ok(call('get-session', 'Bearer tok.sig', 401).get('set-auth-token') === null, 'errors never echo')
+  ok(call('get-session', 'Bearer raw-unsigned').get('set-auth-token') === null, 'unsigned bearers are not echoed')
+  ok(call('get-session', null).get('set-auth-token') === null, 'no bearer, no echo')
 }
 
 console.log(`${checks} checks, ${fails.length} failed`)
