@@ -13,9 +13,10 @@ almost every case nothing has been lost.
 
 ## What's happened
 
-Dayspring signs you in with Apple or with Google. Those are two different
-identities. If you used one the first time and the other the second time, you're
-now looking at a **second, brand-new account** — which is, correctly, empty.
+Dayspring signs you in with Apple, with Google, or with your email. Those are
+different identities. If you used one the first time and another the second
+time, you're now looking at a **second, brand-new account** — which is,
+correctly, empty.
 
 Apple's **Hide My Email** makes this easier to hit. It gives us a relay address
 like `x7k2p9@privaterelay.appleid.com` instead of your real one, so there's no
@@ -24,11 +25,11 @@ way for us to see that it's the same person as your Google sign-in.
 ## The fix
 
 1. **Sign out.**
-2. **Sign back in the way you did the first time** — the other button.
+2. **Sign back in the way you did the first time** — a different button.
 3. Your journal is there.
 
-If you can't remember which you used first, try the other one. There are only
-two.
+If you can't remember which you used first, the sign-in screen may remind you
+("You continued with … last time"). Otherwise, try the others in turn.
 
 ## Then stop it happening again
 

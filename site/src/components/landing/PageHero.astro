@@ -1,0 +1,86 @@
+---
+// PageHero — the opening of an inner page, in the home page's hand: a kicker,
+// a display headline that rises letter by letter, and a lead. A slot below
+// takes the page's own plate (a product picture, a jump list).
+import Split from "./Split.astro";
+
+interface Props {
+  kicker: string;
+  /** Headline, one string per line. */
+  lines: string[];
+  /** Words that take the gold italic, matched exactly. */
+  accent?: string[];
+  /** Lead paragraph (may hold <em>). */
+  lead?: string;
+  align?: "center" | "left";
+}
+const { kicker, lines, accent = [], lead, align = "center" } = Astro.props;
+---
+
+<section class:list={["ph", `ph-${align}`]}>
+  <div class="ph-inner">
+    <div class="kicker ph-k">{kicker}</div>
+    <h1 class="display ph-h">
+      {lines.map((l) => <span class="line"><Split text={l} accent={accent} /></span>)}
+    </h1>
+    {lead && <p class="ph-lead body-l" set:html={lead} />}
+  </div>
+  <slot />
+</section>
+
+<style>
+  .ph {
+    position: relative;
+    padding: clamp(150px, 22vh, 220px) 24px 0;
+  }
+  .ph-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .ph-center .ph-inner {
+    text-align: center;
+  }
+  .ph-k {
+    margin-bottom: 26px;
+  }
+  .ph-h {
+    font-size: clamp(46px, 8.4vw, 124px);
+    line-height: 0.96;
+    letter-spacing: -0.035em;
+    margin: 0 0 30px;
+  }
+  .ph-h .line {
+    display: block;
+    overflow: hidden;
+    padding: 0.04em 0.06em 0.12em;
+  }
+  .ph-lead {
+    max-width: 52ch;
+  }
+  .ph-center .ph-lead {
+    margin: 0 auto;
+  }
+  /* a command named in the lead, e.g. /ritual */
+  .ph-lead :global(em) {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--gold);
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced } from "../../lib/motion";
+  boot();
+  const ph = document.querySelector<HTMLElement>(".ph");
+  if (ph && !reduced) {
+    const chars = ph.querySelectorAll(".ph-h .ch");
+    gsap.set(chars, { yPercent: 115, rotate: 6, opacity: 0, filter: "blur(10px)" });
+    gsap.set([".ph-k", ".ph-lead"], { opacity: 0, y: 22 });
+    gsap
+      .timeline({ delay: 0.1 })
+      .to(".ph-k", { opacity: 1, y: 0, duration: 0.9, ease: "power3.out" }, 0)
+      .to(chars, { yPercent: 0, rotate: 0, opacity: 1, filter: "blur(0px)", duration: 1.1, ease: "expo.out", stagger: 0.018 }, 0.1)
+      .to(".ph-lead", { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, 0.45);
+  }
+</script>

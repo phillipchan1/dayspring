@@ -1,0 +1,316 @@
+---
+// Lamp — every chapter of the Bible as a cell, dark until you scroll. Then
+// the seasons pass: the hard year (the laments light), spring (the Gospels),
+// and all of it. Cells warm in a wave, book by book. The data and the season
+// profiles are ScriptureTeaser's (content/scriptureCanon.ts).
+import {
+  scriptureOT,
+  scriptureNT,
+  bookIntensity,
+  seed,
+  type CanonBook,
+  type ScriptureSeasonId,
+} from "../../content/scriptureCanon";
+import { lamp } from "../../content/landing";
+
+const seasons = lamp.seasons.map((s) => s.id as ScriptureSeasonId);
+let i = 0;
+const build = (books: CanonBook[], offset: number) =>
+  books.map((book, bi) => {
+    const cols = Math.min(10, Math.max(3, Math.ceil(Math.sqrt(book[1]))));
+    const cells = Array.from({ length: book[1] }, (_, c) => {
+      const w = seasons.map((sid) => {
+        const v = bookIntensity(book, sid);
+        const nLit = Math.round(book[1] * v);
+        const lit = seed((offset + bi) * 97 + c * 13) < nLit / book[1];
+        return lit ? +(0.35 + 0.65 * seed((offset + bi) * 31 + c * 7) * Math.max(v, 0.5)).toFixed(3) : 0;
+      });
+      return { w, i: i++ };
+    });
+    return { name: book[0], cols, cells };
+  });
+const ot = build(scriptureOT, 0);
+const nt = build(scriptureNT, scriptureOT.length);
+const total = i;
+---
+
+<section class="lamp" id="lamp" data-track="lamp" aria-labelledby="lamp-h">
+  <div class="lamp-stage">
+    <div class="lamp-inner">
+      <header class="lamp-head">
+        <div>
+          <div class="kicker">{lamp.kicker}</div>
+          <h2 id="lamp-h" class="h2" set:html={lamp.heading} />
+        </div>
+        <p class="body-l">{lamp.lead}</p>
+      </header>
+
+      <div class="canon" data-s="0" aria-hidden="true" style={`--n:${total}`}>
+        {
+          [
+            { t: "Old Testament", books: ot },
+            { t: "New Testament", books: nt },
+          ].map((half) => (
+            <div class="half">
+              <div class="half-t mono">{half.t}</div>
+              <div class="books">
+                {half.books.map((b) => (
+                  <div class="book" title={b.name}>
+                    <div class="cells" style={`--cols:${b.cols}`}>
+                      {b.cells.map((c) => (
+                        <i style={`--i:${c.i};--a:${c.w[0]};--b:${c.w[1]};--c:${c.w[2]}`} />
+                      ))}
+                    </div>
+                    <span class="bk mono">{b.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+
+      <footer class="lamp-foot">
+        <div class="seasons" role="list">
+          {lamp.seasons.map((s, i) => <button type="button" class="sn mono" role="listitem" data-i={i}>{s.label}</button>)}
+        </div>
+        <div class="notes">
+          {lamp.seasons.map((s, i) => <p class="note" data-i={i}>{s.note}</p>)}
+        </div>
+        <p class="lamp-foot-l mono">{lamp.foot}</p>
+      </footer>
+    </div>
+  </div>
+</section>
+
+<style>
+  .lamp-stage {
+    display: grid;
+    place-items: center;
+    padding: 14vh 0;
+  }
+  .lamp-inner {
+    width: min(1240px, calc(100vw - 48px));
+    display: flex;
+    flex-direction: column;
+    gap: clamp(20px, 3.5vh, 40px);
+  }
+  .lamp-head {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 60px;
+    align-items: end;
+  }
+  .lamp-head .kicker {
+    margin-bottom: 14px;
+  }
+  .lamp-head .h2 {
+    font-size: clamp(30px, 4.2vw, 58px);
+  }
+
+  .canon {
+    display: grid;
+    grid-template-columns: 1.85fr 1fr;
+    gap: 36px;
+  }
+  .half-t {
+    font-size: 10px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .books {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 10px;
+    align-items: flex-end;
+  }
+  .book {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .cells {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), var(--cell));
+    gap: 2px;
+    --cell: clamp(4px, 0.52vw, 7px);
+  }
+  .cells i {
+    width: var(--cell);
+    height: var(--cell);
+    border-radius: 1px;
+    --w: 0;
+    background: color-mix(
+      in oklab,
+      color-mix(in oklab, var(--dawn-1) calc(var(--w) * 100%), var(--dawn-3)) calc(clamp(0, var(--w) * 4, 1) * 100%),
+      var(--cell-unlit)
+    );
+    box-shadow: 0 0 calc(var(--w) * 9px) color-mix(in oklab, var(--dawn-1) calc(var(--w) * 70%), transparent);
+    transition: --w 1.1s cubic-bezier(0.3, 0.7, 0.2, 1) calc(var(--i) / var(--n) * 900ms);
+  }
+  .canon[data-s="1"] .cells i { --w: var(--a); }
+  .canon[data-s="2"] .cells i { --w: var(--b); }
+  .canon[data-s="3"] .cells i { --w: var(--c); }
+  .bk {
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    max-width: calc(var(--cols, 4) * 9px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.7;
+  }
+
+  .lamp-foot {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 18px 36px;
+    align-items: center;
+  }
+  .seasons {
+    display: flex;
+    gap: 6px;
+  }
+  .sn {
+    font-size: 11px;
+    padding: 7px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: none;
+    cursor: default;
+    transition: all 0.4s;
+    white-space: nowrap;
+  }
+  .sn:active {
+    opacity: 0.7;
+  }
+  @media (hover: hover) {
+    .sn:not(.on):hover {
+      color: var(--paper);
+      border-color: var(--border-strong);
+    }
+  }
+  .sn.on {
+    color: var(--ink);
+    background: var(--dawn-1);
+    border-color: var(--dawn-1);
+  }
+  .notes {
+    position: relative;
+    min-height: 3em;
+  }
+  .note {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    font-style: italic;
+    color: var(--paper-dim);
+    opacity: 0;
+    transition: opacity 0.5s, transform 0.5s;
+    transform: translateY(8px);
+  }
+  .note.on {
+    opacity: 1;
+    transform: none;
+  }
+  .lamp-foot-l {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 900px) {
+    .lamp-head {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .lamp-head .body-l {
+      font-size: 15px;
+    }
+    .canon {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .bk {
+      display: none;
+    }
+    .books {
+      gap: 5px 5px;
+    }
+    .cells {
+      --cell: 3.5px;
+      gap: 1px;
+    }
+    .lamp-foot {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .seasons {
+      flex-wrap: wrap;
+    }
+    .note {
+      font-size: 14px;
+    }
+  }
+
+  :global(.motion-off) .note[data-i="2"] {
+    opacity: 1;
+    transform: none;
+  }
+</style>
+
+<script>
+  import { boot, reduced, ScrollTrigger } from "../../lib/motion";
+  boot();
+
+  // Not pinned. The Bible lights when it comes into view, then the seasons
+  // turn on their own every few seconds; the pills pick one directly.
+  const section = document.querySelector<HTMLElement>(".lamp");
+  const canon = section?.querySelector<HTMLElement>(".canon");
+  if (section && canon) {
+    const sns = section.querySelectorAll<HTMLButtonElement>(".sn");
+    const notes = section.querySelectorAll(".note");
+    const show = (s: number) => {
+      canon.dataset.s = String(s);
+      sns.forEach((el, i) => el.classList.toggle("on", i === s - 1));
+      notes.forEach((el, i) => el.classList.toggle("on", i === s - 1));
+    };
+    let cur = 0;
+    let timer = 0;
+    const cycle = () => {
+      cur = (cur % 3) + 1;
+      show(cur);
+    };
+    const start = () => {
+      window.clearInterval(timer);
+      timer = window.setInterval(cycle, 4800);
+    };
+    sns.forEach((b, i) =>
+      b.addEventListener("click", () => {
+        cur = i + 1;
+        show(cur);
+        if (!reduced) start();
+      }),
+    );
+    if (reduced) {
+      cur = 3;
+      show(3);
+    } else {
+      ScrollTrigger.create({
+        trigger: canon,
+        start: "top 75%",
+        end: "bottom top",
+        onToggle: (self) => {
+          if (self.isActive) {
+            if (cur === 0) cycle();
+            start();
+          } else window.clearInterval(timer);
+        },
+      });
+    }
+  }
+</script>

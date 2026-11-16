@@ -8,8 +8,9 @@ keywords: [scripture, verse, bible, passage, pray, prayer, sense, impression, es
 updated: 2026-08-10
 ---
 
-Three of the slash commands put something structured on the page. They're what
-lets Dayspring read your journal back to you later.
+Six of the slash commands put something structured on the page — `/scripture`,
+`/pray`, `/sense`, `/desire`, `/learned` and `/story`. They're what lets
+Dayspring read your journal back to you later.
 
 ## `/scripture`
 
@@ -40,6 +41,16 @@ it felt too slight, or because writing it felt presumptuous.
 It's kept separate from your prose deliberately, so that returning to it later
 you can see it for what it was: something you sensed on a particular day, not a
 conclusion you'd reached.
+
+## `/desire`, `/learned` and `/story`
+
+Three more, for the other things worth setting apart:
+
+- **`/desire`** — something you want.
+- **`/learned`** — something you would tell yourself again.
+- **`/story`** — a thing that happened, worth keeping.
+
+Like the others, they sit apart from your prose so you can find them again later.
 
 ## `/ritual`
 

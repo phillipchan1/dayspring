@@ -44,6 +44,13 @@ If two people use Dayspring on the same computer, signing in as one clears the
 other's cached writing first. One person's journal never appears under another
 person's account.
 
+If others can pick up your phone or open your laptop, turn on **Lock Dayspring**
+in Settings → About → Privacy. It asks for a PIN or passphrase before your
+journal opens — the same one on your Mac, your phone, and the web — and you can
+let Face ID or Touch ID answer for it where your device has them. It keeps the
+app closed to whoever is holding the device; it doesn't change how your writing
+is stored.
+
 ## Anonymous usage
 
 There's a **Share anonymous usage** switch in Settings → About, on by default.

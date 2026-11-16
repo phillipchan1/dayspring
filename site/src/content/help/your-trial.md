@@ -1,6 +1,6 @@
 ---
 title: Your trial period
-summary: "A {{billing.trial-days}}-day trial, everything unlocked, no card needed. Here's exactly how it works and what happens at the end."
+summary: "A {{billing.trial-days}}-day trial, everything switched on, no card needed. Here's exactly how it works and what happens at the end."
 section: getting-started
 order: 5
 requires: [capability.billing]

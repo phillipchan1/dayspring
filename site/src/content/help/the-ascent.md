@@ -8,7 +8,7 @@ keywords: [ascent, review, looking back, week, month, quarter, year, summary, re
 updated: 2026-08-10
 ---
 
-Press <kbd>⌘2</kbd>.
+Press <kbd>⌘3</kbd>.
 
 The Ascent is your journal seen from four distances:
 

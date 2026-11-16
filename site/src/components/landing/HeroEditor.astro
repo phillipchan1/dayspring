@@ -1,0 +1,253 @@
+---
+// HeroEditor — the product, playing in the hero with no scroll required. A
+// line is written, / opens the palette, Scripture is found from loose words
+// and set in the page, then a prayer is laid down. Loops gently. With reduced
+// motion it is the finished entry, still.
+import Split from "./Split.astro";
+import { heroEditor as e } from "../../content/landing";
+
+const cmds = [
+  ["/scripture", "Find relevant Bible passages"],
+  ["/pray", "Log a prayer"],
+  ["/sense", "Record a word or impression"],
+  ["/ritual", "Rituals for the inner life"],
+];
+---
+
+<figure class="he" aria-label="A Dayspring journal entry with a verse and a prayer set inline">
+  <div class="he-win" aria-hidden="true">
+    <div class="he-bar">
+      <span class="he-lights"><i></i><i></i><i></i></span>
+      <span class="mono">Dayspring</span>
+      <span class="he-mode mono">Focus</span>
+    </div>
+    <div class="he-body">
+      <div class="he-date">{e.date}</div>
+      <p class="he-l1"><Split text={e.line} /></p>
+      <p class="he-cmd he-c1"><span class="sl">/scripture</span> <Split text={e.query} /></p>
+      <div class="he-blk he-scr">
+        <div class="he-ref mono">{e.scripture.ref} <span>ESV</span></div>
+        <div class="he-txt">{e.scripture.text}</div>
+      </div>
+      <p class="he-cmd he-c2"><span class="sl">/pray</span> <Split text={e.prayer} /></p>
+      <div class="he-blk he-pray">
+        <div class="he-lab mono">Prayer</div>
+        <div class="he-txt">{e.prayer}</div>
+      </div>
+
+      <div class="he-pal">
+        <div class="he-hl"></div>
+        {cmds.map(([c, h]) => <div class="he-row"><span class="mono">{c}</span><span>{h}</span></div>)}
+      </div>
+    </div>
+  </div>
+  <figcaption class="he-cap">{e.caption}</figcaption>
+</figure>
+
+<style>
+  .he {
+    position: relative;
+    width: 100%;
+  }
+  .he-win {
+    border-radius: 16px;
+    background: linear-gradient(170deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    box-shadow:
+      0 60px 120px -40px var(--shadow),
+      0 0 0 1px var(--border-dim),
+      0 0 140px -30px var(--accent-glow);
+    overflow: hidden;
+  }
+  .he-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-dim);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .he-lights {
+    display: flex;
+    gap: 7px;
+  }
+  .he-lights i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .he-mode {
+    color: var(--dawn-1);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .he-body {
+    position: relative;
+    height: clamp(300px, 40vh, 400px);
+    padding: clamp(22px, 3vw, 36px) clamp(22px, 3.4vw, 44px);
+    font-size: clamp(15px, 1.25vw, 18px);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .he-date {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 1.6em;
+    margin-bottom: 12px;
+  }
+  .he-l1 {
+    margin-bottom: 10px;
+  }
+  .he-cmd {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: var(--paper-dim);
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .sl {
+    color: var(--dawn-1);
+  }
+  .he-blk {
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .he-scr {
+    border-left: 2px solid var(--gold);
+    padding-left: 16px;
+  }
+  .he-ref {
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--gold);
+    margin-top: 2px;
+  }
+  .he-ref span {
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .he-scr .he-txt {
+    font-style: italic;
+    padding-bottom: 12px;
+  }
+  .he-lab {
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--dawn-2);
+  }
+  .he-pray .he-txt {
+    border-left: 1px dashed var(--border-strong);
+    padding-left: 12px;
+    margin-left: 4px;
+  }
+  .he-pal {
+    position: absolute;
+    left: clamp(22px, 3.4vw, 44px);
+    bottom: 18px;
+    width: min(330px, 84%);
+    padding: 5px;
+    border-radius: 11px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 50px -20px var(--shadow);
+    opacity: 0;
+  }
+  .he-hl {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    top: 5px;
+    height: 34px;
+    border-radius: 7px;
+    background: var(--accent-glow);
+  }
+  .he-row {
+    position: relative;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 10px;
+    font-size: 12.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .he-row .mono {
+    color: var(--paper);
+    font-size: 11.5px;
+    min-width: 74px;
+  }
+  .he-l1 :global(.ch),
+  .he-cmd :global(.ch) {
+    opacity: 0;
+  }
+  .he-cap {
+    margin-top: 18px;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 15px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* still: the finished entry */
+  :global(.motion-off) .he-l1 :global(.ch) {
+    opacity: 1;
+  }
+  :global(.motion-off) .he-blk {
+    height: auto;
+    opacity: 1;
+  }
+</style>
+
+<script>
+  import { gsap, reduced } from "../../lib/motion";
+
+  const root = document.querySelector<HTMLElement>(".he");
+  if (root && !reduced) {
+    const q = gsap.utils.selector(root);
+    const type = (tl: gsap.core.Timeline, sel: string, at: number, per = 0.035) => {
+      const chars = q(`${sel} .ch`);
+      tl.to(chars, { opacity: 1, duration: 0.001, stagger: per }, at);
+      return at + chars.length * per;
+    };
+    gsap.set(q(".he-pal"), { y: 8 });
+    const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.4, delay: 0.9 });
+    let t = type(tl, ".he-l1", 0.2, 0.03) + 0.5;
+    tl.to(q(".he-c1"), { height: "auto", opacity: 1, duration: 0.25 }, t);
+    tl.set(q(".he-hl"), { y: 0 }, t);
+    tl.to(q(".he-pal"), { opacity: 1, y: 0, duration: 0.25 }, t + 0.1);
+    tl.to(q(".he-pal"), { opacity: 0, y: 8, duration: 0.2 }, t + 1.1);
+    t = type(tl, ".he-c1", t + 1.25, 0.045) + 0.5;
+    tl.to(q(".he-c1"), { height: 0, opacity: 0, duration: 0.3 }, t);
+    tl.to(q(".he-scr"), { height: "auto", opacity: 1, duration: 0.6, ease: "power2.out" }, t + 0.1);
+    tl.to(q(".he-l1, .he-date"), { opacity: 0.38, duration: 0.6 }, t + 0.5);
+    t += 1.6;
+    tl.to(q(".he-c2"), { height: "auto", opacity: 1, duration: 0.25 }, t);
+    tl.set(q(".he-hl"), { y: 34 }, t);
+    tl.to(q(".he-pal"), { opacity: 1, y: 0, duration: 0.25 }, t + 0.1);
+    tl.to(q(".he-pal"), { opacity: 0, y: 8, duration: 0.2 }, t + 1.0);
+    t = type(tl, ".he-c2", t + 1.15, 0.045) + 0.4;
+    tl.to(q(".he-c2"), { height: 0, opacity: 0, duration: 0.3 }, t);
+    tl.to(q(".he-pray"), { height: "auto", opacity: 1, duration: 0.6, ease: "power2.out" }, t + 0.1);
+    tl.to(q(".he-scr"), { opacity: 0.45, duration: 0.6 }, t + 0.5);
+    // rest on the finished entry, then fade for the next pass
+    tl.to(q(".he-body > *:not(.he-pal)"), { opacity: 0, duration: 0.6 }, t + 4.2);
+
+    // pause when off screen
+    const io = new IntersectionObserver(([en]) => (en.isIntersecting ? tl.play() : tl.pause()));
+    io.observe(root);
+  }
+</script>

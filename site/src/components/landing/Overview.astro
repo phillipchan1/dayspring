@@ -1,0 +1,309 @@
+---
+// Overview — screen two: the whole story at a glance. Write, Find, See, each
+// with a small living picture and a link down to where it unfolds. Someone who
+// stops here can still say what Dayspring is.
+import { overview as o } from "../../content/landing";
+
+const cmds = ["/scripture", "/pray", "/sense", "/ritual"];
+// a little wall: 13 × 6 pages, a few that "carry the name"
+const wall = Array.from({ length: 78 }, (_, i) => ({
+  on: (i * 37) % 11 > 2,
+  hit: [5, 19, 30, 44, 58, 71].includes(i),
+}));
+const alts = ["Year", "Season", "Month", "Week"];
+---
+
+<section class="ov" id="story" data-track="overview" aria-labelledby="ov-h">
+  <div class="ov-inner">
+    <header class="ov-head">
+      <div class="kicker">{o.kicker}</div>
+      <h2 id="ov-h" class="h2" set:html={o.heading} />
+    </header>
+
+    <div class="ov-cards">
+      {
+        o.parts.map((p, i) => (
+          <a class="ov-card" href={p.href}>
+            <div class="ov-pic" aria-hidden="true">
+              {i === 0 && (
+                <div class="pic-pal">
+                  <div class="pic-line">
+                    <span class="mono">/</span>
+                    <i class="caret" />
+                  </div>
+                  <div class="pic-list">
+                    <span class="pic-hl" />
+                    {cmds.map((c) => <span class="mono">{c}</span>)}
+                  </div>
+                </div>
+              )}
+              {i === 1 && (
+                <div class="pic-wall">
+                  {wall.map((c, j) => <i class:list={{ on: c.on, hit: c.hit }} style={`--d:${(j % 13) * 0.06}s`} />)}
+                </div>
+              )}
+              {i === 2 && (
+                <div class="pic-alt">
+                  <ol>{alts.map((a) => <li class="mono">{a}</li>)}</ol>
+                  <span class="pic-dot" />
+                  <p>“I went in defensive and left grateful.”</p>
+                </div>
+              )}
+            </div>
+            <div class="ov-n mono">{p.n} · {p.word}</div>
+            <h3 class="ov-t">{p.title}</h3>
+            <p class="ov-b">{p.body}</p>
+            <span class="ov-go mono">See how →</span>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .ov {
+    padding: 14vh 24px 8vh;
+  }
+  .ov-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .ov-head {
+    max-width: 900px;
+    margin-bottom: 56px;
+  }
+  .ov-head .kicker {
+    margin-bottom: 16px;
+  }
+  .ov-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .ov-card {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    padding: 22px 22px 26px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: linear-gradient(170deg, var(--ink-3), var(--ink-2));
+    box-shadow: 0 40px 80px -50px var(--shadow);
+    transition: border-color 0.4s, transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .ov-card:active {
+    transform: scale(0.99);
+  }
+  @media (hover: hover) {
+    .ov-card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-4px);
+    }
+    .ov-card:hover .ov-go {
+      color: var(--gold);
+    }
+  }
+  .ov-pic {
+    height: 170px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-dim);
+    margin-bottom: 24px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .ov-n {
+    font-size: 11px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 10px;
+  }
+  .ov-t {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(24px, 2.2vw, 31px);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin-bottom: 12px;
+  }
+  .ov-b {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.55;
+    margin-bottom: 20px;
+  }
+  .ov-go {
+    margin-top: auto;
+    font-size: 12px;
+    color: var(--muted);
+    transition: color 0.3s;
+  }
+
+  /* 01 — the palette, cycling */
+  .pic-pal {
+    width: 72%;
+  }
+  .pic-line {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--dawn-1);
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+  .caret {
+    width: 1.5px;
+    height: 16px;
+    background: var(--paper);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  .pic-list {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    border-radius: 9px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-strong);
+  }
+  .pic-list span.mono {
+    position: relative;
+    height: 24px;
+    line-height: 24px;
+    padding: 0 9px;
+    font-size: 11.5px;
+    color: var(--paper-dim);
+  }
+  .pic-hl {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 4px;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--accent-glow);
+    border: 1px solid rgba(243, 189, 118, 0.3);
+    animation: pal 6s cubic-bezier(0.6, 0, 0.2, 1) infinite;
+  }
+  @keyframes pal {
+    0%, 20% { transform: translateY(0); }
+    25%, 45% { transform: translateY(24px); }
+    50%, 70% { transform: translateY(48px); }
+    75%, 95% { transform: translateY(72px); }
+    100% { transform: translateY(0); }
+  }
+
+  /* 02 — the wall, a name lighting */
+  .pic-wall {
+    display: grid;
+    grid-template-columns: repeat(13, 11px);
+    gap: 5px 4px;
+  }
+  .pic-wall i {
+    width: 11px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--border-dim);
+  }
+  .pic-wall i.on {
+    background: var(--border-strong);
+  }
+  .pic-wall i.hit {
+    animation: hit 4.5s ease-in-out infinite;
+    animation-delay: var(--d);
+  }
+  @keyframes hit {
+    0%, 30% { background: var(--border-strong); box-shadow: none; }
+    45%, 85% { background: var(--dawn-1); box-shadow: 0 0 10px rgba(243, 189, 118, 0.6); }
+    100% { background: var(--border-strong); box-shadow: none; }
+  }
+
+  /* 03 — stepping back */
+  .pic-alt {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 20px;
+    width: 80%;
+    position: relative;
+  }
+  .pic-alt ol {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-left: 1px solid var(--border-strong);
+    padding-left: 12px;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pic-dot {
+    position: absolute;
+    left: -4px;
+    bottom: 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dawn-1);
+    box-shadow: 0 0 10px var(--dawn-1);
+    animation: climb 6s cubic-bezier(0.6, 0, 0.2, 1) infinite;
+  }
+  @keyframes climb {
+    0%, 15% { transform: translateY(0); }
+    25%, 40% { transform: translateY(-26px); }
+    50%, 65% { transform: translateY(-52px); }
+    75%, 95% { transform: translateY(-78px); }
+    100% { transform: translateY(0); }
+  }
+  .pic-alt p {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 17px;
+    line-height: 1.25;
+    color: var(--gold);
+  }
+
+  @media (max-width: 900px) {
+    .ov-cards {
+      grid-template-columns: 1fr;
+    }
+    .ov-head {
+      margin-bottom: 34px;
+    }
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced } from "../../lib/motion";
+  boot();
+  if (!reduced) {
+    gsap.from(".ov-head > *", {
+      y: 40,
+      opacity: 0,
+      stagger: 0.1,
+      duration: 1.1,
+      ease: "power3.out",
+      scrollTrigger: { trigger: ".ov", start: "top 78%" },
+    });
+    gsap.from(".ov-card", {
+      y: 60,
+      opacity: 0,
+      stagger: 0.12,
+      duration: 1.1,
+      ease: "power3.out",
+      scrollTrigger: { trigger: ".ov-cards", start: "top 85%" },
+    });
+  }
+</script>

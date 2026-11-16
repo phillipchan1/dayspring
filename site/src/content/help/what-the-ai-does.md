@@ -25,8 +25,6 @@ season, that line is one you wrote, reproduced exactly.
 - **Groups** related things — prayers about the same subject, entries about the
   same thread.
 - Turns your spoken words and your handwriting into text.
-- **Interprets a filter** you typed in plain English into actual filter
-  settings. It sets the criteria; it never decides which entries match.
 
 ## What it never does
 

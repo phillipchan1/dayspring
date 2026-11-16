@@ -1,0 +1,330 @@
+---
+// Ascent — Week, Month, Season, Year: the same pages from further back. As you
+// scroll, the contour map behind falls away (the camera climbing), the marker
+// climbs the altitude rail, and each horizon says less than the one before —
+// until the year is a single line of your own.
+import { seed } from "../../content/scriptureCanon";
+import { ascent } from "../../content/landing";
+
+// topographic contours, seeded so they're the same every build
+const rings = Array.from({ length: 16 }, (_, k) => {
+  const base = 26 + k * 30;
+  const ph = [seed(k * 3 + 1), seed(k * 3 + 2), seed(k * 3 + 3)].map((v) => v * Math.PI * 2);
+  const pts = Array.from({ length: 73 }, (_, j) => {
+    const t = (j / 72) * Math.PI * 2;
+    const r = base * (1 + 0.12 * Math.sin(3 * t + ph[0]) + 0.07 * Math.sin(5 * t + ph[1]) + 0.04 * Math.sin(8 * t + ph[2]));
+    return `${(500 + r * Math.cos(t)).toFixed(1)},${(520 + r * 0.82 * Math.sin(t)).toFixed(1)}`;
+  });
+  return { d: `M${pts.join("L")}Z`, k };
+});
+type Dim = (typeof ascent.horizons)[number]["dimensions"][number] & {
+  ref?: string; meta?: string; before?: string; after?: string; when?: string; emphasis?: boolean; body?: string;
+};
+---
+
+<section class="scene ascent" id="ascent" data-track="ascent" style="height: 270vh" aria-labelledby="ascent-h">
+  <div class="stage">
+    <svg class="topo" viewBox="0 0 1000 1040" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      {rings.map((r) => <path d={r.d} class:list={{ hot: r.k < 3 }} />)}
+    </svg>
+
+    <div class="as-inner">
+      <header class="as-head">
+        <div class="kicker">{ascent.kicker}</div>
+        <h2 id="ascent-h" class="h2" set:html={ascent.heading} />
+        <p class="body-l">{ascent.lead}</p>
+      </header>
+
+      <div class="as-stack">
+        {
+          ascent.horizons.map((h, i) => (
+            <article class:list={["hz", `hz-${h.id}`]} data-i={i}>
+              <div class="hz-alt mono">{h.label}</div>
+              <h3 class="hz-title">{h.title}</h3>
+              <div class="hz-dims">
+                {(h.dimensions as Dim[]).map((d) => (
+                  <div class:list={["dim", { emph: d.emphasis }]}>
+                    <div class="d-eye mono">{d.eyebrow}</div>
+                    {d.ref && <div class="d-ref mono">{d.ref}</div>}
+                    {d.before && (
+                      <div class="d-ba">
+                        <span>“{d.before}”</span>
+                        <i>{d.when} →</i>
+                        <span class="after">“{d.after}”</span>
+                      </div>
+                    )}
+                    {d.body && <div class="d-body" set:html={d.body} />}
+                    {d.meta && <div class="d-meta mono">{d.meta}</div>}
+                  </div>
+                ))}
+              </div>
+              {"voice" in h && h.voice && <p class="hz-voice">{h.voice}</p>}
+              {"closing" in h && h.closing && <p class="hz-voice">{h.closing}</p>}
+            </article>
+          ))
+        }
+      </div>
+
+      <ol class="alt-rail" aria-hidden="true">
+        {[...ascent.horizons].reverse().map((h) => <li class="mono">{h.label}</li>)}
+        <span class="alt-dot"></span>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<style>
+  .ascent .stage {
+    display: grid;
+    place-items: center;
+  }
+  .topo {
+    position: absolute;
+    inset: -10%;
+    width: 120%;
+    height: 120%;
+    fill: none;
+    stroke: var(--border-strong);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.55;
+    transform-origin: 50% 50%;
+  }
+  .topo path {
+    vector-effect: non-scaling-stroke;
+  }
+  .topo .hot {
+    stroke: var(--dawn-1);
+    opacity: 0.6;
+  }
+
+  .as-inner {
+    position: relative;
+    width: min(1240px, calc(100vw - 48px));
+    display: grid;
+    grid-template-columns: minmax(260px, 0.75fr) 1.3fr 70px;
+    gap: clamp(28px, 4vw, 64px);
+    align-items: center;
+  }
+  .as-head .kicker {
+    margin-bottom: 16px;
+  }
+  .as-head .h2 {
+    font-size: clamp(32px, 3.8vw, 54px);
+    margin-bottom: 20px;
+  }
+
+  .as-stack {
+    position: relative;
+    min-height: min(560px, 70vh);
+    display: grid;
+  }
+  .hz {
+    grid-area: 1 / 1;
+    align-self: center;
+    padding: clamp(24px, 3vw, 40px);
+    border-radius: 20px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 50px 100px -50px var(--shadow);
+    opacity: 0;
+  }
+  .hz:first-child {
+    opacity: 1;
+  }
+  .hz-alt {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 10px;
+  }
+  .hz-title {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(26px, 2.6vw, 38px);
+    letter-spacing: -0.015em;
+    line-height: 1.08;
+    margin-bottom: 24px;
+  }
+  .hz-dims {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 26px;
+  }
+  .dim {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .d-eye {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .d-ref {
+    color: var(--gold);
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .d-body {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--paper);
+  }
+  .d-body :global(em) {
+    color: var(--gold);
+  }
+  .d-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .d-ba {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 15px;
+    font-style: italic;
+    color: var(--paper-dim);
+  }
+  .d-ba i {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--dawn-1);
+  }
+  .d-ba .after {
+    color: var(--paper);
+  }
+  .dim.emph {
+    grid-column: 1 / -1;
+    border-top: none;
+    padding-top: 0;
+  }
+  .dim.emph .d-body {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(30px, 3.4vw, 50px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--gold);
+  }
+  .hz-voice {
+    margin-top: 22px;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  .alt-rail {
+    list-style: none;
+    position: relative;
+    height: min(380px, 52vh);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-left: 1px solid var(--border-strong);
+    padding-left: 16px;
+  }
+  .alt-rail li {
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .alt-dot {
+    position: absolute;
+    left: -5px;
+    bottom: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--dawn-1);
+    box-shadow: 0 0 14px var(--dawn-1);
+  }
+
+  @media (max-width: 1000px) {
+    .as-inner {
+      grid-template-columns: 1fr;
+      gap: 18px;
+      padding-top: 40px;
+    }
+    .as-head .h2 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .as-head .body-l {
+      font-size: 15px;
+    }
+    .as-head .kicker {
+      margin-bottom: 8px;
+    }
+    .alt-rail {
+      display: none;
+    }
+    .as-stack {
+      min-height: 0;
+    }
+    .hz-dims {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .hz-title {
+      margin-bottom: 12px;
+      font-size: 22px;
+    }
+    .d-body {
+      font-size: 14px;
+    }
+    .hz .dim:nth-child(n + 3):not(.emph) {
+      display: none;
+    }
+    .hz-voice {
+      margin-top: 12px;
+      font-size: 13px;
+    }
+  }
+
+  :global(.motion-off) .ascent .stage {
+    padding: 100px 0;
+  }
+  :global(.motion-off) .as-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  :global(.motion-off) .hz {
+    opacity: 1;
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced, scrubScene } from "../../lib/motion";
+  boot();
+
+  const section = document.querySelector<HTMLElement>(".ascent");
+  if (section && !reduced) {
+    const cards = gsap.utils.toArray<HTMLElement>(".ascent .hz");
+    const rail = section.querySelector<HTMLElement>(".alt-rail");
+    const railH = () => (rail ? rail.clientHeight - 9 : 0);
+
+    scrubScene(section, (tl) => {
+      tl.fromTo(".topo", { scale: 2.6, rotate: -8 }, { scale: 0.85, rotate: 4, duration: cards.length, ease: "power1.inOut" }, 0);
+      tl.from(cards[0], { y: 60, opacity: 0, duration: 0.3 }, 0);
+      tl.from(".as-head", { y: 40, opacity: 0, duration: 0.3 }, 0);
+      cards.forEach((card, i) => {
+        if (i === 0) return;
+        const at = i * 0.95;
+        tl.to(cards[i - 1], { opacity: 0, scale: 1.06, filter: "blur(10px)", y: 40, duration: 0.3 }, at);
+        tl.fromTo(card, { opacity: 0, scale: 0.9, y: -50, filter: "blur(10px)" }, { opacity: 1, scale: 1, y: 0, filter: "blur(0px)", duration: 0.35 }, at + 0.12);
+        tl.to(".alt-dot", { y: () => (-railH() * i) / (cards.length - 1), duration: 0.4, ease: "power2.inOut" }, at);
+      });
+      tl.to({}, { duration: 0.4 });
+    });
+  }
+</script>

@@ -3,7 +3,8 @@
 // Copy and data: src/content/rituals.ts (pinned to the app's shelf by a test).
 // Visual: a real capture of the shipped library, via `npm run screenshots:site`.
 import Base from "../layouts/Base.astro";
-import SectionReveal from "../components/SectionReveal.astro";
+import PageHero from "../components/landing/PageHero.astro";
+import Split from "../components/landing/Split.astro";
 import ProductShot from "../components/ProductShot.astro";
 import TestimonialBand from "../components/TestimonialBand.astro";
 import {
@@ -18,6 +19,11 @@ import {
 } from "../content/rituals";
 import { testimonial } from "../content/home";
 
+// "Prayed long before <em>us.</em>" → plain text + accented words, for Split.
+const parse = (html: string) => ({
+  text: html.replace(/<\/?em>/g, ""),
+  accent: [...html.matchAll(/<em>(.*?)<\/em>/g)].flatMap((m) => m[1].split(" ")),
+});
 const byEra = (id: string) => rituals.filter((r) => r.era === id);
 const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
 ---
@@ -30,34 +36,30 @@ const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
   footerSub={close.sub}
 >
   {/* intro + the shelf itself */}
-  <section class="r-intro">
-    <SectionReveal class="wrap intro-head">
-      <p class="eyebrow mono">{intro.eyebrow}</p>
-      <h1 set:html={intro.heading} />
-      <p class="lead" set:html={intro.lead} />
-    </SectionReveal>
-    <SectionReveal class="plate-wrap">
-      <ProductShot
-        name="rituals-library"
-        size={{ w: 1280, h: 740 }}
-        alt={intro.shotAlt}
-      />
+  <PageHero
+    kicker={intro.eyebrow}
+    lines={["When you don't know", "where to begin."]}
+    accent={["begin."]}
+    lead={intro.lead}
+  >
+    <div class="plate-wrap" data-rv="plate">
+      <ProductShot name="rituals-library" size={{ w: 1280, h: 740 }} alt={intro.shotAlt} />
       <p class="plate-caption">{intro.caption}</p>
-    </SectionReveal>
-  </section>
+    </div>
+  </PageHero>
 
   {/* grounded — the forms on a line through time */}
   <section class="r-grounded">
     <div class="wrap">
-      <SectionReveal class="sec-head">
+      <div class="sec-head" data-rv>
         <div>
           <p class="tag mono">{grounded.tag}</p>
-          <h2 set:html={grounded.heading} />
+          <h2 class="h2 rv-h"><Split {...parse(grounded.heading)} by="words" /></h2>
         </div>
         <p class="lead">{grounded.lead}</p>
-      </SectionReveal>
-      <SectionReveal>
-        <ol class="timeline">
+      </div>
+      <div data-rv>
+        <ol class="timeline" data-rv-stagger="0.12">
           {
             eras.map((era) => (
               <li class="era">
@@ -72,19 +74,19 @@ const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
             ))
           }
         </ol>
-      </SectionReveal>
+      </div>
     </div>
   </section>
 
   {/* easy — three steps */}
   <section class="r-easy">
     <div class="wrap">
-      <SectionReveal>
+      <div data-rv>
         <p class="tag mono">{easy.tag}</p>
-        <h2 set:html={easy.heading} />
-      </SectionReveal>
-      <SectionReveal>
-        <ol class="steps">
+        <h2 class="h2 rv-h"><Split {...parse(easy.heading)} by="words" /></h2>
+      </div>
+      <div data-rv>
+        <ol class="steps" data-rv-stagger="0.12">
           {
             easy.steps.map((step, i) => (
               <li>
@@ -95,28 +97,28 @@ const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
             ))
           }
         </ol>
-      </SectionReveal>
+      </div>
     </div>
   </section>
 
   {/* the whole library, by hour */}
   <section class="r-shelf">
     <div class="wrap">
-      <SectionReveal class="sec-head">
+      <div class="sec-head" data-rv>
         <div>
           <p class="tag mono">{shelf.tag}</p>
-          <h2 set:html={shelf.heading} />
+          <h2 class="h2 rv-h"><Split {...parse(shelf.heading)} by="words" /></h2>
         </div>
         <p class="lead">{shelf.lead}</p>
-      </SectionReveal>
+      </div>
       {
         shelves.map((s) => (
-          <SectionReveal class="shelf">
+          <div class="shelf" data-rv>
             <div class="shelf-head">
               <h3>{s.label}</h3>
               <span class="shelf-note">{s.note}</span>
             </div>
-            <ul class="cards">
+            <ul class="cards" data-rv-stagger="0.06">
               {byRhythm(s.rhythm).map((r) => (
                 <li class="card">
                   <span class="card-name">{r.name}</span>
@@ -126,7 +128,7 @@ const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
                 </li>
               ))}
             </ul>
-          </SectionReveal>
+          </div>
         ))
       }
     </div>
@@ -134,15 +136,21 @@ const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
 
   {/* the one real voice — and it was about exactly this */}
   <section class="r-voice">
-    <SectionReveal class="wrap">
+    <div class="wrap" data-rv>
       <TestimonialBand
         quote={testimonial.quote}
         attribution={testimonial.attribution}
         context={testimonial.context}
       />
-    </SectionReveal>
+    </div>
   </section>
 </Base>
+
+<script>
+  import { boot, reveal } from "../lib/motion";
+  boot();
+  reveal();
+</script>
 
 <style>
   .eyebrow,
@@ -207,9 +215,9 @@ const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
   :global(.intro-head) {
     margin-bottom: 48px;
   }
-  :global(.plate-wrap) {
+  .plate-wrap {
     width: min(1280px, calc(100vw - 48px));
-    margin: 0 auto;
+    margin: clamp(56px, 9vh, 96px) auto clamp(90px, 14vh, 150px);
   }
   .plate-caption {
     font-family: var(--font-display);

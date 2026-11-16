@@ -8,7 +8,7 @@ keywords: [lamp, scripture, bible, verse, book, chapter, map, heatmap, canon]
 updated: 2026-08-10
 ---
 
-Press <kbd>⌘3</kbd>.
+Press <kbd>⌘4</kbd>.
 
 The Lamp is the whole Bible laid out as a map, with each book lit according to
 how often your writing has touched it. Books you've lived in glow. Books you
@@ -44,7 +44,9 @@ have followed you.
 ## If it looks emptier than your life
 
 You've probably just imported an old journal. Imported entries bypass the
-editor, so their references haven't been noticed yet.
+editor, so their references are found by a scan instead — Dayspring runs it on
+its own after an import, and again when you open the Lamp.
 
-Run **Scan journal for references** in the scripture settings once, and the map
-fills in. See [importing](/help/bring-your-journal).
+If the map still looks thin, go to **Settings → Import & backup** and run
+**Scan journal for references** under Scripture references. See
+[importing](/help/bring-your-journal).

@@ -1,0 +1,182 @@
+---
+// Sky — the page's one continuous background. Night at the top, first light
+// at the bottom, driven by --dawn (0 → 1, whole-page scroll progress, set in
+// lib/motion.ts). Stars thin out as the dawn rises. A hairline on the right
+// edge fills with amber as you go: where you are in the morning.
+---
+
+<div class="sky" aria-hidden="true">
+  <div class="sky-night"></div>
+  <div class="sky-dawn"></div>
+  <canvas class="sky-stars" id="sky-stars"></canvas>
+  <div class="sky-sun"></div>
+</div>
+<div class="dawn-rail" aria-hidden="true"><span></span></div>
+
+<style>
+  .sky {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    --d: var(--dawn, 0);
+  }
+  .sky > * {
+    position: absolute;
+    inset: 0;
+  }
+  .sky-night {
+    background:
+      radial-gradient(120% 80% at 50% -10%, #141826 0%, transparent 60%),
+      linear-gradient(180deg, #06070b 0%, #0b0c12 55%, #0f0f15 100%);
+  }
+  .sky-dawn {
+    opacity: calc(var(--d) * 1.05);
+    background:
+      radial-gradient(90% 60% at 50% 115%, rgba(243, 189, 118, 0.55) 0%, rgba(232, 145, 124, 0.24) 38%, transparent 72%),
+      linear-gradient(180deg, transparent 0%, rgba(197, 106, 110, 0.08) 60%, rgba(243, 189, 118, 0.14) 100%);
+  }
+  .sky-stars {
+    width: 100%;
+    height: 100%;
+    opacity: calc(1 - var(--d) * 1.6);
+  }
+  .sky-sun {
+    inset: auto;
+    left: 50%;
+    bottom: 0;
+    width: 120vmax;
+    height: 120vmax;
+    border-radius: 50%;
+    transform: translate(-50%, calc(100% - var(--d) * 22vmax));
+    background: radial-gradient(circle at 50% 50%, rgba(243, 189, 118, 0.28) 0%, rgba(232, 145, 124, 0.08) 35%, transparent 62%);
+    opacity: calc(0.15 + var(--d) * 0.85);
+  }
+
+  :global([data-theme="light"]) .sky-night {
+    background:
+      radial-gradient(120% 80% at 50% -10%, #f7f2e8 0%, transparent 60%),
+      linear-gradient(180deg, #ece5d7 0%, #f1ebdf 60%, #f4ecdd 100%);
+  }
+  :global([data-theme="light"]) .sky-dawn {
+    background:
+      radial-gradient(90% 60% at 50% 115%, rgba(232, 160, 90, 0.32) 0%, rgba(214, 120, 100, 0.12) 40%, transparent 70%);
+  }
+  :global([data-theme="light"]) .sky-sun {
+    background: radial-gradient(circle, rgba(232, 160, 90, 0.22) 0%, transparent 60%);
+  }
+  :global([data-theme="light"]) .sky-stars {
+    opacity: calc(0.55 - var(--d));
+  }
+
+  .dawn-rail {
+    position: fixed;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 28vh;
+    background: var(--border);
+    z-index: 50;
+    pointer-events: none;
+  }
+  .dawn-rail span {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 100%;
+    transform-origin: top;
+    transform: scaleY(var(--dawn, 0));
+    background: linear-gradient(180deg, var(--dawn-3), var(--dawn-1));
+    box-shadow: 0 0 10px var(--dawn-1);
+  }
+  @media (max-width: 640px) {
+    .dawn-rail {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  import { boot, reduced } from "../../lib/motion";
+  // Every page with a sky shares the smooth scroll and the --dawn progress.
+  boot();
+
+  // Stars: a few hundred points, slow twinkle, a whisper of parallax to the
+  // pointer. Gold dust instead of white on the light page. Paused when the
+  // tab is hidden or the stars have faded out entirely.
+  const canvas = document.getElementById("sky-stars") as HTMLCanvasElement | null;
+  const ctx = canvas?.getContext("2d");
+  if (canvas && ctx) {
+    type Star = { x: number; y: number; r: number; a: number; s: number; z: number };
+    let stars: Star[] = [];
+    let w = 0;
+    let h = 0;
+    let dpr = 1;
+    let mx = 0;
+    let my = 0;
+    let tx = 0;
+    let ty = 0;
+
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = canvas.clientWidth;
+      h = canvas.clientHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const n = Math.round((w * h) / 5200);
+      let s = 7;
+      const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+      stars = Array.from({ length: n }, () => ({
+        x: rnd() * w,
+        y: rnd() * h * 0.92,
+        r: 0.3 + rnd() ** 3 * 1.4,
+        a: 0.25 + rnd() * 0.75,
+        s: 0.4 + rnd() * 1.6,
+        z: 0.2 + rnd(),
+      }));
+    };
+
+    const draw = (t: number) => {
+      const dawn = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dawn") || "0");
+      const light = document.documentElement.getAttribute("data-theme") === "light";
+      tx += (mx - tx) * 0.04;
+      ty += (my - ty) * 0.04;
+      ctx.clearRect(0, 0, w, h);
+      if (dawn < 0.7) {
+        for (const st of stars) {
+          const tw = reduced ? 1 : 0.6 + 0.4 * Math.sin(t * 0.001 * st.s + st.x);
+          const x = st.x + tx * st.z * 14;
+          const y = st.y + ty * st.z * 10 - (reduced ? 0 : dawn * h * 0.25 * st.z);
+          ctx.globalAlpha = st.a * tw;
+          ctx.fillStyle = light ? "#c08a45" : st.r > 1.2 ? "#f6dcb2" : "#e9e6f2";
+          ctx.beginPath();
+          ctx.arc(x, y, st.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      if (!reduced) raf = requestAnimationFrame(draw);
+    };
+
+    let raf = 0;
+    resize();
+    window.addEventListener("resize", resize);
+    if (!reduced) {
+      window.addEventListener(
+        "pointermove",
+        (e) => {
+          mx = e.clientX / window.innerWidth - 0.5;
+          my = e.clientY / window.innerHeight - 0.5;
+        },
+        { passive: true },
+      );
+      document.addEventListener("visibilitychange", () => {
+        cancelAnimationFrame(raf);
+        if (!document.hidden) raf = requestAnimationFrame(draw);
+      });
+    }
+    raf = requestAnimationFrame(draw);
+  }
+</script>

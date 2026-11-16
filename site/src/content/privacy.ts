@@ -29,7 +29,7 @@ export const privacyPage = {
     },
     {
       title: "No one else can reach your journal",
-      body: "Every entry is locked to your account, at the deepest level of how it's stored. Another person cannot read your writing — not by accident, not by a bug we'd shrug at.",
+      body: "Every request is checked against your account on our server before a single entry is read or written. Another person cannot read your writing — not by accident, not by a bug we'd shrug at.",
     },
     {
       title: "Your reflections stay yours",

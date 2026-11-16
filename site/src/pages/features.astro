@@ -1,43 +1,61 @@
 ---
+// /features — everything in Dayspring, up close, in the home page's hand:
+// the sky behind, a rising headline, a jump list, then one chapter per part
+// (numbered, alternating, its live mock tilting up out of the page), and the
+// exhaustive list last. Copy: content/features.ts (+ the home.ts mocks).
 import Base from "../layouts/Base.astro";
-import SectionReveal from "../components/SectionReveal.astro";
-import SlashCommandsMock from "../components/SlashCommandsMock.astro";
+import PageHero from "../components/landing/PageHero.astro";
+import Split from "../components/landing/Split.astro";
+import BibleSideBySide from "../components/landing/BibleSideBySide.astro";
+import LockMock from "../components/landing/LockMock.astro";
+import PracticeMock from "../components/PracticeMock.astro";
 import AltarMock from "../components/AltarMock.astro";
 import ScriptureTeaser from "../components/ScriptureTeaser.astro";
-import PracticeMock from "../components/PracticeMock.astro";
 import LookingBackMock from "../components/LookingBackMock.astro";
 import ProductShot from "../components/ProductShot.astro";
 import VoicePicker from "../components/VoicePicker.astro";
 import { featuresIntro, deepDives, everythingIntro, everything } from "../content/features";
-import { slashCommands, lookingBack, altar, practices, pages, privacy } from "../content/home";
+import { lookingBack, altar, practices, pages } from "../content/home";
+
+// "Everything you've written, and a way <em>back to it.</em>" → plain text +
+// the accented words, for Split.
+const parse = (html: string) => {
+  const accent = [...html.matchAll(/<em>(.*?)<\/em>/g)].flatMap((m) => m[1].split(" "));
+  return { text: html.replace(/<\/?em>/g, ""), accent };
+};
+const jump = deepDives.map((d) => ({ id: d.id, label: d.tag }));
 ---
 
 <Base
   title="Features"
-  description="Plant scripture inline, draw near through contemplative practice forms, see where your heart has been leaning across the whole Bible, gather prayers on the Altar, and look back across week, month, quarter, and year."
+  description="Everything in Dayspring: slash commands and rituals in the sentence, Bible journaling side by side, every page on one wall, the Altar, the Lamp, the Ascent, and an app lock."
   path="/features"
+  footerBig="Start today. Read the year later."
 >
-  <section class="f-intro">
-    <SectionReveal class="wrap">
-      <p class="eyebrow mono">{featuresIntro.eyebrow}</p>
-      <h1 set:html={featuresIntro.heading} />
-      <p class="lead">{featuresIntro.lead}</p>
-    </SectionReveal>
-  </section>
+  <PageHero kicker={featuresIntro.eyebrow} lines={featuresIntro.lines} accent={featuresIntro.accent} lead={featuresIntro.lead}>
+    <nav class="jump" aria-label="On this page" data-rv-stagger="0.04">
+      {jump.map((j, i) => (
+        <a href={`#${j.id}`}><span class="mono">{String(i + 1).padStart(2, "0")}</span>{j.label}</a>
+      ))}
+    </nav>
+  </PageHero>
 
   {
-    deepDives.map((dive, i) => (
-      <section
-        class:list={["deepdive", { alt: i % 2 === 1, wide: "wide" in dive && dive.wide }]}
-        id={dive.id}
-      >
-        <div class="wrap">
-          <div class="grid">
-            <SectionReveal class="copy">
-              <p class="tag mono">{dive.tag}</p>
-              <h2 set:html={dive.heading} />
-              <p class="lead">{dive.lead}</p>
-              <ul class="points">
+    deepDives.map((dive, i) => {
+      const h = parse(dive.heading);
+      return (
+        <section
+          class:list={["dive", { alt: i % 2 === 1, wide: "wide" in dive && dive.wide }]}
+          id={dive.id}
+          aria-labelledby={`${dive.id}-h`}
+        >
+          <div class="dive-grid">
+            <div class="copy">
+              <div class="dive-n display" aria-hidden="true">{String(i + 1).padStart(2, "0")}</div>
+              <div class="kicker" data-rv>{dive.tag}</div>
+              <h2 id={`${dive.id}-h`} class="h2 rv-h"><Split text={h.text} accent={h.accent} by="words" /></h2>
+              <p class="lead body-l" data-rv>{dive.lead}</p>
+              <ul class="points" data-rv-stagger>
                 {dive.points.map((p) => (
                   <li>
                     <span class="p-title">{p.title}</span>
@@ -46,17 +64,13 @@ import { slashCommands, lookingBack, altar, practices, pages, privacy } from "..
                 ))}
               </ul>
               {"more" in dive && dive.more && (
-                <a class="dive-more mono" href={dive.more.href}>{dive.more.label}</a>
+                <a class="text-link dive-more" href={dive.more.href}>{dive.more.label}</a>
               )}
-            </SectionReveal>
+            </div>
 
-            <SectionReveal class="visual">
-              {dive.mock === "slash" && (
-                <SlashCommandsMock
-                  commands={slashCommands.commands}
-                  editorLines={slashCommands.editorLines}
-                />
-              )}
+            <div class="visual" data-rv="plate">
+              {dive.mock === "voices" && <VoicePicker />}
+              {dive.mock === "bible" && <BibleSideBySide />}
               {dive.mock === "practices" && (
                 <PracticeMock
                   searchPlaceholder={practices.searchPlaceholder}
@@ -66,263 +80,156 @@ import { slashCommands, lookingBack, altar, practices, pages, privacy } from "..
                   note={practices.note}
                 />
               )}
-              {dive.mock === "letter" && (
-                <LookingBackMock
-                  horizons={lookingBack.horizons}
-                  lenses={lookingBack.lenses}
-                />
-              )}
+              {dive.mock === "letter" && <LookingBackMock horizons={lookingBack.horizons} lenses={lookingBack.lenses} />}
               {dive.mock === "altar" && (
-                <AltarMock
-                  subtitle={altar.mock.subtitle}
-                  intro={altar.mock.intro}
-                  groups={altar.mock.groups}
-                  note={altar.mock.note}
-                />
+                <AltarMock subtitle={altar.mock.subtitle} intro={altar.mock.intro} groups={altar.mock.groups} note={altar.mock.note} />
               )}
               {dive.mock === "scripture" && <ScriptureTeaser />}
-              {dive.mock === "voices" && <VoicePicker />}
+              {dive.mock === "lock" && <LockMock />}
               {dive.mock === "pages" && (
-                <ProductShot
-        name="pages-search"
-        size={{ w: 1280, h: 1020 }}
-        panel={{ w: 1280, h: 540 }}
-        alt={pages.shotAlt}
-      />
+                <ProductShot name="pages-search" size={{ w: 1280, h: 1020 }} panel={{ w: 1280, h: 540 }} alt={pages.shotAlt} />
               )}
-            </SectionReveal>
+            </div>
           </div>
-        </div>
-      </section>
-    ))
+        </section>
+      );
+    })
   }
 
-  {/* privacy as stewardship — moved here from the home page (2026-09-20);
-      the home page tells the story, the tour answers the questions. */}
-  <section class="privacy-sec">
-    <SectionReveal class="wrap">
-      <p class="tag mono">{privacy.tag}</p>
-      <h2 set:html={privacy.heading} />
-      <p class="body">{privacy.body}</p>
-      <p class="line">{privacy.line}</p>
-    </SectionReveal>
-  </section>
-
   {/* the exhaustive list — show how much is actually here */}
-  <section class="everything" id="everything">
-    <SectionReveal class="wrap ev-head">
-      <p class="tag mono">{everythingIntro.tag}</p>
-      <h2 set:html={everythingIntro.heading} />
-      <p class="lead">{everythingIntro.lead}</p>
-      <p class="ev-value" set:html={everythingIntro.valueLine} />
-    </SectionReveal>
-    <SectionReveal class="wrap">
-      <div class="ev-grid">
-        {
-          everything.map((col) => (
-            <section class="ev-col">
-              <h3 class="ev-group">{col.group}</h3>
-              <ul class="ev-list">
-                {col.items.map((it) => (
-                  <li>
-                    <span class="ev-check" aria-hidden="true">
-                      <svg viewBox="0 0 16 16" width="11" height="11">
-                        <path
-                          d="M2.5 8.5l3.5 3.5 7-8"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </span>
-                    <span class="ev-item" set:html={it} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))
-        }
-      </div>
-    </SectionReveal>
+  <section class="everything" id="everything" aria-labelledby="ev-h">
+    <div class="ev-head">
+      <div class="kicker" data-rv>{everythingIntro.tag}</div>
+      <h2 id="ev-h" class="h2 rv-h"><Split {...parse(everythingIntro.heading)} by="words" /></h2>
+      <p class="body-l" data-rv>{everythingIntro.lead}</p>
+      <p class="ev-value" data-rv set:html={everythingIntro.valueLine} />
+    </div>
+    <div class="ev-grid" data-rv-stagger="0.08">
+      {
+        everything.map((col) => (
+          <section class="ev-col">
+            <h3 class="ev-group">{col.group}</h3>
+            <ul class="ev-list">
+              {col.items.map((it) => (
+                <li>
+                  <span class="ev-check" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" width="11" height="11">
+                      <path d="M2.5 8.5l3.5 3.5 7-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                  <span class="ev-item" set:html={it} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+    </div>
   </section>
 </Base>
 
+<script>
+  import { boot, reveal, gsap, reduced } from "../lib/motion";
+  boot();
+  reveal();
+  // the big chapter numbers drift against the scroll, a little behind the copy
+  if (!reduced) {
+    gsap.utils.toArray<HTMLElement>(".dive-n").forEach((n) => {
+      gsap.fromTo(n, { yPercent: 40 }, { yPercent: -40, ease: "none", scrollTrigger: { trigger: n.closest(".dive"), start: "top bottom", end: "bottom top", scrub: 0.6 } });
+    });
+  }
+</script>
+
 <style>
-  /* ---- intro ---- */
-  .f-intro {
-    padding: 200px 0 60px;
-    text-align: center;
+  /* ---- jump list ---- */
+  .jump {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    max-width: 1100px;
+    margin: 48px auto 0;
   }
-  .f-intro .eyebrow {
-    font-size: 12.5px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
-    margin-bottom: 26px;
-  }
-  .f-intro h1 {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(40px, 7vw, 76px);
-    line-height: 1.02;
-    letter-spacing: -1.5px;
-    margin: 0 auto 24px;
-    max-width: 14ch;
-  }
-  .f-intro h1 :global(em) {
-    font-style: italic;
-    color: var(--gold);
-  }
-  .f-intro .lead {
-    font-size: 19px;
-    color: var(--paper-dim);
-    font-weight: 300;
-    line-height: 1.6;
-    max-width: 52ch;
-    margin: 0 auto;
-  }
-
-  /* ===== privacy ===== */
-  .privacy-sec {
-    padding: 90px 0 90px;
-    text-align: center;
-  }
-  .privacy-sec h2 {
-    max-width: 20ch;
-    margin: 0 auto 24px;
-    font-size: clamp(28px, 4.4vw, 50px);
-    line-height: 1.14;
-  }
-  .privacy-sec .body {
-    font-size: 18px;
-    color: var(--paper-dim);
-    font-weight: 300;
-    line-height: 1.62;
-    max-width: 52ch;
-    margin: 0 auto 28px;
-  }
-  .privacy-sec .line {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-style: italic;
-    font-size: clamp(22px, 3vw, 32px);
-    letter-spacing: -0.3px;
-    color: var(--gold);
-    max-width: 24ch;
-    margin: 0 auto;
-  }
-
-  .privacy-sec .tag {
-    font-size: 12px;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
-    margin-bottom: 18px;
-  }
-  .privacy-sec h2 {
-    font-family: var(--font-display);
-    font-weight: 300;
-    letter-spacing: -1px;
-  }
-  .privacy-sec h2 :global(em) {
-    font-style: italic;
-    color: var(--gold);
-  }
-
-  .dive-more {
-    display: inline-block;
-    margin-top: 26px;
-    font-size: 13px;
-    color: var(--dawn-1);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.25s;
-  }
-  .dive-more:hover {
-    border-bottom-color: var(--dawn-1);
-  }
-
-  /* ---- deep dives ---- */
-  .deepdive {
-    padding: 70px 0;
-  }
-  .deepdive .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 64px;
+  .jump a {
+    display: inline-flex;
     align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    backdrop-filter: blur(8px);
+    font-size: 14px;
+    color: var(--paper-dim);
+    text-decoration: none;
+    cursor: default;
+    transition: border-color 0.25s, color 0.25s;
   }
-  /* alternate the visual to the left on odd dives.
-     .copy/.visual sit on child-component roots (no parent scope id),
-     so target them with :global through the scoped .grid parent. */
-  .deepdive.alt .grid > :global(.copy) {
-    order: 2;
+  .jump a .mono {
+    font-size: 10.5px;
+    color: var(--dawn-1);
   }
-
-  /* A `wide` dive stacks instead: its visual is a real 1280px screenshot, and
-     in a half column it is a postage stamp. The copy goes two-up above it and
-     the plate takes the full measure. */
-  .deepdive.wide .grid {
-    grid-template-columns: 1fr;
-    gap: 40px;
-    align-items: start;
-  }
-  .deepdive.wide .grid > :global(.copy),
-  .deepdive.wide.alt .grid > :global(.copy) {
-    order: 1;
-  }
-  .deepdive.wide .grid > :global(.visual) {
-    order: 2;
-  }
-  .deepdive.wide h2,
-  .deepdive.wide .lead {
-    max-width: 22ch;
-  }
-  .deepdive.wide .lead {
-    max-width: 62ch;
-  }
-  .deepdive.wide :global(.points) {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 26px 48px;
-  }
-  @media (max-width: 760px) {
-    .deepdive.wide :global(.points) {
-      grid-template-columns: 1fr;
+  @media (hover: hover) {
+    .jump a:hover {
+      border-color: var(--border-strong);
+      color: var(--paper);
     }
   }
+  .jump a:active {
+    transform: scale(0.97);
+  }
 
-  .deepdive .tag {
-    font-size: 12px;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
+  /* ---- chapters ---- */
+  .dive {
+    position: relative;
+    padding: clamp(90px, 16vh, 170px) 24px;
+    scroll-margin-top: 40px;
+  }
+  .dive:first-of-type {
+    padding-top: clamp(110px, 18vh, 200px);
+  }
+  .dive-grid {
+    max-width: 1240px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: clamp(40px, 6vw, 96px);
+    align-items: center;
+  }
+  .dive.alt .copy {
+    order: 2;
+  }
+  .copy {
+    position: relative;
+  }
+  .dive-n {
+    position: absolute;
+    top: -0.55em;
+    left: -0.06em;
+    font-size: clamp(120px, 16vw, 230px);
+    line-height: 1;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--border-strong);
+    opacity: 0.7;
+    z-index: -1;
+    pointer-events: none;
+    user-select: none;
+  }
+  .copy .kicker {
     margin-bottom: 18px;
   }
-  .deepdive h2 {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(30px, 4.4vw, 52px);
-    letter-spacing: -1px;
-    line-height: 1.05;
-    max-width: 16ch;
-    margin-bottom: 20px;
+  .copy .h2 {
+    font-size: clamp(34px, 4.4vw, 60px);
+    margin-bottom: 22px;
+    max-width: 15ch;
   }
-  .deepdive h2 :global(em) {
-    font-style: italic;
-    color: var(--gold);
+  .copy .h2 :global(.w) {
+    display: inline-block;
   }
-  .deepdive .lead {
-    font-size: 18px;
-    color: var(--paper-dim);
-    font-weight: 300;
-    line-height: 1.6;
+  .copy .lead {
     max-width: 46ch;
     margin-bottom: 30px;
   }
-
   .points {
     list-style: none;
     display: flex;
@@ -334,12 +241,11 @@ import { slashCommands, lookingBack, altar, practices, pages, privacy } from "..
     flex-direction: column;
     gap: 4px;
     padding-left: 18px;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--border-strong);
   }
   .p-title {
     font-family: var(--font-display);
-    font-weight: 400;
-    font-size: 17px;
+    font-size: 18px;
     color: var(--paper);
   }
   .p-body {
@@ -348,67 +254,79 @@ import { slashCommands, lookingBack, altar, practices, pages, privacy } from "..
     font-weight: 300;
     line-height: 1.6;
   }
+  .dive-more {
+    display: inline-block;
+    margin-top: 28px;
+  }
 
-  /* ---- everything (the exhaustive list) ---- */
-  .everything {
-    padding: 80px 0 120px;
+  /* a wide chapter stacks: copy two-up above a full-measure plate */
+  .dive.wide .dive-grid {
+    grid-template-columns: 1fr;
+    gap: 56px;
   }
-  .everything :global(.ev-head) {
-    text-align: center;
-    margin-bottom: 56px;
+  .dive.wide .copy {
+    order: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(40px, 6vw, 96px);
+    align-items: start;
   }
-  .everything .tag {
-    font-size: 12px;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
-    margin-bottom: 18px;
+  .dive.wide .copy > .kicker,
+  .dive.wide .copy > .h2,
+  .dive.wide .copy > .lead {
+    grid-column: 1;
   }
-  .everything h2 {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(30px, 4.4vw, 52px);
-    letter-spacing: -1px;
-    line-height: 1.05;
-    margin: 0 auto 18px;
+  .dive.wide .copy > .h2 {
     max-width: 18ch;
   }
-  .everything h2 :global(em) {
-    font-style: italic;
-    color: var(--gold);
+  .dive.wide .copy > .points {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: end;
   }
-  .everything .lead {
-    font-size: 18px;
-    color: var(--paper-dim);
-    font-weight: 300;
-    line-height: 1.6;
-    max-width: 54ch;
-    margin: 0 auto;
+  .dive.wide .copy > .dive-more {
+    grid-column: 1;
+  }
+
+  /* ---- everything ---- */
+  .everything {
+    padding: clamp(90px, 16vh, 170px) 24px 120px;
+  }
+  .ev-head {
+    max-width: 760px;
+    margin: 0 auto 64px;
+    text-align: center;
+  }
+  .ev-head .kicker {
+    margin-bottom: 16px;
+  }
+  .ev-head .h2 {
+    margin-bottom: 20px;
+  }
+  .ev-head .h2 :global(.w) {
+    display: inline-block;
   }
   .ev-value {
     display: inline-block;
-    margin: 24px auto 0;
+    margin-top: 26px;
     padding: 9px 18px;
     border: 1px solid var(--border);
     border-radius: 100px;
     background: var(--surface);
     font-family: var(--font-mono);
     font-size: 13px;
-    letter-spacing: 0.2px;
     color: var(--paper-dim);
   }
   .ev-value :global(strong) {
     color: var(--dawn-1);
     font-weight: 500;
   }
-
   .ev-grid {
+    max-width: 1240px;
+    margin: 0 auto;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 40px 36px;
-  }
-  .ev-col {
-    break-inside: avoid;
+    gap: 44px 36px;
   }
   .ev-group {
     font-family: var(--font-mono);
@@ -419,6 +337,7 @@ import { slashCommands, lookingBack, altar, practices, pages, privacy } from "..
     margin: 0 0 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
+    font-weight: 400;
   }
   .ev-list {
     list-style: none;
@@ -455,25 +374,29 @@ import { slashCommands, lookingBack, altar, practices, pages, privacy } from "..
       grid-template-columns: repeat(2, 1fr);
     }
   }
-
-  @media (max-width: 820px) {
-    .f-intro {
-      padding: 150px 0 40px;
-    }
-    .deepdive .grid {
+  @media (max-width: 860px) {
+    .dive-grid,
+    .dive.wide .copy {
       grid-template-columns: 1fr;
-      gap: 40px;
     }
-    /* on mobile, always lead with the copy, then the visual */
-    .deepdive.alt .grid > :global(.copy) {
+    .dive.alt .copy {
       order: 0;
     }
+    .dive.wide .copy > .points {
+      grid-column: 1;
+      grid-row: auto;
+    }
+    .dive-n {
+      font-size: 120px;
+    }
   }
-
   @media (max-width: 520px) {
     .ev-grid {
       grid-template-columns: 1fr;
       gap: 32px;
+    }
+    .jump {
+      justify-content: flex-start;
     }
   }
 </style>

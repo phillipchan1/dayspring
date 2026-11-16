@@ -85,6 +85,17 @@ export function trackSite(event: SiteEvent): void {
 }
 
 /**
+ * Home page scroll depth: fired once per section, the first time half of it
+ * is on screen. `section` is a fixed id from the page markup (data-track),
+ * never user text — it says which scenes people reach, and where they stop.
+ */
+export function trackSection(section: string): void {
+  ensureInit()
+  if (!KEY) return
+  posthog.capture('section_viewed', { section, ...utmProps() })
+}
+
+/**
  * Progressively enhances every on-page link to /start: carries this page's
  * full query string onward (UTMs, but also fbclid/gclid — whatever arrived,
  * not just the five utm_* keys) and fires `intent_clicked` on the way out.
