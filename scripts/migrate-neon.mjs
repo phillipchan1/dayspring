@@ -5,6 +5,8 @@
  *   node scripts/migrate-neon.mjs --dry-run
  *   node scripts/migrate-neon.mjs --apply
  *   node scripts/migrate-neon.mjs --ci
+ *   node scripts/migrate-neon.mjs --passwords            (dry run: counts only)
+ *   node scripts/migrate-neon.mjs --passwords --apply    (passwords only, nothing else)
  *
  * Connections from env only. Password from PGPASSWORD / SOURCE_PGPASSWORD /
  * TARGET_PGPASSWORD, each optionally loaded from a 0600 *PASSWORD_FILE.
@@ -13,7 +15,7 @@
 import { closeSync, existsSync, openSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import pg from 'pg'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -28,6 +30,7 @@ for (const arg of argv) {
 }
 
 const ciMode = argv.includes('--ci')
+const passwordsOnly = argv.includes('--passwords')
 const apply = argv.includes('--apply') || ciMode
 const dryRun = !apply
 
@@ -376,12 +379,67 @@ async function copyAuthIdentities(src, tgt) {
   return rows.rows.length
 }
 
+/**
+ * Supabase email + password sign-ins → Better Auth `credential` accounts.
+ *
+ * Supabase keeps the bcrypt hash on auth.users.encrypted_password; Better Auth
+ * looks for an account with provider_id 'credential' and account_id = user id.
+ * The Worker's verifyPassword (worker/src/auth.ts) accepts the bcrypt hash.
+ *
+ * Insert-only: a user who already has a credential account on Neon (signed up
+ * or changed their password after the move) keeps it. Users missing from
+ * Neon's "user" table are skipped. Hashes never leave the two databases and
+ * are never logged.
+ */
+export async function copyCredentialAccounts(src, tgt, { write = true } = {}) {
+  const hasColumn = await src.query(
+    `SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'auth' AND table_name = 'users' AND column_name = 'encrypted_password'`,
+  )
+  if (!hasColumn.rows.length) return { source: 0, inserted: 0, existing: 0, missingUser: 0 }
+  const rows = await src.query(`
+    SELECT id::text AS user_id, encrypted_password AS hash, created_at, updated_at
+      FROM auth.users
+     WHERE deleted_at IS NULL
+       AND encrypted_password LIKE '$2%'
+  `)
+  let inserted = 0
+  let existing = 0
+  let missingUser = 0
+  for (const row of rows.rows) {
+    const user = await tgt.query(`SELECT 1 FROM "user" WHERE id = $1`, [row.user_id])
+    if (!user.rows.length) { missingUser++; continue }
+    const cred = await tgt.query(
+      `SELECT 1 FROM account WHERE user_id = $1 AND provider_id = 'credential'`,
+      [row.user_id],
+    )
+    if (cred.rows.length) { existing++; continue }
+    if (write) {
+      await tgt.query(
+        `INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+         VALUES ($1, $2, 'credential', $2, $3, $4, $5)`,
+        [randomUUID(), row.user_id, row.hash, row.created_at, row.updated_at],
+      )
+    }
+    inserted++
+  }
+  return { source: rows.rows.length, inserted, existing, missingUser }
+}
+
+function logCredentials(r, write) {
+  console.log(
+    `credential accounts: source=${r.source} ${write ? 'inserted' : 'would-insert'}=${r.inserted} ` +
+      `already-on-neon=${r.existing} user-missing-on-neon=${r.missingUser}`,
+  )
+}
+
 async function runCopy(src, tgt) {
   const supabase = await tableExists(src, 'auth', 'users')
   await tgt.query('SET session_replication_role = replica').catch(() => {})
   if (supabase) {
     await copyAuthUsers(src, tgt)
     await copyAuthIdentities(src, tgt)
+    await copyCredentialAccounts(src, tgt)
   }
   for (const spec of COPY_TABLES) {
     await copyTable(src, tgt, spec, supabase ? 'supabase' : 'neon')
@@ -478,6 +536,15 @@ async function main() {
   const tgtPass = resolvePassword(tgtConn, 'TARGET')
   if (!srcPass) fail('source password missing (SOURCE_PGPASSWORD_FILE / SOURCE_PGPASSWORD / PGPASSWORD)')
   if (!tgtPass) fail('target password missing (TARGET_PGPASSWORD_FILE / TARGET_PGPASSWORD / PGPASSWORD)')
+
+  if (passwordsOnly) {
+    const r = await withClient(srcConn, srcPass, async (src) =>
+      withClient(tgtConn, tgtPass, async (tgt) => copyCredentialAccounts(src, tgt, { write: apply })),
+    )
+    logCredentials(r, apply)
+    if (!apply) console.log('dry-run (read-only; no writes). Re-run with --apply to insert.')
+    return
+  }
 
   if (dryRun) {
     const reports = await withClient(srcConn, srcPass, async (src) =>

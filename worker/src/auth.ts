@@ -1,5 +1,7 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { bearer, emailOTP, oneTimeToken } from 'better-auth/plugins'
+import { verifyPassword as verifyBetterAuthPassword } from 'better-auth/crypto'
+import bcrypt from 'bcryptjs'
 import { Pool } from 'pg'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
 import { pgClientOptions } from './db.ts'
@@ -92,6 +94,18 @@ export type AuthDatabase = Pool | {
   options: object
 }
 
+/**
+ * Supabase stored passwords as bcrypt (`$2a$…`); the Neon copy carries those
+ * hashes over as `credential` accounts (scripts/migrate-neon.mjs). Better
+ * Auth's own hashes are scrypt (`salt:key`). Accept both so people who
+ * signed up before the Cloudflare move keep their password; new and changed
+ * passwords are always scrypt.
+ */
+export async function verifyPassword({ hash, password }: { hash: string; password: string }): Promise<boolean> {
+  if (/^\$2[aby]\$\d{2}\$/.test(hash)) return bcrypt.compare(password, hash)
+  return verifyBetterAuthPassword({ hash, password })
+}
+
 const DEEP_LINK_ORIGIN = 'https://dayspring-eosin.vercel.app'
 
 /** Apple + Google only when client id and secret are both set. */
@@ -140,7 +154,7 @@ export function createAuth(
     baseURL,
     basePath: '/api/auth',
     database: db as Pool,
-    emailAndPassword: { enabled: true },
+    emailAndPassword: { enabled: true, password: { verify: verifyPassword } },
     user: authModels.user,
     session: authModels.session,
     account: authModels.account,
