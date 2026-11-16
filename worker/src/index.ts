@@ -53,6 +53,14 @@ app.use('*', async (c, next) => {
       for (const [key, value] of Object.entries(API_SECURITY)) {
         c.res.headers.set(key, value)
       }
+      // Bearer-authed /api/* calls come cross-origin from the native apps
+      // (tauri://localhost). The OPTIONS preflight already answers with
+      // API_CORS; the real response needs Allow-Origin too or WebKit drops it
+      // ("Load failed") and the app shows "We couldn't reach your account".
+      // /api/auth/* and R2 objects set their own (credentialed) CORS — keep it.
+      if (!path.startsWith('/api/auth/') && !c.res.headers.has('Access-Control-Allow-Origin')) {
+        c.res.headers.set('Access-Control-Allow-Origin', API_CORS['Access-Control-Allow-Origin'])
+      }
     }
   } finally {
     await finishRequest(c)

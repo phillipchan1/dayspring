@@ -403,6 +403,19 @@ ok(
   'GET /api/health is 200 without auth',
 )
 
+{
+  // The native apps read /api/* cross-origin from tauri://localhost. Every
+  // response — success or error — must carry Allow-Origin or WebKit drops it.
+  const fromApp = { headers: { origin: 'tauri://localhost' } }
+  const health = await app.request('http://localhost/api/health', fromApp)
+  ok(health.headers.get('access-control-allow-origin') === '*', 'data responses allow the native app origin')
+  const denied = await app.request('http://localhost/api/data/profile', fromApp, { ENVIRONMENT: 'local', BETTER_AUTH_SECRET: 'x'.repeat(32) })
+  ok(denied.status >= 400, `profile without a session is refused (got ${denied.status})`)
+  ok(denied.headers.get('access-control-allow-origin') === '*', 'error responses allow the native app origin too')
+  const authOk = await app.request('http://localhost/api/auth/ok', fromApp, { ENVIRONMENT: 'local', BETTER_AUTH_SECRET: 'x'.repeat(32) })
+  ok(authOk.headers.get('access-control-allow-origin') === 'tauri://localhost', 'auth keeps its credentialed origin echo')
+}
+
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {
   for (const f of fails) console.error('  FAIL', f)
