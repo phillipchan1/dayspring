@@ -8,7 +8,7 @@ keywords: [altar, prayer, pray, answered, subject, intercession, remember]
 updated: 2026-08-10
 ---
 
-Press <kbd>⌘4</kbd>.
+Press <kbd>⌘5</kbd>.
 
 Every prayer you log with `/pray` comes here. The Altar gathers them by subject
 — a person, a situation, a fear you keep bringing back — so you can see a thing

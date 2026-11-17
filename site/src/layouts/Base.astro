@@ -1,5 +1,7 @@
 ---
 import "../styles/global.css";
+import "../styles/landing.css";
+import Sky from "../components/landing/Sky.astro";
 import Nav from "../components/Nav.astro";
 import Footer from "../components/Footer.astro";
 import { site, APP_STORE_ID } from "../content/site";
@@ -24,6 +26,11 @@ interface Props {
   /** Keep this page out of search results and the sitemap (e.g. /start, a
    *  redirect page with nothing for a search result to land a visitor on). */
   noindex?: boolean;
+  /** Extra class on <body>. */
+  bodyClass?: string;
+  /** The night-to-dawn sky behind the page (and the shared smooth scroll).
+   *  On by default so every page sits in the same light as the home page. */
+  sky?: boolean;
 }
 
 const {
@@ -36,6 +43,8 @@ const {
   footerBig,
   footerSub,
   noindex = false,
+  bodyClass,
+  sky = true,
 } = Astro.props;
 
 const fullTitle = bareTitle ? title : `${site.name} — ${title}`;
@@ -121,8 +130,10 @@ const ogImageUrl = new URL(ogImage, site.url).href;
       </style>
     </noscript>
   </head>
-  <body>
+  <body class:list={[bodyClass, { landing: sky }]}>
     <a href="#main" class="skip-link">Skip to content</a>
+    {sky && <Sky />}
+    <slot name="backdrop" />
     <Nav />
     <main id="main">
       <slot />

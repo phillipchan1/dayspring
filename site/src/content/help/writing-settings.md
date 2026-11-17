@@ -36,11 +36,10 @@ Off by default, which is why you see **bold text** rather than `**bold text**`.
 Turn it on if you'd rather see the raw characters. See
 [formatting](/help/formatting-and-markdown).
 
-## Practice previews
+## Ritual previews
 
-On by default. When you choose a contemplative practice, you get a short
-introduction before the prompts appear. Turn it off to go straight to writing
-once you know them.
+On by default. When you choose a ritual, you see its questions before you
+begin. Turn it off to go straight to writing once you know them.
 
 ## Typewriter and dimming
 

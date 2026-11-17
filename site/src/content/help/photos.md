@@ -20,12 +20,15 @@ modern phone is fine.
 
 ## Once it's on the page
 
-Click a photo and a menu opens: change its size, add a caption or alt text, or
-remove it.
+Click or tap a photo to look at it. It opens full-screen: pinch (or double-tap)
+to zoom, swipe or use the arrow keys to move through the photos on the page, and
+pull down or press <kbd>Esc</kbd> to close.
 
-Photos are objects rather than text, so a click opens that menu rather than
-putting a cursor into it. Drag one to move it somewhere else in the entry — a
-line shows where it'll land.
+For its options, right-click it (or long-press on a phone): change its size,
+edit the caption, replace it, arrange a set, or remove it.
+
+Drag a photo to move it somewhere else in the entry — a line shows where it'll
+land.
 
 ## Offline
 

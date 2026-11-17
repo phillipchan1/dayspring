@@ -1,0 +1,63 @@
+---
+// Voice — one real beta interview quote, the only proof we have, so it sits
+// right under the overview. Readable on arrival; the words warm in on entry.
+// Attribution withheld pending consent (see home.ts).
+import Split from "./Split.astro";
+import { voice } from "../../content/landing";
+---
+
+<section class="voice" data-track="voice">
+  <figure>
+    <blockquote class="display"><Split text={`“${voice.quote}”`} by="words" /></blockquote>
+    <figcaption>
+      <span class="mono">{voice.attribution}</span>
+      <span>{voice.context}</span>
+    </figcaption>
+  </figure>
+</section>
+
+<style>
+  .voice {
+    padding: 8vh 24px 12vh;
+  }
+  figure {
+    max-width: 980px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  blockquote {
+    font-size: clamp(26px, 3.6vw, 52px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    font-style: italic;
+  }
+  figcaption {
+    margin-top: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  figcaption .mono {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced } from "../../lib/motion";
+  boot();
+  if (!reduced) {
+    gsap.from(".voice blockquote .w", {
+      opacity: 0.15,
+      y: 10,
+      stagger: 0.04,
+      duration: 0.8,
+      ease: "power2.out",
+      scrollTrigger: { trigger: ".voice", start: "top 75%" },
+    });
+  }
+</script>

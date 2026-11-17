@@ -6,7 +6,9 @@
 export const featuresIntro = {
   eyebrow: "Features",
   heading: "Write. Plant scripture. <em>See the pattern.</em>",
-  lead: "A journal built for spiritual growth — slash commands and contemplative rituals right in the sentence, the Lamp to show where your heart has been leaning across the whole Bible, the Ascent to climb the long view of your seasons, and the Altar to gather the prayers you keep carrying.",
+  lines: ["Write. Plant scripture.", "See the pattern."],
+  accent: ["See", "the", "pattern."],
+  lead: "Everything in Dayspring, up close — the page you write on, the Bible open beside it, the forms of the praying church, and the places your pages come back to you: the wall, the Altar, the Lamp, the Ascent.",
 };
 
 // ---- the six voices — /features' editor preview ----------------
@@ -32,15 +34,15 @@ export const deepDives = [
     points: [
       {
         title: "Slash commands",
-        body: "Type `/` for scripture, prayer, a sense, a ritual, or an inline photo. Inline glass panels, keyboard-native, dismissible. The spiritual life captured where it actually happens — in the middle of a sentence.",
+        body: "Type / for scripture, a prayer, a sense, a desire, something you learned, a story worth keeping, a ritual, or a photo. Each opens right in the line, keyboard-first, and closes without a trace. The inner life, caught where it actually happens — mid-sentence.",
       },
       {
         title: "Focus mode",
-        body: "Everything but your words disappears. Typewriter scrolling keeps the line you're writing at eye level; the lines above quietly dim. Just you and the page.",
+        body: "Everything but your words falls away, and the lines above quietly dim. Typewriter scrolling keeps the line you're writing at eye level — in focus mode, or all the time if you like it.",
       },
       {
-        title: "Six voices, light and dark",
-        body: "A voice is the whole page, not a colour swap — its own typeface, its own paper, its own headings. Each comes in light and dark and follows your system; Vigil is dimmed all the way down for dark rooms. Then set your own size, line height, and measure.",
+        title: "Six voices, ten faces",
+        body: "A voice is the whole page, not a colour swap — its own typeface, its own paper, its own headings, in light and dark. Vigil is dimmed all the way down for dark rooms; Plainsong comes in the palettes you know from your code editor. Then pick from ten writing faces and set your own size, line height and measure.",
       },
       {
         title: "Nothing between thought and word",
@@ -54,13 +56,35 @@ export const deepDives = [
     mock: "voices",
   },
   {
+    // releases.ts 2026-10-scripture
+    id: "bible",
+    tag: "Bible journaling",
+    heading: "The chapter open <em>beside the page.</em>",
+    lead: "On a blank page, choose Open your Bible. The chapter sits on the left, set the way a printed Bible sets it; your page sits on the right, for as long as you're answering it.",
+    points: [
+      {
+        title: "Lift a line onto the page",
+        body: "Select words in the passage and press Return. They land on your page as a quote, with a line drawn back to where you took them.",
+      },
+      {
+        title: "Poetry in its lines, prose in its paragraphs",
+        body: "Word for word from the ESV, one chapter at a time. When you've read one, Open your Bible offers the next.",
+      },
+      {
+        title: "The forms that read",
+        body: "Open Reading, Lectio Divina, SOAP and Discovery Bible Study all open this way.",
+      },
+    ],
+    mock: "bible",
+  },
+  {
     id: "practices",
     tag: "Rituals",
     heading: "Forms that <em>carry you in.</em>",
     lead: "Not a prompt of the day — contemplative writing forms drawn from two thousand years of the praying church, opened with `/ritual`. Browse the library, read the threshold, and write into a structure that knows where to begin.",
     points: [
       {
-        title: "Thirteen forms, one library",
+        title: "Fifteen forms, one library",
         body: "The Daily Examen, Lectio Divina, The Round, The Morning Offering, Luther's Garland, Psalmic Lament, Ignatian Discernment, and more — each with its origin, tradition, and intention named before you begin.",
       },
       {
@@ -87,7 +111,7 @@ export const deepDives = [
     id: "pages",
     tag: "Your pages",
     heading: "Everything you've written, and a way <em>back to it.</em>",
-    lead: "Press ⌘1 and there it is — not a list of dates, but every entry laid out as a page. This is where most of the finding happens, so it's where most of the finding tools live.",
+    lead: "Press ⌘2 and there it is — not a list of dates, but every entry laid out as a page. This is where most of the finding happens, so it's where most of the finding tools live.",
     wide: true,
     points: [
       {
@@ -96,7 +120,7 @@ export const deepDives = [
       },
       {
         title: "Filters that combine",
-        body: "Only entries with scripture in them. Only prayers. Only the pages you set apart. A filter you have nothing for never appears, so you're never offered an empty one. There's a plain-English box too — it sets the filters; it doesn't decide what matches.",
+        body: "Only entries with scripture in them. Only prayers. Only the pages you set apart. A filter you have nothing for never appears, so you're never offered an empty one.",
       },
       {
         title: "Search on your device, instantly",
@@ -105,6 +129,10 @@ export const deepDives = [
       {
         title: "Anniversaries, folded in",
         body: "As you scroll, pages from this date in earlier years appear in the flow — not as a notification, the way you'd come across an old letter in a drawer.",
+      },
+      {
+        title: "Volumes on a shelf",
+        body: "When about a notebook's worth has been written, the volume closes on its own and goes on the shelf at the top of Pages — each one to be read back, first page to last.",
       },
     ],
     mock: "pages",
@@ -172,6 +200,28 @@ export const deepDives = [
     ],
     mock: "letter",
   },
+  {
+    id: "kept",
+    tag: "Kept",
+    heading: "Some things are meant to be written <em>before they're ever spoken aloud.</em>",
+    lead: "Your journal is between you and God. Dayspring is built to keep it that way — and to be plain with you about how.",
+    points: [
+      {
+        title: "Lock it",
+        body: "Set a PIN or a passphrase, and open with Face ID or Touch ID where your device has it. Someone who picks up your phone or Mac can't open your journal.",
+      },
+      {
+        title: "Encrypted, never sold, never trained on",
+        body: "Your entries are encrypted on the way and in storage. We don't sell them, and no model learns from them.",
+      },
+      {
+        title: "Yours to take",
+        body: "Export everything, any time, in plain markdown. Print any page.",
+      },
+    ],
+    more: { label: "How your writing is kept →", href: "/privacy" },
+    mock: "lock",
+  },
 ];
 
 // ============================================================
@@ -193,11 +243,12 @@ export const everything = [
     items: [
       "Full-screen, distraction-free editor",
       "Focus mode",
-      "Typewriter scrolling",
+      "Typewriter scrolling — in focus, or always",
       "Paragraph dimming",
-      "Six writing faces — Serif to Mono",
+      "Six voices, light & dark",
+      "Ten writing faces — Serif to Mono",
       "Your own size, line height & measure",
-      "Light & dark, follows your system",
+      "Plainsong palettes — One Dark, Solarized & more",
       "Continuous autosave — never lose a word",
       "No perceptible input lag",
     ],
@@ -222,15 +273,17 @@ export const everything = [
       "/scripture — ESV, word-for-word",
       "/pray — log a prayer",
       "/sense — a word or impression",
+      "/desire, /learned & /story",
       "/ritual — contemplative forms",
-      "/image — a photo, inline",
+      "/image & /emoji",
       "Scripture references, auto-linked",
     ],
   },
   {
     group: "The Rituals library",
     items: [
-      "Thirteen contemplative forms",
+      "Fifteen contemplative forms",
+      "Bible journaling — the chapter beside the page",
       "From Ignatius to the Psalter",
       "The Round — a weekly walk through your own life",
       "Search, or let the hour choose",
@@ -246,6 +299,7 @@ export const everything = [
       "Scrub the Lamp by season",
       "Tap a book to reread that night",
       "The Ascent — week to year",
+      "Write about this, from the climb",
       "Weekly & monthly reflections",
       "The Altar — prayers gathered",
       "Altar's “over time” testimony",
@@ -257,10 +311,10 @@ export const everything = [
     group: "Finding & reading back",
     items: [
       "Every page on one wall",
+      "Volumes — closed notebooks on a shelf",
       "Zoom from a decade to a line",
       "Read two-up, like a book",
       "Filter by scripture, prayer, marks",
-      "Filter in plain English",
       "Instant search, on your device",
       "Ask a question, get your own words",
       "Anniversaries folded into the scroll",
@@ -277,6 +331,7 @@ export const everything = [
       "Your photos come too",
       "Parsed privately, on your device",
       "Export your whole journal",
+      "Print any page",
       "First look-back ready on day one",
     ],
   },
@@ -285,6 +340,7 @@ export const everything = [
     items: [
       "A real Mac app, kept in sync",
       "On iPhone and iPad, too",
+      "App lock — a PIN, Face ID or Touch ID",
       "Encrypted on the way and in storage",
       "Never sold, never trained on",
       "Private reflection",

@@ -1,655 +1,122 @@
 ---
+// The home page — "night to first light" (2026-11 redesign).
+//
+// One continuous sunrise, told point first. The first screen carries the whole
+// promise (tagline, who it's for, the download, and the product writing an
+// entry on its own). Screen two is the whole story at a glance — Write, Find,
+// See — with the one real beta voice. Then each part unfolds: Write and the
+// rituals; forgetting as the turn into Remember; the pages, the Lamp, the
+// Ascent, the Altar, bringing your history; the promises; the plan.
+//
+// Scroll budget: only the wall, the Ascent, the Altar and forgetting scrub with
+// scroll (each ≤ 3 screens). Demos play on their own while on screen, so
+// nobody has to scroll to make meaning appear.
+//
+// Copy lives in content/landing.ts. Motion lives in each scene's script and
+// shares one clock (lib/motion.ts). With prefers-reduced-motion, every scene
+// shows its finished frame and the page reads top to bottom as plain content.
 import Base from "../layouts/Base.astro";
-import Hero from "../components/Hero.astro";
-import SectionReveal from "../components/SectionReveal.astro";
-import SlashShowcase from "../components/SlashShowcase.astro";
-import RitualsGlimpse from "../components/RitualsGlimpse.astro";
-import TestimonialBand from "../components/TestimonialBand.astro";
-import AscentGlimpse from "../components/AscentGlimpse.astro";
-import ScriptureTeaser from "../components/ScriptureTeaser.astro";
-import AltarMock from "../components/AltarMock.astro";
-import ProductShot from "../components/ProductShot.astro";
+import "../styles/landing.css";
+import Hero from "../components/landing/Hero.astro";
+import Forgetting from "../components/landing/Forgetting.astro";
+import Overview from "../components/landing/Overview.astro";
+import WriteScene from "../components/landing/WriteScene.astro";
+import RitualsRail from "../components/landing/RitualsRail.astro";
+import Voice from "../components/landing/Voice.astro";
+import Wall from "../components/landing/Wall.astro";
+import Lamp from "../components/landing/Lamp.astro";
+import Ascent from "../components/landing/Ascent.astro";
+import Altar from "../components/landing/Altar.astro";
+import History from "../components/landing/History.astro";
+import Promises from "../components/landing/Promises.astro";
 import PricingTiers from "../components/PricingTiers.astro";
+import SectionReveal from "../components/SectionReveal.astro";
 import { pricingHonest } from "../content/site";
-import {
-  hero,
-  problem,
-  slashCommands,
-  practices,
-  bridge,
-  pages,
-  scripture,
-  lookingBack,
-  altar,
-  bringHistory,
-  pricing,
-  testimonial,
-} from "../content/home";
+import { pricing, closing } from "../content/landing";
 ---
 
 <Base
   title="A journal built for spiritual growth"
-  description="A journal built for spiritual growth — scripture, prayer, and the practices of the church right in the page you're writing, and everything you write kept and found again."
+  description="A journal built for spiritual growth — scripture, prayer, and the old practices of the church right in the page you're writing, and everything you write kept, found again, and read back to you over the years."
   path="/"
+  footerBig={closing.big}
 >
-  <Hero
-    lines={hero.lines}
-    sub={hero.sub}
-    mockCaption={hero.mockCaption}
-    appMock={hero.appMock}
-  />
+  <Hero />
+  <Overview />
+  <Voice />
 
-  {/* slash commands — item 2: everything a Christian needs for the inner
-      life, in the line you're writing. */}
-  <section class="slash-sec">
-    <SectionReveal class="wrap slash-head">
-      <div class="tag">{slashCommands.tag}</div>
-      <h2 set:html={slashCommands.heading} />
-      <p class="lead" set:html={slashCommands.lead} />
+  <WriteScene />
+  <RitualsRail />
+
+  <Forgetting />
+  <Wall />
+  <Lamp />
+  <Ascent />
+  <Altar />
+  <History />
+
+  <Promises />
+
+  <section class="plan" id="pricing" data-track="pricing" aria-labelledby="plan-h">
+    <SectionReveal class="plan-head">
+      <div class="kicker">{pricing.kicker}</div>
+      <h2 id="plan-h" class="h2" set:html={pricing.heading} />
+      <p class="body-l">{pricing.lead}</p>
     </SectionReveal>
-    <SectionReveal class="wrap">
-      <SlashShowcase commands={slashCommands.commands} demo={slashCommands.demo} />
+    <SectionReveal class="plan-tiers">
+      <PricingTiers />
     </SectionReveal>
-    <SectionReveal class="wrap">
-      <p class="slash-bridge">{slashCommands.bridge}</p>
-    </SectionReveal>
-  </section>
-
-  {/* The story, in order (D-001 → B, 2026-09-20). "A journal built for
-      spiritual growth": after the slash showcase (everything a Christian needs,
-      in the page) it names the villain — forgetting — and shows the way back:
-      the wall and search, then what it makes visible over time. Anything deeper
-      lives on /features, which is the tour; this is the story. */}
-  {/* the wedge — names the villain: forgetting */}
-  <section class="wedge">
-    <SectionReveal class="wrap">
-      <p>
-        {problem.before}<span class="hl">{problem.highlight}</span>{problem.after}
-      </p>
-    </SectionReveal>
-  </section>
-
-  {/* the Pages — the read surface, and finding. The one real screenshot on
-      the site, and the widest plate: the wall's density IS the claim. */}
-  <section class="pages-sec">
-    <div class="wrap">
-      <SectionReveal class="sec-head">
-        <div class="head-l">
-          <div class="tag">{pages.tag}</div>
-          <h2 set:html={pages.heading} />
-        </div>
-        <p class="lead">{pages.lead}</p>
-      </SectionReveal>
-    </div>
-    <SectionReveal class="plate-wrap">
-      <ProductShot
-        name="pages-search"
-        size={{ w: 1280, h: 1020 }}
-        panel={{ w: 1280, h: 540 }}
-        alt={pages.shotAlt}
-      />
-      <p class="plate-caption">{pages.caption}</p>
-    </SectionReveal>
-    <div class="wrap">
-      <SectionReveal>
-        <ul class="pages-facts">
-          {
-            pages.facts.map((f) => (
-              <li>
-                <span class="c-title">{f.title}</span>
-                <span class="c-body">{f.body}</span>
-              </li>
-            ))
-          }
-        </ul>
-      </SectionReveal>
-    </div>
-  </section>
-
-  {/* the bridge — the turn from finding to the long view */}
-  <section class="bridge-band">
-    <SectionReveal class="wrap">
-      <p set:html={bridge.line} />
-    </SectionReveal>
-  </section>
-
-  {/* the Lamp — split, visual right */}
-  <section class="feature scripture-sec">
-    <div class="wrap">
-      <div class="grid grid-vr">
-        <SectionReveal class="col-copy">
-          <div class="tag">{scripture.tag}</div>
-          <h2 set:html={scripture.heading} />
-          <p class="lead">{scripture.lead}</p>
-        </SectionReveal>
-        <SectionReveal class="col-visual">
-          <ScriptureTeaser preview />
-        </SectionReveal>
-      </div>
-    </div>
-  </section>
-
-  {/* the Ascent — split, visual right. It was a 560px card centred in a
-      1440px window, which read as a small thing marooned in dead space. */}
-  <section class="feature ascent-sec">
-    <div class="wrap">
-      <div class="grid grid-vr">
-        <SectionReveal class="col-copy">
-          <div class="tag">{lookingBack.tag}</div>
-          <h2 set:html={lookingBack.heading} />
-          <p class="lead">{lookingBack.lead}</p>
-          <p class="ascent-caption">{lookingBack.caption}</p>
-        </SectionReveal>
-        <SectionReveal class="col-visual">
-          <AscentGlimpse
-            altitudes={lookingBack.glimpse.altitudes}
-            activeAlt={lookingBack.glimpse.activeAlt}
-            activeLabel={lookingBack.glimpse.activeLabel}
-            oneLine={lookingBack.glimpse.oneLine}
-            verseRef={lookingBack.glimpse.verseRef}
-            lenses={lookingBack.lenses}
-            hint={lookingBack.glimpse.hint}
-          />
-        </SectionReveal>
-      </div>
-    </div>
-  </section>
-
-  {/* the Altar — split, visual left (now shipped) */}
-  <section class="feature altar-sec">
-    <div class="wrap">
-      <div class="grid grid-vl">
-        <SectionReveal class="col-visual altar-clip">
-          <AltarMock
-            subtitle={altar.mock.subtitle}
-            intro={altar.mock.intro}
-            groups={altar.mock.groups}
-            note={altar.mock.note}
-          />
-        </SectionReveal>
-        <SectionReveal class="col-copy">
-          <div class="tag">{altar.tag}</div>
-          <h2 set:html={altar.heading} />
-          <p class="lead">{altar.lead}</p>
-        </SectionReveal>
-      </div>
-    </div>
-  </section>
-
-
-  {/* rituals — a full-width band. Three ancient forms sharing a half column
-      squeezed each card to ~165px and wrapped every line five deep; the cards
-      are the point, so they get the whole measure and the copy sits above. */}
-  <section class="rituals-sec">
-    <div class="wrap">
-      <SectionReveal class="sec-head">
-        <div class="head-l">
-          <div class="tag">{practices.tag}</div>
-          <h2 set:html={practices.heading} />
-        </div>
-        <p class="lead" set:html={practices.lead} />
-      </SectionReveal>
-      <SectionReveal>
-        <RitualsGlimpse rituals={practices.rituals} foot={practices.foot} />
-      </SectionReveal>
-      <SectionReveal as="p" class="rituals-more">
-        <a href="/rituals">See the whole library →</a>
-      </SectionReveal>
-    </div>
-  </section>
-
-  {/* one real voice from the beta — it's about the rituals, so it follows them */}
-  <section class="testimonial-sec">
-    <SectionReveal class="wrap">
-      <TestimonialBand
-        quote={testimonial.quote}
-        attribution={testimonial.attribution}
-        context={testimonial.context}
-      />
-    </SectionReveal>
-  </section>
-
-  {/* bring your history — split, card right */}
-  <section class="feature import-sec">
-    <div class="wrap">
-      <div class="grid grid-vr">
-        <SectionReveal class="col-copy">
-          <div class="tag">{bringHistory.tag}</div>
-          <h2 set:html={bringHistory.heading} />
-          <p class="lead">{bringHistory.lead}</p>
-        </SectionReveal>
-        <SectionReveal class="col-visual">
-          <div class="import-card">
-            <div class="sources">
-              {bringHistory.mock.sources.map((s) => <span class="source mono">{s}</span>)}
-            </div>
-            <div class="import-flow" aria-hidden="true">↓</div>
-            <div class="imported mono">{bringHistory.mock.imported}</div>
-            <div class="ready">{bringHistory.mock.ready}</div>
-          </div>
-        </SectionReveal>
-      </div>
-    </div>
-  </section>
-
-
-  {/* pricing */}
-  <section class="pricing">
-    <div class="wrap">
-      <SectionReveal class="head">
-        <div class="tag">{pricing.tag}</div>
-        <h2 set:html={pricing.heading} />
-        <p>{pricing.lead}</p>
-      </SectionReveal>
-      <SectionReveal>
-        <PricingTiers />
-      </SectionReveal>
-      <SectionReveal as="p" class="honest">{pricingHonest}</SectionReveal>
-      <SectionReveal as="p" class="price-more">
-        <a href="/features#everything">50+ little details in every plan — see them all →</a>
-      </SectionReveal>
-    </div>
+    <SectionReveal as="p" class="plan-honest">{pricingHonest}</SectionReveal>
   </section>
 </Base>
 
 <script>
   // Entrance funnel, step one. See site/src/lib/siteAnalytics.ts.
-  import { trackSite } from "../lib/siteAnalytics";
+  import { trackSite, trackSection } from "../lib/siteAnalytics";
   trackSite("landing_viewed");
+
+  // Scroll depth: which sections people reach, once each.
+  const seen = new Set<string>();
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const en of entries) {
+        const id = (en.target as HTMLElement).dataset.track;
+        if (!en.isIntersecting || !id || seen.has(id)) continue;
+        seen.add(id);
+        trackSection(id);
+        io.unobserve(en.target);
+      }
+    },
+    // a band across the middle of the screen, so tall pinned scenes count too
+    { rootMargin: "-45% 0px -45% 0px" },
+  );
+  document.querySelectorAll("[data-track]").forEach((el) => io.observe(el));
 </script>
 
 <style>
-  /* ===== shared section primitives ===== */
-  .tag {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
-    margin-bottom: 18px;
+  .plan {
+    padding: 10vh 24px 16vh;
   }
-  h2 {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(32px, 4.8vw, 58px);
-    letter-spacing: -1px;
-    line-height: 1.04;
-    margin: 0 0 18px;
-  }
-  h2 :global(em) {
-    font-style: italic;
-    color: var(--gold);
-  }
-  .lead {
-    font-size: 19px;
-    color: var(--paper-dim);
-    font-weight: 300;
-    line-height: 1.55;
-    max-width: 50ch;
-  }
-  .lead :global(em) {
-    font-style: normal;
-    font-family: var(--font-mono);
-    color: var(--gold);
-  }
-
-  /* ===== the asymmetric section head =====
-     Heading left, lead right, both flush left. Almost every section on this
-     page used to be a centred stack, which made a long page read as one
-     unbroken column of centred type — nothing to catch the eye and no sense of
-     where a section began. The contemplative beats (the wedge, the bridge, the
-     privacy line) stay centred on purpose; the feature sections don't. */
-  :global(.sec-head) {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 28px 64px;
-    align-items: end;
-    margin-bottom: 44px;
-  }
-  :global(.sec-head) h2 {
-    max-width: 16ch;
-  }
-  :global(.sec-head) .lead {
-    max-width: 46ch;
-    padding-bottom: 6px;
-  }
-  @media (max-width: 860px) {
-    :global(.sec-head) {
-      grid-template-columns: 1fr;
-      gap: 18px;
-      align-items: start;
-    }
-    :global(.sec-head) h2 {
-      max-width: none;
-    }
-  }
-
-  /* ===== the wedge ===== */
-  .wedge {
-    padding: 130px 0 110px;
+  .plan :global(.plan-head) {
+    max-width: 760px;
+    margin: 0 auto 60px;
     text-align: center;
   }
-  .wedge :global(p) {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(26px, 4vw, 46px);
-    line-height: 1.3;
-    /* 26ch, not 22: the line now names the villain in three clauses, and at
-       22 it stacked five deep in display type. */
-    max-width: 26ch;
-    margin: 0 auto;
-    letter-spacing: -0.5px;
+  .plan :global(.plan-head) .kicker {
+    margin-bottom: 16px;
   }
-  .wedge :global(.hl) {
-    color: var(--dawn-2);
-    font-style: italic;
+  .plan :global(.plan-head) .h2 {
+    margin-bottom: 20px;
   }
-
-  /* ===== testimonial ===== */
-  .testimonial-sec {
-    padding: 0 0 100px;
-  }
-
-  /* ===== feature (split) layout ===== */
-  .feature {
-    padding: 70px 0 100px;
-  }
-  .feature .grid {
-    display: grid;
-    grid-template-columns: 1fr 1.05fr;
-    gap: 64px;
-    align-items: center;
-  }
-  .grid-vl {
-    grid-template-columns: 1.05fr 1fr;
-  }
-  .feature .col-copy h2 {
-    max-width: 16ch;
-  }
-  .scripture-sec .grid {
-    grid-template-columns: 0.9fr 1.1fr;
-  }
-
-  /* ===== rituals — a full-width band ===== */
-  .rituals-sec {
-    padding: 20px 0 100px;
-  }
-
-  :global(.rituals-more) {
-    margin-top: 22px;
-    text-align: center;
-  }
-  :global(.rituals-more) a {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--dawn-1);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.25s;
-  }
-  :global(.rituals-more) a:hover {
-    border-bottom-color: var(--dawn-1);
-  }
-
-  /* ===== slash showcase (full-width) ===== */
-  .slash-sec {
-    padding: 30px 0 100px;
-  }
-  .slash-sec :global(.slash-head) {
-    text-align: center;
-    margin-bottom: 44px;
-  }
-  .slash-sec :global(.slash-head) h2 {
-    max-width: 20ch;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .slash-sec :global(.slash-head) .lead {
-    max-width: 56ch;
+  .plan :global(.plan-tiers) {
+    max-width: var(--maxw);
     margin: 0 auto;
   }
-  .slash-bridge {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 300;
-    font-size: clamp(17px, 2vw, 21px);
-    color: var(--muted);
-    text-align: center;
-    max-width: 50ch;
-    margin: 48px auto 0;
-    line-height: 1.5;
-  }
-
-  /* ===== the bridge band ===== */
-  .bridge-band {
-    padding: 96px 0;
-    text-align: center;
-    background:
-      radial-gradient(
-        ellipse at center,
-        var(--accent-glow) 0%,
-        transparent 70%
-      );
-  }
-  .bridge-band :global(p) {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(26px, 3.6vw, 44px);
-    line-height: 1.25;
-    letter-spacing: -0.5px;
-    max-width: 24ch;
-    margin: 0 auto;
-  }
-  .bridge-band :global(em) {
-    font-style: italic;
-    color: var(--gold);
-  }
-
-  /* ===== the Pages — the widest thing on the page =====
-     The plate deliberately breaks out past --maxw (1120). The claim is that a
-     decade fits on one screen, and a screenshot of a decade, boxed into the
-     same column as the body copy, argues the opposite. */
-  .pages-sec {
-    padding: 20px 0 110px;
-  }
-  .plate-wrap {
-    width: min(1440px, calc(100vw - 48px));
-    margin: 0 auto 20px;
-  }
-  .plate-caption {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 300;
-    font-size: clamp(14px, 1.6vw, 17px);
-    color: var(--muted);
-    max-width: 52ch;
-    margin: 18px auto 0;
-    text-align: center;
-    line-height: 1.5;
-  }
-  .pages-facts {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 30px;
-    margin-top: 46px;
-  }
-  .pages-facts li {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    padding-left: 16px;
-    border-left: 2px solid var(--border-strong);
-  }
-  .c-title {
-    font-family: var(--font-display);
-    font-size: 17px;
-    color: var(--paper);
-  }
-  .c-body {
-    font-size: 14.5px;
-    line-height: 1.55;
-    color: var(--paper-dim);
-    font-weight: 300;
-  }
-  @media (max-width: 860px) {
-    .plate-wrap {
-      width: calc(100vw - 40px);
-    }
-    .pages-facts {
-      grid-template-columns: 1fr;
-      gap: 22px;
-    }
-  }
-
-  /* ===== ascent ===== */
-  .ascent-sec .grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .ascent-caption {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 300;
-    font-size: clamp(14px, 1.6vw, 17px);
-    color: var(--muted);
-    max-width: 40ch;
-    margin: 22px 0 0;
-    line-height: 1.5;
-  }
-
-  /* ===== altar — a preview, not the whole surface =====
-     The full mock ran 1,100px, the tallest thing on the page after the wall.
-     Its first two groups make the point; the fade says there's more, and
-     /features#altar has the rest. */
-  :global(.altar-clip) {
-    max-height: 540px;
-    overflow: hidden;
-    -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent);
-    mask-image: linear-gradient(to bottom, #000 72%, transparent);
-  }
-
-  /* ===== import ===== */
-  .import-sec {
-    padding: 30px 0 110px;
-  }
-  .import-card {
-    max-width: 460px;
-    margin: 0 auto;
-    background: var(--card-grad);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 32px;
-    text-align: center;
-    box-shadow:
-      0 40px 80px -50px var(--shadow),
-      0 0 60px -30px var(--accent-glow);
-  }
-  .import-card .sources {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .import-card .source {
-    font-size: 12px;
-    letter-spacing: 0.3px;
-    color: var(--paper-dim);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    padding: 7px 14px;
-  }
-  .import-card .import-flow {
-    color: var(--dawn-1);
-    font-size: 20px;
-    margin: 16px 0 14px;
-  }
-  .import-card .imported {
-    font-size: 12px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
-    margin-bottom: 12px;
-  }
-  .import-card .ready {
-    font-family: var(--font-display);
-    font-weight: 400;
-    font-style: italic;
-    font-size: 21px;
-    color: var(--paper);
-  }
-
-  /* ===== pricing ===== */
-  .pricing {
-    padding: 40px 0 120px;
-  }
-  .pricing :global(.head) {
-    text-align: center;
-    margin-bottom: 56px;
-  }
-  .pricing h2 {
-    font-size: clamp(32px, 5vw, 56px);
-    margin-bottom: 14px;
-  }
-  .pricing :global(.head) p {
-    color: var(--paper-dim);
-    font-weight: 300;
-    font-size: 18px;
-    max-width: 48ch;
-    margin: 0 auto;
-  }
-  .pricing :global(.honest) {
+  .plan :global(.plan-honest) {
     text-align: center;
     margin-top: 36px;
     font-style: italic;
     color: var(--muted);
     font-size: 15px;
-  }
-  .pricing :global(.price-more) {
-    text-align: center;
-    margin-top: 14px;
-  }
-  .pricing :global(.price-more) a {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.2px;
-    color: var(--dawn-1);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.25s;
-  }
-  .pricing :global(.price-more) a:hover {
-    border-bottom-color: var(--dawn-1);
-  }
-
-  /* ===== responsive ===== */
-  @media (max-width: 860px) {
-    .feature .grid,
-    .feature .grid-vl,
-    .scripture-sec .grid,
-    .ascent-sec .grid {
-      grid-template-columns: 1fr;
-      gap: 40px;
-    }
-    /* on stack, always show copy before its visual */
-    .feature .col-visual {
-      order: 2;
-    }
-    .feature .col-copy {
-      order: 1;
-    }
-    .feature .col-copy h2 {
-      max-width: none;
-    }
-  }
-  @media (max-width: 640px) {
-    .feature {
-      padding: 50px 0 70px;
-    }
-    .wedge {
-      padding: 90px 0 70px;
-    }
-    .bridge-band {
-      padding: 70px 0;
-    }
   }
 </style>

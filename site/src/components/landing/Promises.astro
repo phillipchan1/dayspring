@@ -1,0 +1,167 @@
+---
+// Promises — the refusals as credentials (BRANDSCRIPT § Guide). Each word is
+// struck through as it passes, then the one thing left standing.
+import { promises as p } from "../../content/landing";
+---
+
+<section class="promises" data-track="promises" aria-labelledby="prom-h">
+  <div class="pr-inner">
+    <div class="kicker">{p.kicker}</div>
+    <h2 id="prom-h" class="h2" set:html={p.heading} />
+
+    <ul class="struck" role="list">
+      {
+        p.struck.map((w) => (
+          <li>
+            <span class="sw">{w}</span>
+            <i class="strike" aria-hidden="true" />
+            <span class="sr">— never</span>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="resolve display">{p.resolve}</p>
+
+    <dl class="terms">
+      {
+        p.terms.map((t) => (
+          <div class="term">
+            <dt>{t.title}</dt>
+            <dd>{t.body}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</section>
+
+<style>
+  .promises {
+    padding: 18vh 24px 14vh;
+    overflow-x: clip;
+  }
+  .pr-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  .pr-inner > .kicker {
+    margin-bottom: 16px;
+  }
+  .pr-inner > .h2 {
+    margin-bottom: 7vh;
+  }
+  .struck {
+    list-style: none;
+  }
+  .struck li {
+    position: relative;
+    display: block;
+    width: fit-content;
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(38px, 10vw, 160px);
+    line-height: 0.98;
+    white-space: nowrap;
+    letter-spacing: -0.04em;
+    color: var(--paper-dim);
+  }
+  .struck li:nth-child(even) {
+    margin-left: auto;
+  }
+  .strike {
+    position: absolute;
+    left: -2%;
+    right: -2%;
+    top: 54%;
+    height: clamp(3px, 0.5vw, 7px);
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--dawn-3), var(--dawn-1));
+    box-shadow: 0 0 18px rgba(243, 189, 118, 0.45);
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .resolve {
+    margin: 12vh auto 10vh;
+    text-align: center;
+    font-style: italic;
+    font-size: clamp(34px, 5.4vw, 84px);
+    color: var(--gold);
+    max-width: 16ch;
+    line-height: 1.04;
+  }
+  .terms {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 36px;
+  }
+  .term {
+    border-top: 1px solid var(--border-strong);
+    padding-top: 18px;
+  }
+  .term dt {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 300;
+    margin-bottom: 8px;
+  }
+  .term dd {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  @media (max-width: 900px) {
+    .terms {
+      grid-template-columns: 1fr 1fr;
+      gap: 26px;
+    }
+  }
+  @media (max-width: 560px) {
+    .terms {
+      grid-template-columns: 1fr;
+    }
+  }
+  :global(.motion-off) .strike {
+    transform: none;
+  }
+  :global(.motion-off) .struck li {
+    color: var(--muted);
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced } from "../../lib/motion";
+  boot();
+  if (!reduced) {
+    gsap.utils.toArray<HTMLElement>(".struck li").forEach((li, i) => {
+      const tl = gsap.timeline({
+        scrollTrigger: { trigger: li, start: "top 82%", end: "top 42%", scrub: 0.5 },
+      });
+      tl.from(li, { x: i % 2 ? 120 : -120, opacity: 0, duration: 0.5 })
+        .to(li.querySelector(".strike"), { scaleX: 1, duration: 0.5, ease: "power2.inOut" })
+        .to(li, { color: "var(--muted)", duration: 0.3 }, "<0.2");
+    });
+    gsap.from(".resolve", {
+      opacity: 0,
+      y: 50,
+      filter: "blur(12px)",
+      scrollTrigger: { trigger: ".resolve", start: "top 85%", end: "top 50%", scrub: 0.5 },
+    });
+    gsap.from(".term", {
+      y: 40,
+      opacity: 0,
+      stagger: 0.1,
+      duration: 1,
+      ease: "power3.out",
+      scrollTrigger: { trigger: ".terms", start: "top 85%" },
+    });
+  }
+</script>

@@ -24,7 +24,7 @@ export const faqs = [
   },
   {
     q: "I already journal in Day One, Notes, or on paper. Why switch?",
-    a: "You don't start over — import from <strong>Day One, Diarly, or Markdown</strong> (photos and original dates intact), parsed privately on your own device. What you can't get anywhere else is the long view: the <a href=\"/features#scripture\">Lamp</a>, the <a href=\"/features#looking-back\">Ascent</a>, and the <a href=\"/features#altar\">Altar</a> turn years of writing into something you can finally <em>see</em>. And because you bring your history, that look-back is ready on day one.",
+    a: "You don't start over — import from <strong>Day One or Diarly</strong> (photos and original dates intact), parsed privately on your own device. What you can't get anywhere else is the long view: the <a href=\"/features#scripture\">Lamp</a>, the <a href=\"/features#looking-back\">Ascent</a>, and the <a href=\"/features#altar\">Altar</a> turn years of writing into something you can finally <em>see</em>. And because you bring your history, that look-back is ready on day one.",
   },
   {
     q: "What if I don't keep it up?",
@@ -36,7 +36,7 @@ export const faqs = [
   },
   {
     q: "Will it preach at me? Do I have to be religious?",
-    a: "No on both. The faith-aware reflections are a lens you choose, never a default you opt out of — no daily verse, no devotional pop-ups. The long view works for anyone who wants to see their life as more than today; the deeper it goes for believers is simply there when you want it.",
+    a: "It won't preach — no daily verse, no devotional pop-ups, no sermons about your entries. But it is made for Christians: its language is Scripture and prayer, and its practices come from the church's long tradition. Anyone is welcome to try it.",
   },
   {
     q: "Is this going to try to analyze my soul?",

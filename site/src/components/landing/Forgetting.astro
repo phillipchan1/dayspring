@@ -1,0 +1,191 @@
+---
+// Forgetting — the villain, named once and gently. A scatter of someone's
+// entries hangs in the dark; as you scroll they blur, drift and are gone,
+// while the statement lights word by word. Its last word dissolves too.
+import Split from "./Split.astro";
+import { forgetting } from "../../content/landing";
+
+// Fixed constellation positions (x%, y%, depth) so it composes the same on
+// every load. Depth drives drift speed, size and blur.
+const spots = [
+  [6, 12, 0.9], [62, 9, 0.5], [30, 19, 0.3], [74, 17, 1], [3, 68, 0.6], [80, 62, 0.35],
+  [12, 80, 0.8], [56, 82, 0.55], [34, 90, 0.25], [78, 76, 0.9], [42, 5, 0.7], [24, 66, 0.4],
+];
+---
+
+<section class="scene forgetting" id="remember" data-track="forgetting" style="height: 190vh" aria-labelledby="forget-h">
+  <div class="stage">
+    <ul class="frags" aria-hidden="true">
+      {
+        forgetting.fragments.map((f, i) => {
+          const [x, y, z] = spots[i % spots.length];
+          return (
+            <li class="frag" style={`left:${x}%;top:${y}%;--z:${z}`} data-z={z}>
+              <span class="f-date mono">{f.date}</span>
+              <span class="f-text">{f.text}</span>
+            </li>
+          );
+        })
+      }
+    </ul>
+
+    <div class="statement">
+      <h2 id="forget-h" class="st display">
+        <Split text={forgetting.statement} by="words" />{" "}
+        <span class="last">{forgetting.lastWord}</span>
+      </h2>
+      <p class="coda">
+        <span>{forgetting.coda}</span>
+        <em>{forgetting.codaAfter}</em>
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .forgetting .stage {
+    display: grid;
+    place-items: center;
+  }
+  .frags {
+    list-style: none;
+    position: absolute;
+    inset: 0;
+  }
+  .frag {
+    position: absolute;
+    max-width: 22ch;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-family: var(--font-body);
+    font-style: italic;
+    font-weight: 300;
+    font-size: calc(13px + var(--z) * 9px);
+    line-height: 1.35;
+    color: var(--paper-dim);
+    opacity: calc(0.25 + var(--z) * 0.5);
+    filter: blur(calc((1 - var(--z)) * 1.6px));
+    will-change: transform, opacity, filter;
+  }
+  .f-date {
+    font-style: normal;
+    font-size: 10px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .statement {
+    position: relative;
+    z-index: 2;
+    max-width: 980px;
+    padding: 0 24px;
+    text-align: center;
+  }
+  .st {
+    font-size: clamp(30px, 4.6vw, 64px);
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+  }
+  .st :global(.w) {
+    opacity: 0.12;
+    transition: none;
+  }
+  .last {
+    display: inline-block;
+    font-style: italic;
+    color: var(--dawn-2);
+    opacity: 0.12;
+    will-change: filter, letter-spacing, opacity;
+  }
+  .coda {
+    margin-top: 42px;
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(18px, 2vw, 26px);
+    color: var(--paper-dim);
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .coda em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  /* backing so fragments never collide with the statement */
+  .statement::before {
+    content: "";
+    position: absolute;
+    inset: -12% -8%;
+    z-index: -1;
+    background: radial-gradient(closest-side, rgba(8, 9, 13, 0.85), transparent);
+  }
+  :global([data-theme="light"]) .statement::before {
+    background: radial-gradient(closest-side, rgba(241, 235, 223, 0.92), transparent);
+  }
+
+  :global(.motion-off) .st :global(.w),
+  :global(.motion-off) .last,
+  :global(.motion-off) .coda {
+    opacity: 1;
+  }
+  :global(.motion-off) .forgetting .stage {
+    padding: 120px 0;
+  }
+  :global(.motion-off) .frags {
+    opacity: 0.4;
+  }
+
+  @media (max-width: 760px) {
+    .frag {
+      max-width: 15ch;
+      font-size: calc(11px + var(--z) * 5px);
+    }
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced, scrubScene } from "../../lib/motion";
+  boot();
+
+  const section = document.querySelector<HTMLElement>(".forgetting");
+  if (section && !reduced) {
+    const words = section.querySelectorAll(".st .w");
+    const frags = gsap.utils.toArray<HTMLElement>(".frag");
+
+    scrubScene(section, (tl) => {
+      // fragments arrive slightly before the statement starts lighting
+      tl.from(frags, { opacity: 0, y: 40, duration: 0.12, stagger: 0.008 }, 0);
+
+      // the statement lights word by word
+      tl.to(words, { opacity: 1, duration: 0.03, stagger: 0.016 }, 0.1);
+      tl.to(".last", { opacity: 1, duration: 0.04 }, 0.1 + words.length * 0.016);
+
+      // …and the fragments dissolve: blur, drift, letters loosening
+      frags.forEach((el, i) => {
+        const z = Number(el.dataset.z ?? 0.5);
+        tl.to(
+          el,
+          {
+            y: -140 - z * 260,
+            x: (i % 2 ? 1 : -1) * (20 + z * 60),
+            opacity: 0,
+            filter: "blur(14px)",
+            letterSpacing: "0.3em",
+            duration: 0.42,
+            ease: "power1.in",
+          },
+          0.3 + (1 - z) * 0.12,
+        );
+      });
+
+      // the last word forgets itself
+      tl.to(".last", { filter: "blur(9px)", letterSpacing: "0.35em", opacity: 0.18, duration: 0.18 }, 0.7);
+      tl.to(".coda", { opacity: 1, y: 0, duration: 0.1 }, 0.82);
+      tl.fromTo(".coda", { y: 20 }, { y: 0, duration: 0.1 }, 0.82);
+    });
+  }
+</script>

@@ -36,6 +36,14 @@ When it turns your voice into text, Dayspring includes the names it has seen
 in your own writing, so the names you've written before come out spelled the
 way you spell them. The longer you've been writing, the better this gets.
 
+## A light tidy, nothing more
+
+Spoken words run on, so the text gets one light pass before it lands: filler
+like "um" and "you know", false starts and accidental repeats come out, and
+paragraph breaks go in where the thought shifts. Every real word you said stays,
+in your order. Nothing is reworded or summarised, and a short clip is left
+exactly as you said it.
+
 ## If it's interrupted
 
 A call, a lock screen, a dropped connection mid-sentence. Dayspring keeps what

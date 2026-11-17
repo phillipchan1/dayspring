@@ -8,7 +8,7 @@ keywords: [pages, entries, wall, list, browse, zoom, filter, spread, weather, an
 updated: 2026-08-10
 ---
 
-Press <kbd>⌘1</kbd>.
+Press <kbd>⌘2</kbd>.
 
 This is every entry you've written, laid out as pages rather than as a list of
 dates. Stand back and you see years at once; come close and you're reading.
@@ -27,19 +27,24 @@ the dense months, the silences. Close in, the near end reads like an open book.
 Press <kbd>Return</kbd> on a page to open it two-up, like a book, with room in
 the margin.
 
-## Filtering
+## Looking for something
 
-Chips along the top narrow the wall, and they combine. Show only entries you've
-marked. Only ones with scripture in them. Only prayers. Only pages you
-highlighted.
+**Look for** sits above the wall (<kbd>⌘F</kbd>). It opens a plain search — type
+a name, a word, or something you wrote, and the pages that say it light up.
+Press <kbd>Return</kbd> to light them on the wall.
 
-Chips you have nothing for don't appear, so you're never offered an empty
-filter.
+Below the search, the same sheet holds the ways to narrow the wall, and they
+combine:
 
-There's also a filter box that takes plain English — "entries about my mother
-from last spring". It sets the filters for you; it does not decide what matches.
-The distinction matters: it can set up the search for you, but the results are
-always your own entries meeting the criteria you asked for.
+- **When** — a stretch of your pages.
+- **Subject** — the people, places and words from your Life Map. The ones
+  Dayspring noticed are shown in amber; keep the ones you carry.
+- **Marking** — what you set apart in the margin, with a count beside each.
+- **Photos** — the pages you put a picture on, if you have any.
+- **Reading** — how the pages are arranged: in order, close together, and so on.
+
+What's on shows beside the button. It's always your own entries that match —
+nothing is guessed.
 
 ## Weather
 

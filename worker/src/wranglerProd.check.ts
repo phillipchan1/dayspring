@@ -44,6 +44,20 @@ ok(config.env?.production?.name === 'dayspring', 'production worker name is days
   ok(JSON.stringify(crons) === JSON.stringify(Object.keys(CRON_PATHS).sort()), 'production cron triggers match CRON_PATHS exactly')
   const preview = config.env?.preview as { triggers?: { crons?: string[] } } | undefined
   ok((preview?.triggers?.crons ?? []).length === 0, 'preview runs no crons')
+  // Without the processing gate the every-minute cron queries Neon every minute
+  // and the database never suspends (worker/src/processingGate.ts).
+  const gated = config.env?.production as {
+    durable_objects?: { bindings?: Array<{ name?: string; class_name?: string }> }
+    migrations?: Array<{ new_sqlite_classes?: string[]; new_classes?: string[] }>
+  } | undefined
+  ok(
+    (gated?.durable_objects?.bindings ?? []).some((b) => b.name === 'PROCESSING_GATE' && b.class_name === 'ProcessingGate'),
+    'production binds PROCESSING_GATE (the every-minute cron must not wake Neon)',
+  )
+  ok(
+    (gated?.migrations ?? []).some((m) => [...(m.new_sqlite_classes ?? []), ...(m.new_classes ?? [])].includes('ProcessingGate')),
+    'production migrations create the ProcessingGate class',
+  )
 }
 
 const liveProblems = productionEnvProblems(config)

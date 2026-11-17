@@ -1,0 +1,187 @@
+---
+// Hero — the whole promise on the first screen: the tagline, what it is and
+// for whom, the download, and the product itself writing an entry (no scroll
+// needed). The dawn breaks over a horizon behind it; scrolling away lifts the
+// copy and raises the light.
+import Split from "./Split.astro";
+import HeroEditor from "./HeroEditor.astro";
+import DownloadCTA from "../DownloadCTA.astro";
+import { hero } from "../../content/landing";
+---
+
+<section class="hero" id="top" data-track="hero">
+  <div class="hero-light" aria-hidden="true"></div>
+
+  <div class="horizon" aria-hidden="true">
+    <div class="sunrise"></div>
+    <div class="earth"></div>
+  </div>
+
+  <div class="hero-grid">
+    <div class="hero-copy">
+      <h1 class="display hero-h1">
+        <span class="line"><Split text={hero.lines[0]} /></span>
+        <span class="line"><Split text={hero.lines[1]} accent={hero.accent} /></span>
+      </h1>
+      <p class="hero-sub body-l">{hero.sub}</p>
+      <div class="hero-cta">
+        <DownloadCTA />
+      </div>
+    </div>
+    <div class="hero-demo">
+      <HeroEditor />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding: 110px 0 120px;
+  }
+  .hero-grid {
+    position: relative;
+    z-index: 3;
+    width: min(1280px, calc(100% - 48px));
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: clamp(36px, 5vw, 80px);
+    align-items: center;
+  }
+  .hero-copy {
+    container-type: inline-size;
+  }
+  /* each headline line stays whole: the size follows the column (line one is
+     ~5.7em wide), so "for" never drops onto a line of its own */
+  .hero-h1 {
+    font-size: min(clamp(46px, 6.4vw, 108px), 16.5cqi);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    margin: 0 0 26px;
+  }
+  .hero-h1 .line {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 0.04em 0.06em 0.1em 0;
+  }
+  .hero-sub {
+    max-width: 44ch;
+    margin: 0 0 32px;
+  }
+
+  .hero-light {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(520px circle at var(--mx, 70%) var(--my, 45%), rgba(243, 189, 118, 0.07), transparent 60%);
+    z-index: 1;
+  }
+
+  /* horizon: a dark earth with a lit rim, and a sun behind it */
+  .horizon {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 240vmax;
+    height: 240vmax;
+    transform: translate(-50%, -8vh);
+    z-index: 2;
+    will-change: transform;
+  }
+  .earth {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 0%, #0d0e14 0%, #07080b 30%);
+    box-shadow:
+      0 -1px 0 0 rgba(243, 189, 118, 0.75),
+      0 -8px 40px -6px rgba(243, 189, 118, 0.55),
+      0 -40px 140px -10px rgba(232, 145, 124, 0.35);
+  }
+  .sunrise {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 70vmax;
+    height: 70vmax;
+    transform: translate(-50%, -38%);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 214, 160, 0.9) 0%, rgba(243, 189, 118, 0.45) 12%, rgba(232, 145, 124, 0.16) 32%, transparent 62%);
+    opacity: 0.35;
+  }
+  :global([data-theme="light"]) .earth {
+    background: radial-gradient(circle at 50% 0%, #efe6d4 0%, #e9dfcb 30%);
+    box-shadow:
+      0 -1px 0 0 rgba(193, 125, 53, 0.7),
+      0 -10px 50px -6px rgba(232, 160, 90, 0.45);
+  }
+
+  @media (max-width: 900px) {
+    .hero {
+      padding: 96px 0 80px;
+      align-items: flex-start;
+    }
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 44px;
+      text-align: center;
+    }
+    .hero-sub {
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero-demo {
+      text-align: left;
+    }
+    .hero-cta :global(.dl-cta) {
+      justify-content: center;
+    }
+    .hero-h1 {
+      font-size: min(clamp(44px, 12vw, 80px), 16.5cqi);
+    }
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced } from "../../lib/motion";
+  boot();
+
+  const section = document.querySelector<HTMLElement>(".hero");
+  if (section && !reduced) {
+    const chars = section.querySelectorAll(".hero-h1 .ch");
+    gsap.set(chars, { yPercent: 115, rotate: 6, opacity: 0, filter: "blur(10px)" });
+    gsap.set([".hero-sub", ".hero-cta"], { opacity: 0, y: 24 });
+    gsap.set(".hero-demo", { opacity: 0, y: 50, rotateX: 10, transformPerspective: 1200 });
+
+    gsap
+      .timeline({ delay: 0.1 })
+      .to(chars, { yPercent: 0, rotate: 0, opacity: 1, filter: "blur(0px)", duration: 1.1, ease: "expo.out", stagger: 0.022 })
+      .to(".hero-sub", { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, 0.35)
+      .to(".hero-cta", { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, 0.5)
+      .to(".hero-demo", { opacity: 1, y: 0, rotateX: 0, duration: 1.4, ease: "expo.out" }, 0.3)
+      .from(".sunrise", { opacity: 0, duration: 2.4, ease: "power2.out" }, 0.3);
+
+    section.addEventListener(
+      "pointermove",
+      (e) => {
+        section.style.setProperty("--mx", `${e.clientX}px`);
+        section.style.setProperty("--my", `${e.clientY}px`);
+      },
+      { passive: true },
+    );
+
+    // leaving: the copy lifts, the horizon and the light rise
+    gsap
+      .timeline({ scrollTrigger: { trigger: section, start: "top top", end: "bottom top", scrub: 0.6 } })
+      .to(".hero-copy", { y: -80, opacity: 0.2, ease: "none" }, 0)
+      .to(".hero-demo", { y: -40, ease: "none" }, 0)
+      .to(".horizon", { y: "-40vh", ease: "none" }, 0)
+      .to(".sunrise", { opacity: 1, scale: 1.25, ease: "none" }, 0);
+  }
+</script>

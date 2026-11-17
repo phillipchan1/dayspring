@@ -1,0 +1,250 @@
+---
+// Altar — the matters you carry, set one on another like Samuel's stone. As
+// you scroll each stone drops and settles; the ones God has met you in are
+// lit. Then 1 Samuel 7:12 rests on top.
+import { altarScene as a } from "../../content/landing";
+
+// irregular stone shapes, widest at the base
+const shapes = [
+  "46% 54% 42% 58% / 58% 50% 50% 42%",
+  "54% 46% 58% 42% / 50% 60% 40% 50%",
+  "42% 58% 50% 50% / 62% 44% 56% 38%",
+  "58% 42% 46% 54% / 48% 58% 42% 52%",
+  "50% 50% 56% 44% / 60% 46% 54% 40%",
+  "44% 56% 52% 48% / 56% 52% 48% 44%",
+];
+const widths = [92, 80, 86, 70, 62, 52];
+const tilt = [-2, 3, -1.5, 2.5, -3, 1.5];
+---
+
+<section class="scene altar" id="altar" data-track="altar" style="height: 230vh" aria-labelledby="altar-h">
+  <div class="stage">
+    <div class="al-inner">
+      <div class="al-copy">
+        <div class="kicker">{a.kicker}</div>
+        <h2 id="altar-h" class="h2" set:html={a.heading} />
+        <p class="body-l">{a.lead}</p>
+        <p class="al-note">{a.note}</p>
+      </div>
+
+      <div class="cairn-wrap">
+        <figure class="al-verse">
+          <blockquote>{a.verse.text}</blockquote>
+          <figcaption class="mono">{a.verse.ref}</figcaption>
+        </figure>
+        <ul class="cairn">
+          {
+            a.stones.map((s, i) => (
+              <li
+                class:list={["stone", { lit: s.lit }]}
+                style={`--r:${shapes[i]};width:${widths[i]}%;--t:${tilt[i]}deg;z-index:${10 - i}`}
+              >
+                <span class="s-sub">{s.subject}</span>
+                <span class="s-span mono">kept before Him · {s.span}</span>
+                {s.movement && <span class="s-mv mono">{s.movement}</span>}
+              </li>
+            ))
+          }
+        </ul>
+        <div class="ground" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .altar .stage {
+    display: grid;
+    place-items: center;
+  }
+  .al-inner {
+    width: min(1240px, calc(100vw - 48px));
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: clamp(30px, 5vw, 80px);
+    align-items: center;
+  }
+  .al-copy .kicker {
+    margin-bottom: 16px;
+  }
+  .al-copy .h2 {
+    margin-bottom: 22px;
+  }
+  .al-note {
+    margin-top: 24px;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 20px;
+    color: var(--muted);
+  }
+
+  .cairn-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: min(640px, 80vh);
+  }
+  .cairn {
+    list-style: none;
+    width: min(460px, 100%);
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+  }
+  .stone {
+    position: relative;
+    margin-top: -6px;
+    min-height: 74px;
+    padding: 14px 22px;
+    border-radius: var(--r);
+    transform: rotate(var(--t));
+    background:
+      radial-gradient(120% 90% at 30% 20%, rgba(255, 255, 255, 0.06), transparent 60%),
+      linear-gradient(170deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border-strong);
+    box-shadow:
+      inset 0 -8px 18px -10px var(--shadow),
+      0 16px 30px -18px var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 2px;
+  }
+  .s-sub {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(18px, 1.7vw, 24px);
+    font-weight: 300;
+    text-transform: lowercase;
+  }
+  .s-span {
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+  }
+  .s-mv {
+    position: absolute;
+    right: -6px;
+    top: -12px;
+    font-size: 10px;
+    padding: 4px 9px;
+    border-radius: 100px;
+    background: var(--dawn-1);
+    color: #1b1408;
+    transform: rotate(4deg);
+    white-space: nowrap;
+  }
+  .stone.lit {
+    border-color: rgba(243, 189, 118, 0.55);
+    box-shadow:
+      inset 0 0 24px -6px rgba(243, 189, 118, 0.35),
+      0 0 40px -8px rgba(243, 189, 118, 0.45),
+      0 16px 30px -18px var(--shadow);
+  }
+  .stone.lit .s-sub {
+    color: var(--gold);
+  }
+  .ground {
+    width: 120%;
+    height: 1px;
+    margin-top: 2px;
+    background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+  }
+  .al-verse {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+  }
+  .al-verse::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 520px;
+    height: 260px;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(243, 189, 118, 0.22), transparent);
+    z-index: -1;
+  }
+  .al-verse blockquote {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-style: italic;
+    font-size: clamp(24px, 2.6vw, 38px);
+    line-height: 1.15;
+    max-width: 18ch;
+  }
+  .al-verse figcaption {
+    margin-top: 10px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+  }
+
+  @media (max-width: 900px) {
+    .al-inner {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .al-copy .h2 {
+      font-size: 30px;
+      margin-bottom: 10px;
+    }
+    .al-copy .body-l,
+    .al-note {
+      display: none;
+    }
+    .cairn-wrap {
+      min-height: 0;
+    }
+    .stone {
+      min-height: 44px;
+      padding: 6px 14px;
+    }
+    .s-sub {
+      font-size: 17px;
+    }
+    .s-span {
+      font-size: 9px;
+      white-space: nowrap;
+    }
+    .al-verse::before {
+      width: 300px;
+    }
+    .al-verse {
+      margin-bottom: 14px;
+    }
+    .al-verse blockquote {
+      font-size: 22px;
+    }
+  }
+  :global(.motion-off) .altar .stage {
+    padding: 100px 0;
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced, scrubScene } from "../../lib/motion";
+  boot();
+
+  const section = document.querySelector<HTMLElement>(".altar");
+  if (section && !reduced) {
+    const stones = gsap.utils.toArray<HTMLElement>(".altar .stone");
+    scrubScene(section, (tl) => {
+      tl.from(".al-copy > *", { y: 40, opacity: 0, stagger: 0.08, duration: 0.4 }, 0);
+      stones.forEach((s, i) => {
+        const at = 0.3 + i * 0.42;
+        tl.from(s, { y: () => -window.innerHeight * 0.9, rotate: (i % 2 ? 1 : -1) * 24, opacity: 0, duration: 0.36, ease: "power3.in" }, at);
+        tl.fromTo(s, { scaleY: 0.86, scaleX: 1.06 }, { scaleY: 1, scaleX: 1, duration: 0.12, ease: "back.out(3)" }, at + 0.36);
+      });
+      tl.from(".al-verse", { opacity: 0, y: 30, filter: "blur(10px)", duration: 0.4 }, 0.3 + stones.length * 0.42 + 0.1);
+      tl.to({}, { duration: 0.6 });
+    });
+  }
+</script>

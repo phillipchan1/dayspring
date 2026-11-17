@@ -49,15 +49,16 @@ The whole import runs **in your browser**. The archive is read on your own compu
 and the entries go straight into your journal. It isn't sent to any
 outside company along the way.
 
-## One thing to do afterwards
+## Lighting the Lamp
 
 Imported entries skip the editor, so Bible references in them haven't been
-noticed yet — which means [the Lamp](/help/the-lamp) would look emptier than
+noticed yet — which would make [the Lamp](/help/the-lamp) look emptier than
 your life actually was.
 
-There's a **Scan journal for references** button in the scripture settings. It
-reads your imported entries on your device and lights up the Lamp accordingly.
-Run it once after a big import.
+Dayspring scans them for you straight after the import, on your device. If the
+Lamp still looks thin, go to **Settings → Import & backup** and press the button
+under **Scripture references** (it reads **Scan journal for references**, or
+counts the imported entries waiting to be scanned).
 
 ## Coming later
 

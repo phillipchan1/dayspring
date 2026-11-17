@@ -1,6 +1,6 @@
 ---
 title: Install it and sign in
-summary: Dayspring runs on the web, on your Mac, and on iPhone and iPad. Signing in is Apple or Google — there's no password to invent.
+summary: Dayspring runs on the web, on your Mac, and on iPhone and iPad. Sign in with Apple, Google, or your email.
 section: getting-started
 order: 2
 requires: [capability.sign-in]
@@ -26,9 +26,13 @@ and it's on your Mac when you sit down.
 
 ## Signing in
 
-There are two buttons: **Continue with Apple** and **Continue with Google**.
-That's the whole thing. There's no password to choose, no email to verify, no
-confirmation link to hunt for in a spam folder.
+Choose **Continue with Apple** or **Continue with Google**. There's no password
+to choose and no email to verify.
+
+On the web and on iPhone and iPad there's also **Sign in with email**. To make
+an account that way, tap **New here? Create an account**, enter your email and
+a password, and confirm your address from the email we send. The Mac app offers
+Apple and Google only.
 
 You can connect both to the same account. Settings → About → your sign-in
 methods will offer to link the other one.

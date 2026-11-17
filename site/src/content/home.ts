@@ -70,7 +70,7 @@ export const editor = {
     },
     {
       title: "Light, dark, your own hand",
-      body: "A surface that follows your system, and six writing faces — Serif, Literary, Typewriter, Mono, Sans, or Readable — each at your own size, line height, and measure.",
+      body: "A surface that follows your system, and ten writing faces — Serif, Literary, Typewriter, Mono, Sans, Readable, Lora, Merriweather, Literata or Lato — each at your own size, line height, and measure.",
     },
     {
       title: "Nothing between thought and word",
@@ -171,7 +171,7 @@ export const writingPage = {
 export const practices = {
   tag: "Rituals",
   heading: "When you don't know where to <em>begin.</em>",
-  lead: "Not a prompt of the day. Thirteen contemplative forms drawn from two thousand years of the praying church — opened with <em>/ritual</em> and laid over the page as gentle scaffolding that knows where to start without telling you what to say.",
+  lead: "Not a prompt of the day. Fifteen contemplative forms drawn from two thousand years of the praying church — opened with <em>/ritual</em> and laid over the page as gentle scaffolding that knows where to start without telling you what to say.",
   rituals: [
     {
       name: "The Round",
@@ -189,7 +189,7 @@ export const practices = {
       note: "Read. Meditate. Pray. Contemplate.",
     },
   ],
-  foot: "Thirteen forms today — the Examen, Lectio, Luther's Garland, The Round, Psalmic Lament, and more.",
+  foot: "Fifteen forms today — the Examen, Lectio, Luther's Garland, The Round, Psalmic Lament, and more.",
   // retained for the /features deep dive (PracticeMock)
   searchPlaceholder: "lament, ordering my week, a decision to make…",
   openLine: "It's early — the rituals to begin the day come first.",
@@ -238,7 +238,7 @@ export const practices = {
       },
     ],
   },
-  note: "Thirteen forms today — Examen, Lectio, SOAP, Luther's Garland, The Round, and more.",
+  note: "Fifteen forms today — Examen, Lectio, SOAP, Luther's Garland, The Round, and more.",
 };
 
 // ---- A VOICE FROM THE BETA (proof, not a hero claim) ----
@@ -484,7 +484,7 @@ export const bringHistory = {
 export const privacy = {
   tag: "Privacy as stewardship",
   heading: "Some things are meant to be written <em>before they're ever spoken aloud.</em>",
-  body: "Your entries are encrypted, never sold, never used for training — and never read by us. What you write here is yours alone.",
+  body: "Your entries are encrypted on the way and in storage, never sold, and never used to train anything. Lock the app with a PIN, Face ID or Touch ID, and what you write stays between you and God.",
   line: "It's just between you and God.",
 };
 

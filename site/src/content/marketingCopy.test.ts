@@ -14,6 +14,7 @@ function read(rel: string) {
 // (meta description, default footer sub, comments adjacent to pricing).
 const surfaces: Record<string, string> = {
   "home.ts": read("./home.ts"),
+  "landing.ts": read("./landing.ts"),
   "faq.ts": read("./faq.ts"),
   "features.ts": read("./features.ts"),
   "site.ts": read("./site.ts"),

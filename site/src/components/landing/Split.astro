@@ -1,0 +1,35 @@
+---
+// Split — renders text as words of characters (.w > .ch) so a scene can
+// animate it letter by letter. Server-side, so there's no flash of unsplit
+// text and screen readers get the plain string via aria-label.
+interface Props {
+  text: string;
+  /** Words that take the accent (gold italic). Matched exactly. */
+  accent?: string[];
+  /** "chars" (default) or "words" — words skips the per-letter spans. */
+  by?: "chars" | "words";
+  class?: string;
+}
+const { text, accent = [], by = "chars", class: cls = "" } = Astro.props;
+const words = text.split(" ").filter(Boolean);
+---
+
+<span class:list={["split", cls]} aria-label={text} role="text">
+  {
+    words.map((word, i) => (
+      <>
+        <span class:list={["w", { acc: accent.includes(word) }]} aria-hidden="true">
+          {by === "chars" ? [...word].map((c) => <span class="ch">{c}</span>) : word}
+        </span>
+        {i < words.length - 1 ? " " : ""}
+      </>
+    ))
+  }
+</span>
+
+<style>
+  .acc {
+    font-style: italic;
+    color: var(--gold);
+  }
+</style>

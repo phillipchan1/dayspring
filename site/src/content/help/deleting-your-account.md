@@ -47,7 +47,7 @@ held on that device is scrubbed too.
 ## What gets deleted
 
 Your entries and your photos, and everything built from them — the Lamp, the
-Altar, the Ascent, your Concordance, your marks — and the account itself.
+Altar, the Ascent, your marks — and the account itself.
 
 ## What we can't delete
 

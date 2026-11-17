@@ -1,0 +1,434 @@
+---
+// Wall — Act II opens on one page, close enough to read. Scrolling pulls back
+// until eight years of pages fit on one screen, the busy stretches and the
+// long silences plain to see. Then a name is typed into "look for", and every
+// page that carries it lights.
+//
+// The archive is fabricated and deterministic (a seeded density per week),
+// shaped like a real one: a dense first year, a long silence in 2020, a thin
+// autumn in 2023.
+import { seed } from "../../content/scriptureCanon";
+import { wall } from "../../content/landing";
+
+const years = wall.years;
+const WEEKS = 52;
+const silence = (y: number, w: number) =>
+  (y === 1 && w > 12 && w < 34) || (y === 4 && w > 34 && w < 50 && w % 3 !== 0) || (y === 7 && w > 46);
+const density = [0.82, 0.55, 0.6, 0.7, 0.5, 0.66, 0.78, 0.86];
+
+type Cell = { on: boolean; hit: boolean; focus: boolean; lines: number };
+const rows: Cell[][] = years.map((_, y) =>
+  Array.from({ length: WEEKS }, (_, w) => {
+    const r = seed(y * 977 + w * 31);
+    const on = !silence(y, w) && r < density[y];
+    return { on, hit: false, focus: false, lines: 3 + Math.floor(seed(y * 13 + w) * 4) };
+  }),
+);
+// fourteen pages that say "Marcus", from 2021 onward
+let hits = 0;
+for (let y = 2; y < years.length && hits < 14; y++) {
+  for (let w = 3; w < WEEKS && hits < 14; w += 7 + Math.floor(seed(y * 7 + w) * 9)) {
+    if (rows[y][w].on) {
+      rows[y][w].hit = true;
+      hits++;
+    }
+  }
+}
+// the page we start on: March 2, 2023 — one of the hits
+const focusY = 4;
+const focusW = rows[focusY].findIndex((c, w) => c.hit && w > 4) ;
+rows[focusY][focusW].focus = true;
+
+const months = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+---
+
+<section class="scene wall" id="pages" data-track="pages" style="height: 290vh" aria-labelledby="wall-h">
+  <div class="stage">
+    <div class="wall-grid" aria-hidden="true">
+      <span></span>
+      {months.map((m, i) => <span class="mon mono" style={`grid-column: ${2 + Math.round(i * 4.33)} / span 4`}>{m}</span>)}
+      {
+        rows.map((row, y) => (
+          <>
+            <span class="yr mono" style={`grid-row:${y + 2}`}>{years[y]}</span>
+            {row.map((c) => (
+              <i
+                class:list={["pg", { on: c.on, hit: c.hit, focus: c.focus }]}
+                style={c.on ? `--l:${c.lines}` : undefined}
+              />
+            ))}
+          </>
+        ))
+      }
+    </div>
+
+    <article class="focus-page" aria-hidden="true">
+      <div class="fp-date">{wall.focusPage.date}</div>
+      {wall.focusPage.lines.map((l) => <p set:html={l.replace("Marcus", "<mark>Marcus</mark>")} />)}
+    </article>
+
+    <div class="look" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
+      <span class="look-lab mono">look for</span>
+      <span class="look-q">{[...wall.search.term].map((c) => <span class="lq">{c}</span>)}</span>
+      <span class="look-res mono">{wall.search.result}</span>
+    </div>
+
+    <div class="wall-caps">
+      {
+        wall.captions.map((c, i) => (
+          <div class="wcap" data-i={i}>
+            <div class="kicker">{c.kicker}</div>
+            {i === 0 ? <h2 id="wall-h" class="wcap-t">{c.title}</h2> : <h3 class="wcap-t">{c.title}</h3>}
+            <p>{c.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<section class="wall-facts">
+  <ul>
+    {
+      wall.facts.map((f, i) => (
+        <li>
+          <span class="wf-n mono">0{i + 1}</span>
+          <span class="wf-t">{f.title}</span>
+          <span class="wf-b">{f.body}</span>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<style>
+  .wall .stage {
+    display: grid;
+    place-items: center;
+  }
+  .wall-grid {
+    width: min(1180px, calc(100vw - 48px));
+    display: grid;
+    grid-template-columns: 44px repeat(52, 1fr);
+    gap: 4px 3px;
+    align-items: center;
+    transform-origin: 50% 50%;
+  }
+  .mon,
+  .yr {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .mon {
+    grid-row: 1;
+    padding-bottom: 6px;
+  }
+  .yr {
+    grid-column: 1;
+  }
+  .pg {
+    display: block;
+    aspect-ratio: 0.74;
+    border-radius: 1.5px;
+    background: var(--border-dim);
+    transform: scale(0.35);
+    opacity: 0.5;
+  }
+  .pg.on {
+    transform: none;
+    opacity: 1;
+    background:
+      repeating-linear-gradient(
+          to bottom,
+          transparent 0 22%,
+          var(--border-strong) 22% 26%
+        )
+        center 30% / 64% calc(var(--l) * 11%) no-repeat,
+      linear-gradient(170deg, var(--ink-3), var(--ink-2));
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+    transition: background 0.5s, box-shadow 0.5s, opacity 0.5s;
+  }
+  .wall.searching .pg.on:not(.hit) {
+    opacity: 0.22;
+  }
+  .wall.searching .pg.hit {
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 22%, rgba(12, 13, 17, 0.35) 22% 26%) center 30% / 64% calc(var(--l) * 11%) no-repeat,
+      linear-gradient(170deg, #f6cf93, var(--dawn-1));
+    box-shadow:
+      0 0 0 1px var(--dawn-1),
+      0 0 14px 2px rgba(243, 189, 118, 0.55);
+  }
+
+  /* the readable page we begin on */
+  .focus-page {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(440px, 80vw, 52vh);
+    aspect-ratio: 0.74;
+    transform: translate(-50%, -50%);
+    padding: clamp(28px, 4vw, 44px);
+    border-radius: 6px;
+    background: linear-gradient(170deg, var(--ink-3), var(--ink-2));
+    box-shadow:
+      inset 0 0 0 1px var(--border-strong),
+      0 50px 100px -40px var(--shadow);
+    font-size: clamp(16px, 1.5vw, 19px);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .fp-date {
+    font-family: var(--font-display);
+    font-size: 1.5em;
+    font-weight: 300;
+    margin-bottom: 4px;
+  }
+  .focus-page p:first-of-type {
+    font-style: italic;
+  }
+  .focus-page :global(mark) {
+    background: none;
+    color: inherit;
+    border-bottom: 1px solid var(--gold);
+  }
+
+  /* look for */
+  .look {
+    position: absolute;
+    top: 13vh;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border-radius: 100px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 50px -20px var(--shadow);
+    opacity: 0;
+    white-space: nowrap;
+  }
+  .look svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: var(--dawn-1);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+  }
+  .look-lab {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .look-q {
+    font-family: var(--font-display);
+    font-size: 22px;
+    min-width: 5ch;
+  }
+  .lq {
+    opacity: 0;
+  }
+  .look-res {
+    font-size: 11px;
+    color: var(--dawn-1);
+    letter-spacing: 0.5px;
+    opacity: 0;
+    border-left: 1px solid var(--border);
+    padding-left: 12px;
+  }
+
+  /* captions */
+  .wall-caps {
+    position: absolute;
+    left: max(24px, calc((100vw - 1180px) / 2));
+    bottom: 8vh;
+    width: min(420px, calc(100vw - 48px));
+    height: 150px;
+  }
+  .wcap {
+    position: absolute;
+    inset: auto 0 0 0;
+    opacity: 0;
+  }
+  .wcap:first-child {
+    opacity: 1;
+  }
+  .wcap .kicker {
+    margin-bottom: 10px;
+  }
+  .wcap-t {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(26px, 2.8vw, 40px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .wcap p {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 17px;
+  }
+
+  /* facts, after the scene */
+  .wall-facts {
+    padding: 12vh 24px 18vh;
+  }
+  .wall-facts ul {
+    list-style: none;
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+  }
+  .wall-facts li {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid var(--border-strong);
+    padding-top: 20px;
+  }
+  .wf-n {
+    font-size: 11px;
+    color: var(--dawn-1);
+  }
+  .wf-t {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 300;
+    line-height: 1.1;
+  }
+  .wf-b {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 900px) {
+    .wall-grid {
+      grid-template-columns: 30px repeat(52, 1fr);
+      gap: 3px 1.5px;
+    }
+    .yr,
+    .mon {
+      font-size: 8px;
+      letter-spacing: 0;
+    }
+    .wall-caps {
+      bottom: 5vh;
+      height: 130px;
+    }
+    .look {
+      top: 12vh;
+      padding: 10px 16px;
+      gap: 9px;
+    }
+    .look-q {
+      font-size: 18px;
+    }
+    .wall-facts ul {
+      grid-template-columns: 1fr;
+      gap: 30px;
+    }
+  }
+
+  :global(.motion-off) .focus-page {
+    display: none;
+  }
+  :global(.motion-off) .wall .stage {
+    padding: 22vh 0 30vh;
+  }
+  :global(.motion-off) .wcap {
+    opacity: 0;
+  }
+  :global(.motion-off) .wcap[data-i="1"] {
+    opacity: 1;
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced, scrubScene, ScrollTrigger } from "../../lib/motion";
+  boot();
+
+  const section = document.querySelector<HTMLElement>(".wall");
+  if (section && !reduced) {
+    const grid = section.querySelector<HTMLElement>(".wall-grid")!;
+    const focus = section.querySelector<HTMLElement>(".pg.focus")!;
+    const page = section.querySelector<HTMLElement>(".focus-page")!;
+    const caps = section.querySelectorAll(".wcap");
+
+    // Where the grid must start so the focus cell sits under the readable
+    // page, at the readable page's size. Measured with the grid untransformed.
+    const start = () => {
+      const prev = grid.style.transform;
+      grid.style.transform = "none";
+      const stage = section.querySelector<HTMLElement>(".stage")!.getBoundingClientRect();
+      const g = grid.getBoundingClientRect();
+      const c = focus.getBoundingClientRect();
+      grid.style.transform = prev;
+      const ox = c.left - g.left + c.width / 2;
+      const oy = c.top - g.top + c.height / 2;
+      const s = page.offsetWidth / c.width;
+      return {
+        origin: `${ox}px ${oy}px`,
+        x: stage.width / 2 - (g.left - stage.left + ox),
+        y: stage.height / 2 - (g.top - stage.top + oy),
+        s,
+      };
+    };
+    let st = start();
+    gsap.set(grid, { transformOrigin: st.origin });
+
+    const tl = scrubScene(section, (tl) => {
+      // starts at 0 so its from-state is what you see on arrival; the ease
+      // holds still for the first stretch while the page is read
+      const inOut = gsap.parseEase("power2.inOut");
+      const HOLD = 0.5 / 2.1;
+      const zoomEase = (t: number) => (t < HOLD ? 0 : inOut((t - HOLD) / (1 - HOLD)));
+      tl.fromTo(
+        grid,
+        { x: () => st.x, y: () => st.y, scale: () => st.s },
+        { x: 0, y: 0, scale: 1, duration: 2.1, ease: zoomEase },
+        0,
+      );
+      // the readable page rides the same zoom, so it shrinks into its cell
+      // — and its words fade into the cell's ruled lines on the way
+      tl.fromTo(page, { scale: 1 }, { scale: () => 1 / st.s, duration: 2.1, ease: zoomEase }, 0);
+      tl.to(page, { opacity: 0, duration: 0.35, ease: "power1.in" }, 0.6);
+
+      // caption: stand back
+      tl.to(caps[0], { opacity: 0, y: -20, duration: 0.2 }, 1.1);
+      tl.fromTo(caps[1], { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.25 }, 1.35);
+
+      // look for: the name, typed
+      tl.to(caps[1], { opacity: 0, y: -20, duration: 0.2 }, 2.4);
+      tl.fromTo(caps[2], { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.25 }, 2.55);
+      tl.fromTo(".look", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.2 }, 2.4);
+      tl.to(".lq", { opacity: 1, duration: 0.01, stagger: 0.06 }, 2.6);
+      tl.call(() => section.classList.toggle("searching", tl.time() >= 3.0), [], 3.0);
+      tl.to(".look-res", { opacity: 1, duration: 0.15 }, 3.05);
+      tl.to({}, { duration: 1 }, 3.2);
+    }, { invalidateOnRefresh: true });
+
+    // tl.call only fires on crossing; keep the class honest on any jump too
+    tl.eventCallback("onUpdate", () => section.classList.toggle("searching", tl.time() >= 3.0));
+
+    ScrollTrigger.addEventListener("refreshInit", () => {
+      gsap.set(grid, { clearProps: "transform" });
+      st = start();
+      gsap.set(grid, { transformOrigin: st.origin });
+    });
+  }
+</script>

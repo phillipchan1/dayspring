@@ -1,0 +1,193 @@
+---
+// Bible journaling, side by side — the chapter on the left, the page on the
+// right, and a selected line landing on the page as a quote with a thread
+// back to where it was taken (releases.ts 2026-10-scripture). ESV word for word.
+const verses = [
+  { n: 4, t: "Abide in me, and I in you. As the branch cannot bear fruit by itself, unless it abides in the vine, neither can you, unless you abide in me." },
+  { n: 5, t: "I am the vine; you are the branches. Whoever abides in me and I in him, he it is that bears much fruit, " , sel: "for apart from me you can do nothing." },
+];
+---
+
+<div class="bsb" aria-hidden="true">
+  <div class="bsb-bar"><i></i><i></i><i></i><span>Open Reading · John 15</span></div>
+  <div class="bsb-body">
+    <div class="bsb-bible">
+      <div class="bsb-ref">John 15</div>
+      {
+        verses.map((v) => (
+          <p>
+            <sup>{v.n}</sup>
+            {v.t}
+            {v.sel && <mark>{v.sel}</mark>}
+          </p>
+        ))
+      }
+    </div>
+    <div class="bsb-page">
+      <div class="bsb-date">Sunday, November 8</div>
+      <blockquote>
+        <span>for apart from me you can do nothing.</span>
+        <cite>John 15:5</cite>
+      </blockquote>
+      <p class="bsb-line">I keep reading this as a rebuke. Tonight it reads like rest<span class="caret"></span></p>
+    </div>
+    <svg class="bsb-thread" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M44 72 C 52 72, 50 34, 58 34" /></svg>
+  </div>
+</div>
+
+<style>
+  .bsb {
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(175deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    box-shadow: 0 60px 120px -60px var(--shadow), 0 0 90px -40px var(--accent-glow);
+  }
+  .bsb-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .bsb-bar i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .bsb-bar span {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .bsb-body {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 380px;
+  }
+  .bsb-bible {
+    padding: 28px 26px;
+    border-right: 1px solid var(--border);
+    background: color-mix(in srgb, var(--ink-2) 70%, transparent);
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--paper-dim);
+  }
+  .bsb-ref {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--paper);
+    margin-bottom: 12px;
+  }
+  .bsb-bible p {
+    margin-bottom: 10px;
+  }
+  .bsb-bible sup {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--dawn-1);
+    margin-right: 4px;
+  }
+  .bsb-bible mark {
+    background: linear-gradient(transparent 12%, rgba(243, 189, 118, 0.32) 12%, rgba(243, 189, 118, 0.32) 92%, transparent 92%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    color: var(--paper);
+    animation: bsbSel 7s ease-in-out infinite;
+  }
+  /* the loop: the line is selected, lifted onto the page, the thread drawn */
+  @keyframes bsbSel {
+    0%, 6% { background-size: 0% 100%; }
+    22%, 100% { background-size: 100% 100%; }
+  }
+  .bsb-page blockquote,
+  .bsb-thread {
+    animation: bsbLand 7s ease-out infinite;
+  }
+  @keyframes bsbLand {
+    0%, 28% { opacity: 0; transform: translateY(6px); }
+    38%, 92% { opacity: 1; transform: none; }
+    100% { opacity: 0; }
+  }
+  :global(.motion-off) .bsb mark,
+  :global(.motion-off) .bsb blockquote,
+  :global(.motion-off) .bsb-thread {
+    animation: none;
+  }
+  .bsb-page {
+    padding: 28px 26px;
+  }
+  .bsb-date {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--paper);
+    margin-bottom: 18px;
+  }
+  .bsb-page blockquote {
+    border-left: 2px solid var(--dawn-1);
+    padding: 4px 0 4px 14px;
+    margin-bottom: 16px;
+    font-style: italic;
+    color: var(--paper);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .bsb-page cite {
+    display: block;
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--dawn-1);
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+  }
+  .bsb-line {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--paper);
+  }
+  .caret {
+    display: inline-block;
+    width: 1.5px;
+    height: 1.05em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    background: var(--dawn-1);
+    animation: bsbBlink 1.1s steps(1) infinite;
+  }
+  @keyframes bsbBlink {
+    50% {
+      opacity: 0;
+    }
+  }
+  .bsb-thread {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    fill: none;
+    stroke: var(--dawn-1);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 4;
+  }
+  .bsb-thread path {
+    vector-effect: non-scaling-stroke;
+  }
+  @media (max-width: 620px) {
+    .bsb-body {
+      grid-template-columns: 1fr;
+    }
+    .bsb-bible {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .bsb-thread {
+      display: none;
+    }
+  }
+</style>

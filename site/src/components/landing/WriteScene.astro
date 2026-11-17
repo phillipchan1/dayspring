@@ -1,0 +1,686 @@
+---
+// WriteScene — Act I. One entry is written in front of you as you scroll,
+// one real slash command at a time. The page is flex-end, so new lines push
+// old ones up and the older paragraphs dim: focus mode and typewriter
+// scrolling, demonstrated rather than described.
+import Split from "./Split.astro";
+import { write, writeHead } from "../../content/landing";
+
+const e = write.entry;
+const icons: Record<string, string> = {
+  "/scripture": "M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5c.8 0 1.5-.7 1.5-1.5z",
+  "/pray": "M12 3c2 3 4 5.2 4 8.3A4 4 0 0 1 12 15.5a4 4 0 0 1-4-4.2C8 8.2 10 6 12 3zM6 21h12",
+  "/sense": "M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1",
+  "/ritual": "M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h3",
+  "/image": "M4 5h16v14H4zM4 15l5-4 4 3 3-2 4 3",
+};
+---
+
+<section class="write" id="write" data-track="write" aria-labelledby="write-h">
+  <div class="w-stage">
+    <div class="w-grid">
+      <div class="w-copy">
+        <div class="kicker w-kick">{writeHead.kicker}</div>
+        <h2 id="write-h" class="h2 w-h" set:html={writeHead.heading} />
+        <ol class="w-rail">
+          {write.steps.map((s, i) => <li data-i={i}><button type="button" data-step={i}><i></i><span class="mono">{i === 0 ? "page" : s.kicker}</span></button></li>)}
+        </ol>
+        <div class="w-caps">
+          {
+            write.steps.map((s, i) => (
+              <div class="w-cap" data-i={i}>
+                <div class="kicker">{s.kicker}</div>
+                <h3 class="w-title">{s.title}</h3>
+                <p class="w-body">{s.body}</p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="win" aria-hidden="true">
+        <div class="win-bar">
+          <span class="lights"><i></i><i></i><i></i></span>
+          <span class="win-title mono">{write.window.date}</span>
+          <span class="win-mode mono">Focus</span>
+        </div>
+        <div class="win-body">
+          <div class="pg">
+            <div class="pg-date">{write.window.date}</div>
+
+            <p class="pg-p t1"><Split text={e.line1} /></p>
+
+            <p class="cmd c1"><span class="slash">/scripture</span> <Split class="q" text={e.scriptureQuery} /></p>
+            <div class="blk b-scr">
+              <div class="b-ref mono">{e.scripture.ref} <span>ESV</span></div>
+              <div class="b-text">{e.scripture.text}</div>
+            </div>
+
+            <p class="pg-p t2"><Split text={e.line2} /></p>
+
+            <p class="cmd c2"><span class="slash">/pray</span> <Split class="q" text={e.prayer} /></p>
+            <div class="blk b-pray">
+              <div class="b-lab mono"><svg viewBox="0 0 24 24"><path d={icons["/pray"]} /></svg>Prayer</div>
+              <div class="b-text">{e.prayer}</div>
+            </div>
+
+            <p class="cmd c3"><span class="slash">/sense</span> <Split class="q" text={e.sense} /></p>
+            <div class="blk b-sense">
+              <div class="b-lab mono"><svg viewBox="0 0 24 24"><path d={icons["/sense"]} /></svg>Sense</div>
+              <div class="b-text">{e.sense}</div>
+            </div>
+
+            <p class="cmd c4"><span class="slash">/ritual</span> <Split class="q" text="examen" /></p>
+            <div class="blk b-rit">
+              <div class="r-head">
+                <span class="r-name">{e.ritual.name}</span>
+                <span class="r-origin mono">{e.ritual.origin}</span>
+              </div>
+              {
+                e.ritual.prompts.map((p, i) => (
+                  <div class="r-q">
+                    <div class="r-ask">{p.q}</div>
+                    <div class:list={["r-ans", { empty: !p.a }]}>
+                      {p.a ? <Split class={`ra${i}`} text={p.a} /> : <span class="r-ph">…</span>}
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+
+          <div class="pal">
+            <div class="pal-hl"></div>
+            {
+              write.palette.map((p) => (
+                <div class="pal-row">
+                  <svg viewBox="0 0 24 24"><path d={icons[p.cmd]} /></svg>
+                  <span class="pal-cmd mono">{p.cmd}</span>
+                  <span class="pal-hint">{p.hint}</span>
+                </div>
+              ))
+            }
+          </div>
+
+          <div class="res">
+            <div class="res-head mono">Passages for “{e.scriptureQuery}”</div>
+            <div class="res-row on"><span class="mono">{e.scripture.ref}</span> {e.scripture.text}</div>
+            <div class="res-row"><span class="mono">Matthew 6:34</span> Therefore do not be anxious about tomorrow…</div>
+            <div class="res-row"><span class="mono">Philippians 4:6</span> do not be anxious about anything…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .w-stage {
+    min-height: 100vh;
+    display: grid;
+    align-items: center;
+    padding: 12vh 0;
+  }
+  .w-kick {
+    margin-bottom: 14px;
+  }
+  .w-h {
+    font-size: clamp(30px, 3.4vw, 50px);
+    margin-bottom: 34px;
+  }
+  .w-grid {
+    width: min(1280px, 100% - 48px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(280px, 0.8fr) 1.25fr;
+    gap: clamp(32px, 5vw, 80px);
+    align-items: center;
+  }
+
+  /* ---- captions ---- */
+  .w-copy {
+    position: relative;
+  }
+  .w-rail {
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+  .w-rail button {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font: inherit;
+    font-size: 11px;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 11px;
+    cursor: default;
+    transition: color 0.4s, border-color 0.4s;
+  }
+  .w-rail button:active {
+    opacity: 0.7;
+  }
+  @media (hover: hover) {
+    .w-rail button:hover {
+      color: var(--paper);
+    }
+  }
+  .w-rail li {
+    display: flex;
+  }
+  .w-rail li.on button {
+    border-color: rgba(243, 189, 118, 0.45);
+  }
+  .w-rail i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    transition: background 0.4s, box-shadow 0.4s;
+  }
+  .w-rail li.on {
+    color: var(--dawn-1);
+  }
+  .w-rail li.on i {
+    background: var(--dawn-1);
+    box-shadow: 0 0 10px var(--dawn-1);
+  }
+  .w-caps {
+    position: relative;
+    min-height: 200px;
+  }
+  .w-cap {
+    position: absolute;
+    inset: 0 0 auto 0;
+    opacity: 0;
+  }
+  .w-cap:first-child {
+    opacity: 1;
+  }
+  .w-cap .kicker {
+    margin-bottom: 16px;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    font-size: 14px;
+  }
+  .w-title {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(22px, 2vw, 30px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+  }
+  .w-body {
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--paper-dim);
+    font-weight: 300;
+    max-width: 40ch;
+  }
+
+  /* ---- the window ---- */
+  .win {
+    position: relative;
+    height: min(660px, 78vh);
+    border-radius: 16px;
+    background: linear-gradient(170deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    box-shadow:
+      0 60px 120px -40px var(--shadow),
+      0 0 0 1px var(--border-dim),
+      0 0 120px -40px var(--accent-glow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .win-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border-dim);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .lights {
+    display: flex;
+    gap: 7px;
+  }
+  .lights i {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .win-mode {
+    color: var(--dawn-1);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 10px;
+  }
+  .win-body {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+  }
+  .pg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 clamp(26px, 6%, 64px) 34%;
+    font-family: var(--font-body);
+    font-size: clamp(16px, 1.45vw, 21px);
+    line-height: 1.6;
+    color: var(--paper);
+  }
+  .pg > * {
+    flex: none;
+  }
+  .pg-date {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 2.6vw, 38px);
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    margin-bottom: 18px;
+  }
+  .pg-p {
+    margin-bottom: 14px;
+  }
+  .pg-p :global(.ch),
+  .cmd :global(.ch) {
+    opacity: 0;
+  }
+  .cmd {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    color: var(--paper-dim);
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .slash {
+    color: var(--dawn-1);
+  }
+
+  .blk {
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .blk > :first-child {
+    margin-top: 4px;
+  }
+  .b-scr {
+    border-left: 2px solid var(--gold);
+    padding-left: 18px;
+  }
+  .b-scr .b-text {
+    font-style: italic;
+    color: var(--paper);
+    padding-bottom: 16px;
+  }
+  .b-ref {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .b-ref span {
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .b-pray,
+  .b-sense {
+    padding-bottom: 14px;
+  }
+  .b-pray > div,
+  .b-sense > div {
+    padding-left: 18px;
+  }
+  .b-lab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--dawn-2);
+    padding-left: 0 !important;
+  }
+  .b-lab svg,
+  .pal-row svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .b-sense .b-lab {
+    color: var(--dawn-1);
+  }
+  .b-pray .b-text,
+  .b-sense .b-text {
+    border-left: 1px dashed var(--border-strong);
+    margin-left: 6px;
+    padding-left: 12px !important;
+  }
+  .b-rit {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .b-rit > * {
+    padding: 0 18px;
+  }
+  .r-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding-top: 14px !important;
+    padding-bottom: 6px !important;
+    border-bottom: 1px solid var(--border-dim);
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .r-name {
+    font-family: var(--font-display);
+    font-size: 1.05em;
+  }
+  .r-origin {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.6px;
+  }
+  .r-q {
+    padding-bottom: 10px !important;
+  }
+  .r-ask {
+    font-size: 0.82em;
+    color: var(--gold);
+    font-style: italic;
+  }
+  .r-ans :global(.ch) {
+    opacity: 0;
+  }
+  .r-ph {
+    color: var(--muted);
+  }
+
+  /* ---- palette + results ---- */
+  .pal,
+  .res {
+    position: absolute;
+    left: clamp(26px, 6%, 64px);
+    bottom: 6%;
+    width: min(380px, 80%);
+    border-radius: 12px;
+    background: var(--surface-strong);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 24px 60px -20px var(--shadow);
+    padding: 6px;
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    transform-origin: top left;
+  }
+  .pal-hl {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: 6px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--accent-glow);
+    border: 1px solid rgba(243, 189, 118, 0.25);
+  }
+  .pal-row {
+    position: relative;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px;
+    font-size: 13px;
+    color: var(--paper-dim);
+  }
+  .pal-row svg {
+    color: var(--dawn-1);
+  }
+  .pal-cmd {
+    color: var(--paper);
+    font-size: 12px;
+    min-width: 76px;
+  }
+  .pal-hint {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .res {
+    width: min(460px, 86%);
+  }
+  .res-head {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 10px 6px;
+  }
+  .res-row {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    padding: 8px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .res-row span {
+    color: var(--gold);
+    font-size: 11px;
+    margin-right: 6px;
+  }
+  .res-row.on {
+    background: var(--accent-glow);
+    color: var(--paper);
+  }
+
+  /* ---- motion off: every caption listed, the finished entry shown ---- */
+  :global(.motion-off) .w-cap {
+    position: relative;
+    opacity: 1;
+    margin-bottom: 34px;
+  }
+  :global(.motion-off) .w-caps {
+    min-height: 0;
+  }
+  :global(.motion-off) .w-rail {
+    display: none;
+  }
+  :global(.motion-off) .blk,
+  :global(.motion-off) .pg-p :global(.ch),
+  :global(.motion-off) .r-ans :global(.ch) {
+    height: auto;
+    opacity: 1;
+  }
+
+  @media (max-width: 900px) {
+    .w-stage {
+      min-height: 0;
+      padding: 10vh 0 6vh;
+    }
+    .w-grid {
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+    .w-h {
+      font-size: 28px;
+      margin-bottom: 22px;
+    }
+    .w-rail {
+      margin-bottom: 18px;
+      gap: 6px;
+    }
+    .w-caps {
+      min-height: 168px;
+    }
+    .w-title {
+      font-size: 25px;
+      margin-bottom: 8px;
+    }
+    .w-body {
+      font-size: 14.5px;
+      line-height: 1.45;
+    }
+    .win {
+      height: 62svh;
+    }
+    .pg {
+      padding-bottom: 42%;
+    }
+  }
+</style>
+
+<script>
+  import { boot, gsap, reduced, ScrollTrigger } from "../../lib/motion";
+  boot();
+
+  const section = document.querySelector<HTMLElement>(".write");
+  if (section) {
+    const $ = (s: string) => section.querySelector(s)!;
+    const $$ = (s: string) => section.querySelectorAll(s);
+    const rail = [...$$(".w-rail li")];
+    const setRail = (i: number) => rail.forEach((li, j) => li.classList.toggle("on", j === i));
+    setRail(0);
+
+    if (!reduced) {
+      const ROW = 38;
+      const type = (tl: gsap.core.Timeline, sel: string, at: number, dur: number) => {
+        const chars = $$(`${sel} .ch`);
+        tl.to(chars, { opacity: 1, duration: 0.001, stagger: dur / Math.max(chars.length, 1) }, at);
+      };
+      const open = (tl: gsap.core.Timeline, sel: string, at: number, d = 0.25) =>
+        tl.to($$(sel), { height: "auto", opacity: 1, duration: d, ease: "power2.out" }, at);
+      const close = (tl: gsap.core.Timeline, sel: string, at: number, d = 0.2) =>
+        tl.to($$(sel), { height: 0, opacity: 0, duration: d, ease: "power2.in" }, at);
+      const pop = (tl: gsap.core.Timeline, sel: string, at: number, row = 0) => {
+        tl.set($$(".pal-hl"), { y: row * ROW }, at - 0.01);
+        tl.to($$(sel), { opacity: 1, y: 0, scale: 1, duration: 0.12, ease: "power2.out" }, at);
+      };
+      const unpop = (tl: gsap.core.Timeline, sel: string, at: number) =>
+        tl.to($$(sel), { opacity: 0, y: 10, scale: 0.98, duration: 0.1 }, at);
+      const dim = (tl: gsap.core.Timeline, sel: string, at: number) =>
+        tl.to($$(sel), { opacity: 0.32, duration: 0.2 }, at);
+      const caption = (tl: gsap.core.Timeline, i: number, at: number) => {
+        const caps = $$(".w-cap");
+        tl.to(caps[i - 1], { opacity: 0, y: -24, filter: "blur(6px)", duration: 0.18 }, at);
+        tl.fromTo(caps[i], { opacity: 0, y: 30, filter: "blur(6px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.22 }, at + 0.12);
+      };
+
+      // Time-based, not scroll-scrubbed: it plays while on screen, loops, and
+      // the step pills jump to any command. Nobody has to scroll to read it.
+      gsap.from($$(".win"), {
+        y: 80,
+        rotateX: 8,
+        opacity: 0,
+        duration: 1.2,
+        ease: "expo.out",
+        transformPerspective: 1200,
+        scrollTrigger: { trigger: section, start: "top 75%" },
+      });
+      const tl = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 1.5, defaults: { ease: "none" } });
+      tl.timeScale(0.42);
+      {
+        // 0 — the page
+        type(tl, ".t1", 0.3, 1.0);
+
+        // 1 — /scripture
+        caption(tl, 1, 1.6);
+        dim(tl, ".pg-date", 1.7);
+        open(tl, ".c1", 1.8, 0.12);
+        type(tl, ".c1 .slash", 1.8, 0.01);
+        pop(tl, ".pal", 1.85, 0);
+        unpop(tl, ".pal", 2.15);
+        type(tl, ".c1 .q", 2.2, 0.5);
+        pop(tl, ".res", 2.75);
+        unpop(tl, ".res", 3.05);
+        close(tl, ".c1", 3.1);
+        open(tl, ".b-scr", 3.15, 0.3);
+        dim(tl, ".t1", 3.3);
+
+        // 2 — /pray
+        caption(tl, 2, 3.6);
+        type(tl, ".t2", 3.6, 0.6);
+        dim(tl, ".b-scr", 4.25);
+        open(tl, ".c2", 4.3, 0.12);
+        pop(tl, ".pal", 4.35, 1);
+        unpop(tl, ".pal", 4.6);
+        type(tl, ".c2 .q", 4.62, 0.45);
+        close(tl, ".c2", 5.1);
+        open(tl, ".b-pray", 5.12, 0.28);
+
+        // 3 — /sense
+        caption(tl, 3, 5.5);
+        dim(tl, ".t2", 5.55);
+        dim(tl, ".b-pray", 5.6);
+        open(tl, ".c3", 5.65, 0.12);
+        pop(tl, ".pal", 5.7, 2);
+        unpop(tl, ".pal", 5.95);
+        type(tl, ".c3 .q", 5.98, 0.45);
+        close(tl, ".c3", 6.5);
+        open(tl, ".b-sense", 6.52, 0.28);
+
+        // 4 — /ritual
+        caption(tl, 4, 7.0);
+        dim(tl, ".b-sense", 7.1);
+        open(tl, ".c4", 7.15, 0.12);
+        pop(tl, ".pal", 7.2, 3);
+        unpop(tl, ".pal", 7.45);
+        type(tl, ".c4 .q", 7.48, 0.2);
+        close(tl, ".c4", 7.8);
+        open(tl, ".b-rit", 7.85, 0.35);
+        type(tl, ".ra0", 8.3, 0.9);
+        tl.to({}, { duration: 1.4 }, 9.2);
+      }
+
+      ScrollTrigger.create({
+        trigger: section,
+        start: "top 65%",
+        end: "bottom 25%",
+        onToggle: (self) => (self.isActive ? tl.play() : tl.pause()),
+      });
+
+      // the rail follows the playhead, and jumps it
+      const marks = [0, 1.6, 3.6, 5.5, 7.0];
+      $$(".w-rail button").forEach((b, i) =>
+        b.addEventListener("click", () => tl.seek(marks[i] + (i ? 0.02 : 0)).play()),
+      );
+      tl.eventCallback("onUpdate", () => {
+        const t = tl.time();
+        let i = 0;
+        marks.forEach((m, j) => {
+          if (t >= m) i = j;
+        });
+        setRail(i);
+      });
+    }
+  }
+</script>
