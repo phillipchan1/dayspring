@@ -52,6 +52,13 @@
   "observability": {
     "enabled": true,
   },
+  // The processing gate (worker/src/processingGate.ts): remembers outside Postgres
+  // when process-tick next has work, so the every-minute cron skips idle minutes
+  // and Neon can suspend. Bindings are not inherited; production declares its own.
+  "durable_objects": {
+    "bindings": [{ "name": "PROCESSING_GATE", "class_name": "ProcessingGate" }],
+  },
+  "migrations": [{ "tag": "v1-processing-gate", "new_sqlite_classes": ["ProcessingGate"] }],
   // Named envs only. Do not deploy from CI. No routes / custom domain in this PR.
   "env": {
     "production": {
@@ -94,9 +101,17 @@
       // Binding to this same Worker: the processing engine's self-kick
       // (worker/src/vercel/selfKick.ts). Not inherited, so each env names itself.
       "services": [{ "binding": "SELF", "service": "dayspring" }],
+      // Without this binding the every-minute cron queries Neon every minute and
+      // the database never suspends. wranglerProd.check enforces it.
+      "durable_objects": {
+        "bindings": [{ "name": "PROCESSING_GATE", "class_name": "ProcessingGate" }],
+      },
+      "migrations": [{ "tag": "v1-processing-gate", "new_sqlite_classes": ["ProcessingGate"] }],
       // Background jobs (UTC). Must match CRON_PATHS in worker/src/vercel/routes.ts;
       // wranglerProd.check enforces it. Vercel no longer runs any crons, so these
       // are the only schedule. Mail jobs still need WORKER_MAIL_CRONS=on.
+      // "* * * * *" (process-tick) asks PROCESSING_GATE first and touches Neon
+      // only when jobs are in flight or someone's writing has settled.
       "triggers": {
         "crons": ["0 8 * * *", "* * * * *", "0 9 * * *", "15 9 * * *", "30 9 * * *", "0 10 * * 1"],
       },

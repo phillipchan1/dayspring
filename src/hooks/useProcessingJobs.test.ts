@@ -15,7 +15,8 @@ vi.mock('./useSession', () => ({
   useSession: () => ({ session: session.current, loading: false }),
 }))
 
-const { useProcessingJobs, JOB_POLL_ACTIVE_MS, isActive } = await import('./useProcessingJobs')
+const { useProcessingJobs, JOB_POLL_ACTIVE_MS, JOB_POLL_IDLE_MS, isActive } = await import('./useProcessingJobs')
+const { IDLE_AFTER_MS, setLastInputAtForTest } = await import('@/lib/presence')
 
 function mount(onState: (s: ReturnType<typeof useProcessingJobs>) => void): Root {
   const el = document.createElement('div')
@@ -40,6 +41,7 @@ describe('useProcessingJobs polling', () => {
     session.current = { user: { id: 'owner-1' }, access_token: 't.s' }
     vi.useFakeTimers()
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    setLastInputAtForTest(Date.now())
   })
 
   afterEach(() => {
@@ -74,5 +76,21 @@ describe('useProcessingJobs polling', () => {
     await vi.waitFor(() => {
       expect(apiGet).toHaveBeenCalledWith('/api/data/jobs')
     })
+  })
+
+  it('with nothing in flight, stops polling while nobody is here and catches up on their first input', async () => {
+    apiGet.mockResolvedValue({ jobs: [] })
+    await vi.waitFor(async () => {
+      root = mount(() => {})
+    })
+    await vi.waitFor(() => expect(apiGet).toHaveBeenCalledWith('/api/data/jobs'))
+
+    apiGet.mockClear()
+    await vi.advanceTimersByTimeAsync(60 * 60_000) // an idle hour, window visible
+    expect(apiGet.mock.calls.length).toBe(Math.floor(IDLE_AFTER_MS / JOB_POLL_IDLE_MS))
+
+    apiGet.mockClear()
+    window.dispatchEvent(new Event('keydown'))
+    await vi.waitFor(() => expect(apiGet).toHaveBeenCalledWith('/api/data/jobs'))
   })
 })

@@ -12,6 +12,7 @@ import { authOf, finishRequest, sqlOf, type WorkerContext, type WorkerVars } fro
 import { timingSafeEqualString } from './safeEqual.ts'
 import { UNSUBSCRIBE_PATH, verifyUnsubscribe } from '../../api/_lib/unsubscribe.ts'
 import { buildSelfKick, KICK_HEADER, PROCESS_TICK_PATH } from './vercel/selfKick.ts'
+import { gateNoteJobs, gateNoteWrite, gateReportTick, gateTickReason } from './processingGate.ts'
 import {
   deleteOwnedAccount,
   ensureProfile,
@@ -98,6 +99,17 @@ async function requireUser(c: WorkerContext) {
   return sessionUser(authOf(c), c.req.raw)
 }
 
+/** Fire-and-forget work that must not delay the response (ctx.waitUntil; tests let it float). */
+function background(c: WorkerContext): (task: Promise<unknown>) => void {
+  return (task) => {
+    try {
+      c.executionCtx.waitUntil(task)
+    } catch {
+      void task
+    }
+  }
+}
+
 app.get('/api/health', (c) =>
   c.json({
     ok: true,
@@ -177,6 +189,8 @@ app.post('/api/data/entries/upsert-checked', async (c) => {
     circumstances: unknown
   }>()
   const result = await upsertEntryChecked(makeStore(sqlOf(c), user.id), body)
+  // Their writing is now unsettled; tell the processing gate when to gather it.
+  gateNoteWrite(c.env, background(c), user.id)
   return json(result)
 })
 
@@ -232,6 +246,9 @@ app.post('/api/data/query', async (c) => {
   if (!user) return json({ error: 'not authenticated' }, 401)
   const spec = await c.req.json<DataQuerySpec>()
   const result = await runDataQuery(sqlOf(c), user.id, spec)
+  const writes = spec.mode === 'insert' || spec.mode === 'upsert' || spec.mode === 'update'
+  if (writes && spec.table === 'entries') gateNoteWrite(c.env, background(c), user.id)
+  if (writes && spec.table === 'processing_jobs') gateNoteJobs(c.env, background(c))
   return json(result)
 })
 
@@ -291,22 +308,34 @@ async function servePorted(c: WorkerContext, route: PortedRoute): Promise<Respon
   // Own connection: background work (waitUntil) can outlive the response, and
   // finishRequest closes the request's sqlOf(c) as soon as the response is sent.
   const sql = createSql(c.env)
-  const auth = authOf(c)
   const pending: Promise<unknown>[] = []
   const client = createPgRestClient(sql, {
     resolveToken: async (token) => {
       const headers = new Headers({ authorization: `Bearer ${token}` })
-      return (await sessionUser(auth, new Request(c.req.url, { headers })))?.id ?? null
+      // Better Auth only when a handler checks a user. Building it opens its own
+      // connection and reads the schema — a needless Neon round-trip on every cron tick.
+      return (await sessionUser(authOf(c), new Request(c.req.url, { headers })))?.id ?? null
     },
   })
-  const kick = buildSelfKick({
+  const selfKick = buildSelfKick({
     self: c.env.SELF ?? null,
     origin: c.env.BETTER_AUTH_URL?.trim() || new URL(c.req.url).origin,
     cronSecret: c.env.CRON_SECRET?.trim() || null,
   })
+  // Every kick means a job may be waiting: the processing gate keeps the
+  // every-minute cron ticking until a tick finds the queue empty, so a kick
+  // that fails is still picked up within a minute.
+  const kick = (selfKick || c.env.PROCESSING_GATE)
+    ? async () => {
+        gateNoteJobs(c.env, background(c))
+        if (selfKick) await selfKick()
+        else console.error('[self-kick] skipped: no CRON_SECRET or no route to this Worker')
+      }
+    : null
+  const startedAt = Date.now()
   const run = async (): Promise<Response> => {
     try {
-      return await runVercelHandler(
+      const res = await runVercelHandler(
         {
           client,
           waitUntil: (task) => {
@@ -321,6 +350,11 @@ async function servePorted(c: WorkerContext, route: PortedRoute): Promise<Respon
         handler,
         c.req.raw,
       )
+      // The gate stands the cron down only on a tick's own word that nothing is left.
+      if (route.path === PROCESS_TICK_PATH) await gateReportTick(c.env, startedAt, res)
+      // Other crons (synthesize) enqueue jobs without kicking: let the next minute tick.
+      else if (isCron) gateNoteJobs(c.env, background(c))
+      return res
     } finally {
       const drain = (async () => {
         while (pending.length) await Promise.all(pending.splice(0))
@@ -627,11 +661,22 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     const url = CRON_PATHS[event.cron]
     if (!url) return
-    // Pass ctx so the route's waitUntil work (and the per-request DB close) runs.
-    ctx.waitUntil(Promise.resolve(app.fetch(new Request(`https://worker${url}`, {
-      headers: { authorization: `Bearer ${env.CRON_SECRET ?? ''}` },
-    }), env, ctx)))
+    ctx.waitUntil((async () => {
+      if (url === PROCESS_TICK_PATH) {
+        // Ask the processing gate (a Durable Object, not Postgres) first, so an
+        // idle minute sends Neon nothing and its compute can suspend.
+        const reason = await gateTickReason(env)
+        if (reason === null) return
+        console.log(`[gate] process-tick reason=${reason}`)
+      }
+      // Pass ctx so the route's waitUntil work (and the per-request DB close) runs.
+      await app.fetch(new Request(`https://worker${url}`, {
+        headers: { authorization: `Bearer ${env.CRON_SECRET ?? ''}` },
+      }), env, ctx)
+    })())
   },
 }
 
 export { app }
+// Durable Object classes must be exported from the Worker's main module.
+export { ProcessingGate } from './processingGate.ts'

@@ -352,13 +352,32 @@ export async function enqueueGather(owner: string, origin: GatherOrigin): Promis
  * for the settle window, with no per-owner daily cap.
  */
 export async function enqueueSettledGathers(limit = 25): Promise<number> {
-  if (!env.gatherEngine()) return 0
+  return (await scanSettledGathers(limit)).enqueued
+}
+
+/**
+ * enqueueSettledGathers, also saying whether the scan hit its owner limit — in
+ * which case more owners may be waiting and the next tick must look again (the
+ * Worker's processing gate keeps ticking until a scan comes back short).
+ */
+export async function scanSettledGathers(limit = 25): Promise<{ enqueued: number; saturated: boolean }> {
+  if (!env.gatherEngine()) return { enqueued: 0, saturated: false }
   const owners = await gatherPendingOwners(env.gatherSettleMinutes(), limit)
   let enqueued = 0
   for (const { owner } of owners) {
     if (await enqueueGather(owner, 'write')) enqueued++
   }
-  return enqueued
+  return { enqueued, saturated: owners.length >= limit }
+}
+
+/** Jobs a tick could still claim or is still running (any owner). */
+export async function activeJobCount(): Promise<number> {
+  const { count, error } = await supabaseAdmin()
+    .from('processing_jobs')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['queued', 'running'])
+  if (error) throw error
+  return count ?? 0
 }
 
 async function insertIfInactive(

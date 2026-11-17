@@ -20,6 +20,7 @@ import { beginArrivals, dropArrival } from '@/lib/photoArrival'
 import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount, byCreatedDesc } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
+import { isPresent, onPresenceResume } from '@/lib/presence'
 import { getSessionState } from '@/lib/sessionStore'
 import { isTauri } from '@/lib/platform'
 import { addBreadcrumb } from '@/lib/crashReport'
@@ -1656,14 +1657,25 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // It auto-escalates to a full sync() when >5 min have passed since the last
   // full reconcile, which bounds cross-device staleness even if realtime drops
   // silently and focus/visibility events never fire (e.g. app stays open all day).
+  // Only while someone is present (lib/presence.ts): a window left open with
+  // nobody at it must not keep the database awake. The first input after an
+  // idle stretch beats at once — by then the last full reconcile is >5 min old,
+  // so it is a full sync that also picks up deletes made elsewhere.
   useEffect(() => {
     if (!getSessionState().session) return
-    const id = setInterval(() => {
+    const beat = () => {
       void repo.syncChanged(preserveEditingId()).then((list) => {
         if (list) applySyncedList(list)
       })
+    }
+    const id = setInterval(() => {
+      if (isPresent()) beat()
     }, 2 * 60_000)
-    return () => clearInterval(id)
+    const offResume = onPresenceResume(beat)
+    return () => {
+      clearInterval(id)
+      offResume()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- applySyncedList is stable; ref holds live id
   }, [])
 

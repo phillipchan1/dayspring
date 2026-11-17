@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiGet } from '@/lib/api'
+import { isPresent, onPresenceResume } from '@/lib/presence'
 import { useSession } from './useSession'
 
 export type ProcessingKind =
@@ -50,7 +51,10 @@ interface JobRow {
 
 /** Fast poll only while a job is queued/running. */
 export const JOB_POLL_ACTIVE_MS = 4_000
-/** Slow poll once nothing is in flight (or skip entirely if the tab is hidden). */
+/**
+ * Slow poll once nothing is in flight — and only while someone is present
+ * (presence.ts): an idle window must not keep the database awake.
+ */
 export const JOB_POLL_IDLE_MS = 45_000
 
 export function isActive(status: string): boolean {
@@ -114,6 +118,12 @@ export function useProcessingJobs(): ProcessingState {
           schedule()
           return
         }
+        // Nothing in flight and nobody here: wait. The first input after the
+        // idle stretch refetches (onPresenceResume below).
+        if (!anyActiveRef.current && !isPresent()) {
+          schedule()
+          return
+        }
         void refetch().then(schedule)
       }, ms)
     }
@@ -128,9 +138,11 @@ export function useProcessingJobs(): ProcessingState {
     void refetch().then(schedule)
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
+    const offResume = onPresenceResume(onFocus)
 
     return () => {
       alive = false
+      offResume()
       if (timeout) clearTimeout(timeout)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
