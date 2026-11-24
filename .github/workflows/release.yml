@@ -141,6 +141,23 @@ jobs:
             fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
           "
 
+      - id: patch-alpha-identity
+        name: Give alpha its own bundle id and URL scheme
+        run: |
+          # Stable keeps com.phillipchan.dayspring / dayspring:// (iOS too).
+          # Alpha must not receive stable's OAuth callbacks via LaunchServices.
+          node -e "
+            const fs = require('fs');
+            const p = 'src-tauri/tauri.conf.json';
+            const c = JSON.parse(fs.readFileSync(p));
+            c.identifier = 'com.phillipchan.dayspring.alpha';
+            c.productName = 'Dayspring Alpha';
+            c.plugins['deep-link'].desktop.schemes = ['dayspring-alpha'];
+            c.plugins['deep-link'].mobile = [{ scheme: ['dayspring-alpha'] }];
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
+          "
+          echo "Alpha identity: com.phillipchan.dayspring.alpha / dayspring-alpha://"
+
       - id: version
         name: Compute version (major.minor from package.json + run number as patch)
         run: |

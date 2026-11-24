@@ -44,6 +44,11 @@ describe('handleNativeOpenUrls', () => {
     expect(track).toHaveBeenCalledWith('auth_callback_received', { via: 'deep_link' })
   })
 
+  it('accepts the alpha scheme', async () => {
+    await handleNativeOpenUrls(['dayspring-alpha://auth-callback?code=ott-1'])
+    expect(completeWorkersOAuthCallback).toHaveBeenCalledWith('dayspring-alpha://auth-callback?code=ott-1')
+  })
+
   it('surfaces exchange failures instead of failing silently', async () => {
     completeWorkersOAuthCallback.mockRejectedValueOnce(new Error('Sign-in expired. Try again.'))
     const seen: string[] = []

@@ -155,8 +155,9 @@ function apiOrigin(): string {
   return env.apiBaseUrl.replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '')
 }
 
-export function nativeCallbackScheme(): 'dayspring' {
-  return 'dayspring'
+/** Alpha desktop uses a private scheme so it cannot steal stable's callbacks. */
+export function nativeCallbackScheme(): 'dayspring' | 'dayspring-alpha' {
+  return import.meta.env.VITE_RELEASE_CHANNEL === 'alpha' ? 'dayspring-alpha' : 'dayspring'
 }
 
 /**

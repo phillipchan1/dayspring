@@ -261,7 +261,7 @@ export function createAuth(
     socialProviders: socialProvidersFromEnv(env),
     trustedOrigins: isLocalAuthHost(baseURL)
       ? [baseURL, DEEP_LINK_ORIGIN, ...NATIVE_APP_ORIGINS, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
-      : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://', ...NATIVE_APP_ORIGINS],
+      : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://', 'dayspring-alpha://', ...NATIVE_APP_ORIGINS],
     rateLimit: {
       ...AUTH_RATE_LIMIT,
       customStorage: failOpenRateLimitStorage(db),

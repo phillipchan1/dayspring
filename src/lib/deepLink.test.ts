@@ -28,6 +28,14 @@ describe('parseDayspringDeepLink', () => {
       kind: 'auth-callback',
       url: 'dayspring://auth-callback/',
     })
+    expect(parseDayspringDeepLink('dayspring-alpha://auth-callback?code=abc')).toEqual({
+      kind: 'auth-callback',
+      url: 'dayspring-alpha://auth-callback?code=abc',
+    })
+    expect(parseDayspringDeepLink('dayspring-alpha://open')).toEqual({
+      kind: 'open',
+      url: 'dayspring-alpha://open',
+    })
   })
 
   it('does not treat a future plans path, extra segments, or other schemes as open', () => {
