@@ -6,7 +6,18 @@
 import { PGlite } from '@electric-sql/pglite'
 import { applyNeonSchema } from './isolationDb.ts'
 import { createAuth, type AuthDatabase } from './auth.ts'
-import { NATIVE_CALLBACK, NATIVE_FINISH_PATH, nativeFinish, nativeStart } from './nativeAuth.ts'
+import {
+  NATIVE_CALLBACK,
+  NATIVE_CLAIM_PATH,
+  NATIVE_FINISH_PATH,
+  nativeClaim,
+  nativeFinish,
+  nativeFinishHtml,
+  nativeStart,
+  parseLoopbackRedirect,
+  pkceChallenge,
+  type ClaimDb,
+} from './nativeAuth.ts'
 
 const fails: string[] = []
 let checks = 0
@@ -50,9 +61,63 @@ class Jar {
   }
 }
 
+function pgliteClaimDb(db: PGlite): ClaimDb {
+  return {
+    async deleteReturning(identifier) {
+      const result = await db.query<{ value: string }>(
+        'DELETE FROM verification WHERE identifier = $1 AND expires_at > now() RETURNING value',
+        [identifier],
+      )
+      return result.rows[0]?.value ?? null
+    },
+    async peek(identifier) {
+      const result = await db.query<{ value: string }>(
+        'SELECT value FROM verification WHERE identifier = $1 AND expires_at > now() ORDER BY expires_at DESC LIMIT 1',
+        [identifier],
+      )
+      return result.rows[0]?.value ?? null
+    },
+    async put(identifier, value, expiresAt) {
+      await db.query('DELETE FROM verification WHERE identifier = $1', [identifier])
+      await db.query(
+        'INSERT INTO verification (id, identifier, value, expires_at) VALUES ($1, $2, $3, $4)',
+        [crypto.randomUUID(), identifier, value, expiresAt],
+      )
+    },
+    async sessionToken(sessionId) {
+      const result = await db.query<{ token: string }>(
+        'SELECT token FROM session WHERE id = $1 AND expires_at > now() LIMIT 1',
+        [sessionId],
+      )
+      return result.rows[0]?.token ?? null
+    },
+    async sessionIdByToken(token) {
+      const result = await db.query<{ id: string }>(
+        'SELECT id FROM session WHERE (token = $1 OR token = $2) AND expires_at > now() LIMIT 1',
+        [token, token.split('.')[0] ?? token],
+      )
+      return result.rows[0]?.id ?? null
+    },
+    async touchRate(key, windowMs, max) {
+      const now = String(Date.now())
+      const result = await db.query<{ count: number }>(
+        `INSERT INTO rate_limit (id, key, count, last_request)
+         VALUES ($1, $2, 1, $3)
+         ON CONFLICT (key) DO UPDATE SET
+           count = CASE WHEN $3::bigint - rate_limit.last_request > $4::bigint THEN 1 ELSE rate_limit.count + 1 END,
+           last_request = CASE WHEN $3::bigint - rate_limit.last_request > $4::bigint THEN $3::bigint ELSE rate_limit.last_request END
+         RETURNING count`,
+        [crypto.randomUUID(), key, now, String(windowMs)],
+      )
+      return Number(result.rows[0]?.count ?? 1) <= max
+    },
+  }
+}
+
 const BASE = 'https://api.dayspring.test'
 const db = new PGlite()
 await applyNeonSchema(db)
+const store = pgliteClaimDb(db)
 const auth = createAuth(
   {
     BETTER_AUTH_URL: BASE,
@@ -113,7 +178,7 @@ async function sheetRoundTrip(startQuery: string): Promise<{ res: Response; jar:
   const cbLoc = cb.headers.get('location') ?? ''
   ok(cb.status === 302 && cbLoc.startsWith(`${BASE}${NATIVE_FINISH_PATH}`), `callback returns to finish (got ${cb.status} ${cbLoc})`)
 
-  const finish = await nativeFinish(auth, new Request(cbLoc || `${BASE}${NATIVE_FINISH_PATH}`, { headers: { cookie: jar.header() } }))
+  const finish = await nativeFinish(auth, new Request(cbLoc || `${BASE}${NATIVE_FINISH_PATH}`, { headers: { cookie: jar.header() } }), [], store, '203.0.113.10')
   jar.take(finish)
   return { res: finish, jar }
 }
@@ -206,18 +271,207 @@ ok(appParams(badLink)?.get('error') === 'link_expired', 'bad link ticket returns
   const evil = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&return=${encodeURIComponent('https://evil.example')}`), BASE, origins)
   ok(evil.status === 400, 'an unknown return origin is refused')
   const evilFinish = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?return=${encodeURIComponent('https://evil.example')}&error=x`), origins)
-  ok((evilFinish.headers.get('location') ?? '').startsWith(NATIVE_CALLBACK), 'finish never redirects to an unknown origin')
-  const webErr = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?return=${encodeURIComponent(WEB)}&error=access_denied`), origins)
-  ok(webErr.headers.get('location') === `${WEB}/?auth_error=access_denied`, 'web errors come back as auth_error')
+  const evilLoc = evilFinish.headers.get('location') ?? ''
+  ok(!evilLoc.includes('evil.example'), `finish never redirects to an unknown origin (got ${evilLoc || 'no location'})`)
+  const webErr = await nativeFinish(auth, new Request(cbLoc.replace(/\?.*$/, `?return=${encodeURIComponent(WEB)}&error=access_denied`), { headers: { cookie: jar.header() } }), origins)
+  ok(webErr.headers.get('location') === `${WEB}/?auth_error=access_denied`, 'web errors come back as auth_error when the browser started the flow')
 }
 
 // 3. Errors pass through to the app instead of stranding the sheet.
-const denied = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?error=access_denied`))
-ok(appParams(denied)?.get('error') === 'access_denied', 'provider error reaches the app')
-const noSession = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}`))
-ok(appParams(noSession)?.get('error') === 'no_session', 'finish without a session reaches the app as an error')
+{
+  const jar = new Jar()
+  const start = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google`), BASE)
+  jar.take(start)
+  const denied = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?error=access_denied`, { headers: { cookie: jar.header() } }), [], store, '203.0.113.10')
+  ok(appParams(denied)?.get('error') === 'access_denied', 'provider error reaches the app when the sheet started the flow')
+  const noSession = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}`, { headers: { cookie: jar.header() } }), [], store, '203.0.113.10')
+  ok(appParams(noSession)?.get('error') === 'no_session', 'finish without a session reaches the app as an error')
+}
+const planted = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?error=access_denied`))
+ok(planted.status === 200 && planted.headers.get('location') == null, 'naked finish?error= does not redirect to the app')
+ok((await planted.text()).includes('Sign-in didn’t finish'), 'planted finish is a generic page')
 const badProvider = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=github`), BASE)
 ok(appParams(badProvider)?.get('error') === 'unsupported_provider', 'unknown provider is refused')
+
+function claimPost(body: object, ip = '203.0.113.10') {
+  return new Request(`${BASE}${NATIVE_CLAIM_PATH}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'cf-connecting-ip': ip,
+      origin: 'tauri://localhost',
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+const cors = { 'Access-Control-Allow-Origin': 'tauri://localhost' }
+
+const loopbackState = '0123456789abcdef0123456789abcdef'
+const loopback = `http://127.0.0.1:54721/auth-callback/${loopbackState}`
+ok(parseLoopbackRedirect(loopback) === loopback, 'loopback 127.0.0.1:ephemeral with state is allowed')
+ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback') === undefined, 'loopback without state is refused')
+ok(parseLoopbackRedirect('http://127.0.0.1:80/auth-callback/' + loopbackState) === undefined, 'loopback port 80 is refused')
+ok(parseLoopbackRedirect('http://localhost:54721/auth-callback/' + loopbackState) === undefined, 'loopback localhost is refused')
+ok(parseLoopbackRedirect('http://evil.com@127.0.0.1:54721/auth-callback/' + loopbackState) === undefined, 'loopback userinfo is refused')
+ok(parseLoopbackRedirect('https://127.0.0.1:54721/auth-callback/' + loopbackState) === undefined, 'loopback https is refused')
+ok(parseLoopbackRedirect(loopback + '?x=1') === undefined, 'loopback extra query is refused')
+ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789abcdef0123456789') === undefined, 'loopback uppercase state is refused')
+
+// 4. Hardened claim fallback: PKCE + confirm + IP. Loopback HTML, not dayspring://.
+{
+  const verifier = `v${'A'.repeat(42)}`
+  const challenge = await pkceChallenge(verifier)
+  const otherVerifier = `v${'B'.repeat(42)}`
+  const victimIp = '203.0.113.10'
+  const attackerIp = '198.51.100.9'
+  const jar = new Jar()
+  const start = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&device=${challenge}&loopback=${encodeURIComponent(loopback)}`), BASE)
+  jar.take(start)
+  const providerUrl = new URL(start.headers.get('location') ?? 'about:blank')
+  const state = providerUrl.searchParams.get('state') ?? ''
+  const cb = await auth.handler(new Request(`${BASE}/api/auth/callback/google?code=google-code&state=${encodeURIComponent(state)}`, {
+    headers: { cookie: jar.header() },
+  }))
+  jar.take(cb)
+  const cbLoc = cb.headers.get('location') ?? ''
+  ok(cbLoc.includes(`device=${challenge}`), `finish URL carries the PKCE challenge (got ${cbLoc})`)
+  ok(cbLoc.includes('loopback='), `finish URL carries the loopback (got ${cbLoc})`)
+
+  const empty = await nativeClaim(auth, claimPost({ verifier }), cors, store, victimIp)
+  ok(empty.status === 204, `claim is empty before finish (got ${empty.status})`)
+
+  const getClaim = await nativeClaim(auth, new Request(`${BASE}${NATIVE_CLAIM_PATH}?device=${challenge}`), cors, store, victimIp)
+  ok(getClaim.status === 405, 'GET /native/claim is refused')
+
+  const finish = await nativeFinish(auth, new Request(cbLoc, { headers: { cookie: jar.header() } }), [], store, victimIp)
+  jar.take(finish)
+  ok(finish.status === 200, `Mac finish with a device nonce is an HTML page (got ${finish.status})`)
+  ok((finish.headers.get('content-type') ?? '').includes('text/html'), 'finish page is HTML, not a 302')
+  const csp = finish.headers.get('content-security-policy') ?? ''
+  ok(csp.includes("default-src 'none'") && csp.includes('sha256-'), `finish CSP hashes the inline script (got ${csp})`)
+  const html = await finish.text()
+  ok(html.includes('Return to Dayspring'), 'finish page offers Return to Dayspring')
+  ok(html.includes(`action="${loopback}"`) && html.includes('method="POST"'), 'finish page POSTs through loopback, not the custom scheme')
+  ok(!html.includes(`${loopback}?`), 'one-time token is not on the 127.0.0.1 URL')
+  ok(!html.includes('dayspring-alpha://') && !html.includes('dayspring://auth-callback'), 'finish HTML does not put the one-time token on a custom-scheme URL')
+  ok(/setTimeout\(function\(\)\{[\s\S]*\},2000\)/.test(html), 'Return to Dayspring waits about 2s')
+  const confirm = html.match(/aria-label="Sign-in code">([A-Z2-9]{6})</)?.[1] ?? ''
+  ok(Boolean(confirm), 'finish page shows a confirm code')
+  ok(csp.includes('form-action http://127.0.0.1:54721'), 'finish CSP allows the loopback form POST')
+
+  const pending = await nativeClaim(auth, claimPost({ verifier }), cors, store, attackerIp)
+  ok(pending.status === 202, `phishing attacker-chosen PKCE challenge cannot claim the victim token without confirm (got ${pending.status})`)
+  const pendingBody = await pending.json() as { token?: string; pending?: boolean }
+  ok(pendingBody.pending === true && !pendingBody.token, 'pending claim has no token')
+
+  const stolen = await nativeClaim(auth, claimPost({ verifier, confirm }), cors, store, attackerIp)
+  ok(stolen.status === 401, 'phishing attacker-chosen PKCE challenge cannot claim the victim token from another IP')
+  const stolenBody = await stolen.json() as { token?: string; error?: string }
+  ok(!stolenBody.token && stolenBody.error === 'ip_mismatch', 'cross-IP claim is ip_mismatch, not a token')
+
+  const wrongConfirm = await nativeClaim(auth, claimPost({ verifier, confirm: 'AAAAAA' }), cors, store, victimIp)
+  ok(wrongConfirm.status === 401, 'wrong confirm code is refused')
+
+  const wrongVerifier = await nativeClaim(auth, claimPost({ verifier: otherVerifier, confirm }), cors, store, victimIp)
+  ok(wrongVerifier.status === 204, 'a different PKCE verifier cannot take the claim')
+
+  const claimed = await nativeClaim(auth, claimPost({ verifier, confirm }), cors, store, victimIp)
+  const claimedPreview = claimed.status === 200 ? '' : ` ${await claimed.clone().text()}`
+  ok(claimed.status === 200, `claim returns the token (got ${claimed.status}${claimedPreview})`)
+  ok(claimed.headers.get('access-control-allow-origin') === 'tauri://localhost', 'claim echoes the native origin')
+  const claimedBody = await claimed.json() as { token?: string; error?: string }
+  ok(Boolean(claimedBody.token), 'claim body has a token, not an error')
+  ok(!JSON.stringify(claimedBody).includes(confirm), 'claim response does not echo the confirm code')
+  const viaClaim = await exchange(claimedBody.token ?? '')
+  ok(viaClaim.status === 200 && (viaClaim.headers.get('set-auth-token') ?? '').includes('.'), 'app can verify a claimed token')
+
+  const replayClaim = await nativeClaim(auth, claimPost({ verifier, confirm }), cors, store, victimIp)
+  ok(replayClaim.status === 204, 'claim is single-use')
+
+  const missing = await nativeClaim(auth, claimPost({}), cors, store, victimIp)
+  ok(missing.status === 400, 'claim without a verifier is refused')
+  const short = await nativeClaim(auth, claimPost({ verifier: 'short' }), cors, store, victimIp)
+  ok(short.status === 400, 'a too-short verifier is refused')
+}
+
+{
+  const verifier = `n${'E'.repeat(42)}`
+  const challenge = await pkceChallenge(verifier)
+  const jar = new Jar()
+  const start = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&device=${challenge}`), BASE)
+  jar.take(start)
+  const providerUrl = new URL(start.headers.get('location') ?? 'about:blank')
+  const oauthState = providerUrl.searchParams.get('state') ?? ''
+  const cb = await auth.handler(new Request(`${BASE}/api/auth/callback/google?code=google-code&state=${encodeURIComponent(oauthState)}`, {
+    headers: { cookie: jar.header() },
+  }))
+  jar.take(cb)
+  const finish = await nativeFinish(auth, new Request(cb.headers.get('location') ?? `${BASE}${NATIVE_FINISH_PATH}`, { headers: { cookie: jar.header() } }), [], store, '203.0.113.10')
+  const html = await finish.text()
+  const confirm = html.match(/aria-label="Sign-in code">([A-Z2-9]{6})</)?.[1] ?? ''
+  const [first, second] = await Promise.all([
+    nativeClaim(auth, claimPost({ verifier, confirm }), cors, store, '203.0.113.10'),
+    nativeClaim(auth, claimPost({ verifier, confirm }), cors, store, '203.0.113.10'),
+  ])
+  const statuses = [first.status, second.status].sort((a, b) => a - b)
+  ok(statuses[0] === 200 && statuses[1] === 204, `concurrent claim consume is atomic (got ${first.status} and ${second.status})`)
+  const bodies = [first, second].filter((res) => res.status === 200)
+  ok(bodies.length === 1, 'only one concurrent claim returns a token')
+}
+
+{
+  const verifier = `e${'C'.repeat(42)}`
+  const challenge = await pkceChallenge(verifier)
+  const jar = new Jar()
+  const start = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&device=${challenge}`), BASE)
+  jar.take(start)
+  const denied = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?error=access_denied&device=${challenge}`, { headers: { cookie: jar.header() } }), [], store, '203.0.113.10')
+  ok(denied.status === 200 && (await denied.clone().text()).includes('Sign-in didn’t finish'), 'error finish with a device is still an HTML page')
+  const claimed = await nativeClaim(auth, claimPost({ verifier }), cors, store, '203.0.113.10')
+  ok(claimed.status === 200, 'claim returns a provider error without a confirm code')
+  const body = await claimed.json() as { error?: string; token?: string }
+  ok(body.error === 'access_denied' && !body.token, 'claim error is bound to that verifier, with no token')
+}
+
+{
+  const plantedDevice = await pkceChallenge(`p${'D'.repeat(42)}`)
+  const plantedError = await nativeFinish(auth, new Request(`${BASE}${NATIVE_FINISH_PATH}?error=access_denied&device=${plantedDevice}`), [], store, '198.51.100.9')
+  ok(plantedError.status === 200, 'planted finish?error=&device= is HTML')
+  const plantedClaim = await nativeClaim(auth, claimPost({ verifier: `p${'D'.repeat(42)}` }), cors, store, '198.51.100.9')
+  ok(plantedClaim.status === 204, 'planted finish?error= cannot store a claim')
+}
+
+{
+  const ticketStart = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&link=not-a-token&device=${'Z'.repeat(43)}`), BASE)
+  // bad link still errors; the device must not be copied onto finish
+  ok(appParams(ticketStart)?.get('error') === 'link_expired', 'bad link ticket returns an error to the app')
+}
+
+{
+  const page = await nativeFinishHtml({
+    callbackUrl: 'dayspring://auth-callback?code=<img>',
+    confirm: 'ABC234',
+  })
+  ok(page.html.includes('Return to Dayspring'), 'finish HTML always includes the return control')
+  ok(page.html.includes('\\u003c'), 'finish HTML escapes < in the inline JSON')
+  ok(page.csp.includes('sha256-'), 'finish HTML CSP includes the script hash')
+  ok(page.html.includes('ABC234'), 'finish HTML shows the confirm code')
+}
+
+{
+  const posted = await nativeFinishHtml({
+    loopbackPost: {
+      action: loopback,
+      fields: { code: '<img src=x onerror=alert(1)>' },
+    },
+    confirm: 'ABC234',
+  })
+  ok(posted.html.includes(`action="${loopback}"`), 'loopback form posts to the state path')
+  ok(!posted.html.includes(`${loopback}?`), 'loopback form action has no query')
+  ok(posted.html.includes('&lt;img') && !posted.html.includes('<img src'), 'loopback form escapes the token in the hidden field')
+  ok(posted.csp.includes('form-action http://127.0.0.1:54721'), 'loopback form CSP allows 127.0.0.1')
+}
 
 globalThis.fetch = realFetch
 console.log(`${checks} checks, ${fails.length} failed`)

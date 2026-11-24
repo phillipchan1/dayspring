@@ -155,24 +155,36 @@ function apiOrigin(): string {
   return env.apiBaseUrl.replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '')
 }
 
+export function nativeCallbackScheme(): 'dayspring' {
+  return 'dayspring'
+}
+
 /**
  * Native apps only. The URL the sign-in sheet (iOS) or system browser (Mac)
  * opens. The Worker runs the whole provider round-trip inside that browser —
  * Better Auth's state and session cookies live there, not in the webview — and
- * ends at `dayspring://auth-callback?code=<one-time token>`.
+ * ends at `{scheme}://auth-callback?code=<one-time token>`.
  * See worker/src/nativeAuth.ts.
  *
  * Linking mints a one-time token with this device's bearer first, so the
  * sheet knows which account the new provider attaches to.
+ *
+ * Mac passes a PKCE `device` challenge and an RFC 8252 `loopback` URL so the
+ * app can finish even if the custom-scheme URL is delivered to another copy,
+ * or to none. Claim is POST `{ verifier, confirm }` — never the challenge.
  */
 export async function nativeOAuthStartUrl(
   provider: 'google' | 'apple',
   intent: 'sign-in' | 'link',
   /** Web only: the origin to come back to with `?auth_code=`. */
   returnTo?: string,
+  native?: { device?: string; scheme?: string; loopback?: string },
 ): Promise<string> {
   const params = new URLSearchParams({ provider })
   if (returnTo) params.set('return', returnTo)
+  if (native?.device) params.set('device', native.device)
+  if (native?.loopback) params.set('loopback', native.loopback)
+  if (native?.scheme && native.scheme !== 'dayspring') params.set('scheme', native.scheme)
   if (intent === 'link') {
     const auth = await workersAuthClient()
     const result = await auth.$fetch<{ token?: string }>('/one-time-token/generate', { method: 'GET' })
@@ -181,6 +193,27 @@ export async function nativeOAuthStartUrl(
     params.set('link', token)
   }
   return `${apiOrigin()}/api/auth/native/start?${params.toString()}`
+}
+
+/**
+ * Mac fallback: POST the PKCE verifier (and the confirm code once the user
+ * types it). 204 = not finished; 202 = finished in the browser, waiting on
+ * the code; 200 = token or a provider error.
+ */
+export async function claimNativeOAuth(
+  verifier: string,
+  confirm?: string,
+): Promise<{ token?: string; error?: string; pending?: boolean } | null> {
+  const res = await fetch(`${apiOrigin()}/api/auth/native/claim`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify(confirm ? { verifier, confirm } : { verifier }),
+  })
+  if (res.status === 204 || res.status === 401 || res.status === 429) return null
+  if (!res.ok) throw new Error('Sign-in didn’t finish. Try again.')
+  const body = (await res.json().catch(() => null)) as { token?: string; error?: string; pending?: boolean } | null
+  if (!body || (!body.token && !body.error && !body.pending)) return null
+  return body
 }
 
 /**
@@ -196,14 +229,18 @@ export async function completeWorkersOAuthCallback(callbackUrl: string): Promise
   if (error) throw new Error(oauthErrorMessage(error))
   const code = parsed.searchParams.get('code')
   if (!code) throw new Error('No authorization code in OAuth callback')
+  await completeWorkersOAuthToken(code)
+}
+
+export async function completeWorkersOAuthToken(token: string): Promise<void> {
   const auth = await workersAuthClient()
-  const result = await auth.$fetch('/one-time-token/verify', { method: 'POST', body: { token: code } })
+  const result = await auth.$fetch('/one-time-token/verify', { method: 'POST', body: { token } })
   if (result.error) throw new Error(result.error.message || 'Sign-in expired. Try again.')
   if (!readWorkersBearer()) throw new Error('signed bearer missing from OAuth callback')
   await hydrateAfterAuth()
 }
 
-function oauthErrorMessage(code: string): string {
+export function oauthErrorMessage(code: string): string {
   switch (code) {
     case 'account_not_linked':
     case 'account_already_linked_to_different_user':

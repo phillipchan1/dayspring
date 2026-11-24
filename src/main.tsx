@@ -98,6 +98,7 @@ import { platformKind } from './lib/platform'
 import { markDeviceFirstSeen } from './lib/firstEntry'
 import { installContextMenuGuard } from './lib/contextMenuGuard'
 import { installNativeMenu } from './lib/nativeMenu'
+import { startUpdatePolling } from './lib/appUpdate'
 import { installWindowChrome, revealWindow } from './lib/windowChrome'
 
 /**
@@ -282,6 +283,8 @@ async function bootstrap() {
   //   full-screen states; on iOS, the status-bar tap scrolls to the top.
   installContextMenuGuard()
   installNativeMenu()
+  // Auto-update while signed out / guest / locked — not only after entitlement.
+  startUpdatePolling()
   installWindowChrome()
 
   // Catch non-React errors (unhandled rejections, stray throws) and report them.

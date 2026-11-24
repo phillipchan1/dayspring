@@ -2,7 +2,16 @@
 // Proves Better Auth insert/select against the snake_case Neon schema.
 import { PGlite } from '@electric-sql/pglite'
 import { applyNeonSchema } from './isolationDb.ts'
-import { authModels, createAuth, socialProvidersFromEnv, type AuthDatabase } from './auth.ts'
+import {
+  AUTH_RATE_LIMIT,
+  OTP_EMAIL_MAX,
+  OTP_EMAIL_WINDOW_MS,
+  authModels,
+  createAuth,
+  otpEmailLimitKey,
+  socialProvidersFromEnv,
+  type AuthDatabase,
+} from './auth.ts'
 import { stripGetSessionToken } from './sessionBody.ts'
 
 const fails: string[] = []
@@ -70,6 +79,8 @@ ok(authModels.user.fields.emailVerified === 'email_verified', 'user.emailVerifie
 ok(authModels.session.fields.userId === 'user_id', 'session.userId maps to user_id')
 ok(authModels.account.fields.accountId === 'account_id', 'account.accountId maps to account_id')
 ok(authModels.verification.fields.expiresAt === 'expires_at', 'verification.expiresAt maps to expires_at')
+ok(AUTH_RATE_LIMIT.enabled === true, 'Better Auth rate limit is enabled')
+ok(AUTH_RATE_LIMIT.modelName === 'rate_limit' && AUTH_RATE_LIMIT.fields.lastRequest === 'last_request', 'rate_limit columns are snake_case')
 
 try {
   createAuth({
@@ -86,6 +97,14 @@ try {
 
 const db = new PGlite()
 await applyNeonSchema(db)
+const rateLimitTable = await db.query<{ table_name: string }>(
+  `SELECT table_name FROM information_schema.tables WHERE table_name = 'rate_limit'`,
+)
+ok(rateLimitTable.rows.length === 1, '0009 created rate_limit for database-backed rate limiting')
+const otpLimitTable = await db.query<{ table_name: string }>(
+  `SELECT table_name FROM information_schema.tables WHERE table_name = 'otp_send_limit'`,
+)
+ok(otpLimitTable.rows.length === 1, '0010 created otp_send_limit for the 10-minute email cap')
 
 const otps: Array<{ email: string; otp: string; type: string }> = []
 const auth = createAuth(
@@ -280,6 +299,67 @@ const signedIn = await signInOtp(signUpEmail, signInCode ?? '')
 ok(signedIn.session.user.id === signedUp.session.user.id, 'OTP sign-in is the same user')
 const afterSignIn = await sessionForBearer(signedIn.signed ?? '')
 ok(afterSignIn?.user?.id === signedUp.session.user.id, 'getSession after sign-in')
+
+const capEmail = 'cap@example.test'
+for (let i = 0; i < OTP_EMAIL_MAX; i++) {
+  const sent = await auth.api.sendVerificationOTP({ body: { email: capEmail, type: 'sign-in' } })
+  ok(sent.success === true, `OTP send ${i + 1} of ${OTP_EMAIL_MAX} is allowed`)
+}
+let sixthBlocked = false
+try {
+  const sixth = await auth.api.sendVerificationOTP({ body: { email: capEmail, type: 'sign-in' } })
+  sixthBlocked = sixth === false || sixth == null
+} catch {
+  sixthBlocked = true
+}
+ok(sixthBlocked, '6th OTP send in 10 minutes is refused')
+const capKey = await otpEmailLimitKey(capEmail)
+await db.query(
+  'UPDATE otp_send_limit SET window_start = $1 WHERE key = $2',
+  [Date.now() - 90_000, capKey],
+)
+let stillBlocked = false
+try {
+  await auth.api.sendVerificationOTP({ body: { email: capEmail, type: 'sign-in' } })
+} catch {
+  stillBlocked = true
+}
+ok(stillBlocked, '10-minute email OTP cap still holds after 90s (not wiped by a 60s cleanup)')
+ok(OTP_EMAIL_WINDOW_MS === 600_000, 'email OTP cap window is 10 minutes')
+await db.query(
+  'UPDATE otp_send_limit SET window_start = $1 WHERE key = $2',
+  [Date.now() - OTP_EMAIL_WINDOW_MS - 1_000, capKey],
+)
+const afterWindow = await auth.api.sendVerificationOTP({ body: { email: capEmail, type: 'sign-in' } })
+ok(afterWindow.success === true, 'email OTP cap resets after 10 minutes')
+
+{
+  const noTable = new PGlite()
+  await applyNeonSchema(noTable)
+  await noTable.exec('DROP TABLE IF EXISTS rate_limit')
+  const absentOtps: Array<{ email: string; otp: string; type: string }> = []
+  const absentAuth = createAuth(
+    {
+      ENVIRONMENT: 'local',
+      BETTER_AUTH_SECRET: 'x'.repeat(32),
+      DATABASE_URL: 'postgresql://postgres@127.0.0.1:5432/dayspring',
+    },
+    makePglitePool(noTable),
+    { onOtp: (payload) => absentOtps.push(payload) },
+  )
+  const getSession = await absentAuth.handler(new Request('http://127.0.0.1/api/auth/get-session'))
+  ok(getSession.status !== 500, `get-session still works when rate_limit is absent (got ${getSession.status})`)
+  const getBody = await getSession.json().catch(() => 'err')
+  ok(getBody === null || (typeof getBody === 'object' && getBody != null && !('message' in getBody && String((getBody as { message?: string }).message).includes('schema'))), 'get-session is not a schema-mismatch error when rate_limit is absent')
+  const send = await absentAuth.api.sendVerificationOTP({ body: { email: 'gap@example.test', type: 'sign-in' } })
+  ok(send.success === true, 'OTP send still works when rate_limit is absent')
+  const gapCode = absentOtps.filter((row) => row.email === 'gap@example.test').at(-1)?.otp
+  ok(Boolean(gapCode), 'OTP send delivered a code without rate_limit')
+  const signed = await absentAuth.api.signInEmailOTP({
+    body: { email: 'gap@example.test', otp: gapCode ?? '' },
+  })
+  ok((signed as { user?: { email?: string } }).user?.email === 'gap@example.test', 'sign-in still works when rate_limit is absent')
+}
 
 console.log(`${checks} checks, ${fails.length} failed`)
 if (fails.length) {

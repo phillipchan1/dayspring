@@ -134,6 +134,10 @@ interface EventProps {
   /** A sign-in completed — the moment `useSession` sees a real SIGNED_IN
    *  event, not a restored/refreshed session. */
   auth_completed: { method: AuthMethod }
+  /** Native OAuth callback reached this app (deep link or server-polled claim). */
+  auth_callback_received: { via: 'deep_link' | 'claim' | 'loopback' }
+  /** Native OAuth callback arrived but exchange failed, or the poll gave up. */
+  auth_callback_failed: { via: 'deep_link' | 'claim' | 'loopback'; reason: 'expired' | 'missing_code' | 'error' | 'other' }
 
   // ── Journal core loop ───────────────────────────────────────────────────────
   /** "New entry" — the one unambiguous "started composing" moment

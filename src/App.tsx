@@ -111,12 +111,17 @@ export function App() {
     settings.voice,
   ])
 
+  // UpdateToast sits above every auth branch so a signed-out, guest, locked,
+  // paywalled, or loading app still hears about a newer build. The poll itself
+  // starts at boot in main.tsx; this is only the prompt.
+  const toast = <UpdateToast />
+
   if (loading) {
-    return <div className="app-shell"><SurfaceLoader /></div>
+    return <><div className="app-shell"><SurfaceLoader /></div>{toast}</>
   }
 
   if (left) {
-    return <div className="app-shell"><SurfaceLoader /></div>
+    return <><div className="app-shell"><SurfaceLoader /></div>{toast}</>
   }
 
   if (!session) {
@@ -124,9 +129,12 @@ export function App() {
     // session reaches the journal on this device. Sign-in is asked only for
     // sync, backup, subscribe, restore, and the server-backed surfaces.
     return (
-      <AppNavigationProvider>
-        <GuestApp />
-      </AppNavigationProvider>
+      <>
+        <AppNavigationProvider>
+          <GuestApp />
+        </AppNavigationProvider>
+        {toast}
+      </>
     )
   }
 
@@ -137,11 +145,14 @@ export function App() {
   // screen INSTEAD of its children, so JournalScreen never mounts and never
   // reads the cache while the lock is up.
   return (
-    <AppLockGate ownerId={session.user.id}>
-      <AppNavigationProvider>
-        <AuthenticatedApp userEmail={session.user.email ?? ''} ownerId={session.user.id} />
-      </AppNavigationProvider>
-    </AppLockGate>
+    <>
+      <AppLockGate ownerId={session.user.id}>
+        <AppNavigationProvider>
+          <AuthenticatedApp userEmail={session.user.email ?? ''} ownerId={session.user.id} />
+        </AppNavigationProvider>
+      </AppLockGate>
+      {toast}
+    </>
   )
 }
 
@@ -447,7 +458,6 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
       <SurfaceErrorBoundary>
         <JournalScreen userEmail={userEmail} featureFlags={featureFlags} />
       </SurfaceErrorBoundary>
-      <UpdateToast />
       {/* Mounted only here — never over onboarding, the paywall or the locked
           screen. Decides once, at mount, so it can never open mid-session
           (PRINCIPLE 3). Renders nothing when there is nothing to announce. */}
