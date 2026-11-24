@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json, webAuthOrigins } from './cors.ts'
 import { sessionUser } from './auth.ts'
 import { resolveAuthBaseURL } from './authUrl.ts'
+import { isLegacyNativeCandidate, legacyNativeAuth } from './legacyNativeAuth.ts'
 import {
   NATIVE_CLAIM_PATH,
   NATIVE_FINISH_PATH,
@@ -161,8 +162,18 @@ app.all('/api/auth/*', async (c) => {
   const cors = started.cors
   if (c.req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
+    // iOS App Store 1.0.1349 and other pre-native/start builds: see legacyNativeAuth.ts.
+    const legacy = isLegacyNativeCandidate(c.req.raw)
+      ? await legacyNativeAuth(c.req.raw, resolveAuthBaseURL(c.env), claimDbFromSql(sqlOf(c)), clientIp(c.req.raw))
+      : null
+    if (legacy?.kind === 'respond') {
+      const headers = new Headers(legacy.response.headers)
+      for (const [k, v] of Object.entries(cors)) headers.set(k, v)
+      return new Response(legacy.response.body, { status: legacy.response.status, headers })
+    }
+    const authReq = legacy?.kind === 'forward' ? legacy.request : c.req.raw
     const auth = authOf(c)
-    const res = await stripGetSessionToken(await auth.handler(c.req.raw), new URL(c.req.url).pathname)
+    const res = await stripGetSessionToken(await auth.handler(authReq), new URL(authReq.url).pathname)
     const headers = new Headers(res.headers)
     echoCallerBearer(c.req.raw, res, headers)
     for (const [k, v] of Object.entries(cors)) {

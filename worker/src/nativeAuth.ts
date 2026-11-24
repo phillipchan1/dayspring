@@ -42,6 +42,7 @@
  */
 import type { AuthInstance } from './auth.ts'
 import type { Sql } from './db.ts'
+import { bindLegacyCode, parseLegacyNonce } from './legacyNativeAuth.ts'
 
 export const NATIVE_START_PATH = '/api/auth/native/start'
 export const NATIVE_FINISH_PATH = '/api/auth/native/finish'
@@ -526,6 +527,9 @@ export async function nativeStart(
   // their PKCE challenge on someone else's in-progress link.
   const device = linkToken ? undefined : parseNativeDevice(url.searchParams.get('device'))
   if (device) finishParams.set('device', device)
+  // App Store 1.0.1349 legacy flow (legacyNativeAuth.ts): never on link URLs.
+  const legacy = linkToken ? undefined : parseLegacyNonce(url.searchParams.get('legacy'))
+  if (legacy) finishParams.set('legacy', legacy)
   const loopback = parseLoopbackRedirect(url.searchParams.get('loopback'))
   if (loopback) finishParams.set('loopback', loopback)
   if (scheme !== 'dayspring') finishParams.set('scheme', scheme)
@@ -572,6 +576,7 @@ export async function nativeFinish(
   const scheme = parseNativeScheme(url.searchParams.get('scheme'))
   const loopback = parseLoopbackRedirect(url.searchParams.get('loopback'))
   const device = parseNativeDevice(url.searchParams.get('device'))
+  const legacy = parseLegacyNonce(url.searchParams.get('legacy'))
   const errorParam = url.searchParams.get('error')
   const cookiesOk = hasAuthCookies(req)
   const clear = expireSessionCookies(req)
@@ -599,6 +604,16 @@ export async function nativeFinish(
     }
     if (ott) params.code = ott
     else params.error = 'no_session'
+  }
+
+  // Legacy (1.0.1349) codes are exchangeable through the state-less callback
+  // only when bound here to the webview that started the flow.
+  if (legacy && store && params.code) {
+    try {
+      await bindLegacyCode(store, legacy, params.code)
+    } catch {
+      /* unbound: the legacy exchange will be refused */
+    }
   }
 
   if (device && store) {
