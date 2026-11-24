@@ -1,4 +1,5 @@
 import { apiGet } from './api'
+import { isPresent } from './presence'
 import { isCircumstances } from './circumstances'
 import type { Entry } from './types'
 
@@ -25,7 +26,11 @@ export type EntryChangeEvent =
 
 const BATCH_MS = 80
 
-/** Slow poll while the app is visible. Focus/visibility already refetch. */
+/**
+ * Slow poll while someone is using the app (visible and touched within
+ * presence.IDLE_AFTER_MS). Focus/visibility already refetch, and the journal's
+ * heartbeat catches up on the first input after an idle stretch.
+ */
 export const ENTRY_POLL_IDLE_MS = 45_000
 
 interface SubscribeOptions {
@@ -50,7 +55,8 @@ function isoCursor(entries: Entry[], fallback: string | null): string | null {
 /**
  * Live entry feed for the signed-in user. Polls the Worker for rows changed
  * since the last pull: refetch on focus/visibility, plus a slow interval
- * while the document is visible. Deletes are caught by `onReconnect` on
+ * while someone is present (never while idle — that would keep the database
+ * awake for a window nobody is looking at). Deletes are caught by `onReconnect` on
  * return-to-foreground (changed-since cannot see removed rows).
  */
 export function subscribeEntryChanges({ onBatch, onReconnect }: SubscribeOptions): () => void {
@@ -130,7 +136,7 @@ export function subscribeEntryChanges({ onBatch, onReconnect }: SubscribeOptions
   const startInterval = () => {
     if (interval) return
     interval = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      if (!isPresent()) return
       void run(pollChanged)
     }, ENTRY_POLL_IDLE_MS)
   }
