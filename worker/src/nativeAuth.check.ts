@@ -19,6 +19,7 @@ import {
   pkceChallenge,
   type ClaimDb,
 } from './nativeAuth.ts'
+import { LEGACY_NATIVE_CALLBACK_URL, legacyNativeAuth } from './legacyNativeAuth.ts'
 
 const fails: string[] = []
 let checks = 0
@@ -474,6 +475,63 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789a
   ok(!posted.html.includes(`${loopback}?`), 'loopback form action has no query')
   ok(posted.html.includes('&lt;img') && !posted.html.includes('<img src'), 'loopback form escapes the token in the hidden field')
   ok(posted.csp.includes('form-action http://127.0.0.1:54721'), 'loopback form CSP allows 127.0.0.1')
+}
+
+// 6. iOS App Store 1.0.1349 (2c6dd0da) and other pre-native/start builds, with no
+//    app release: the webview's POST /sign-in/social is steered to native/start,
+//    and the state-less GET /callback/apple?code=<ott> is the token exchange.
+{
+  const legacyStart = await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'tauri://localhost' },
+    body: JSON.stringify({ provider: 'google', callbackURL: LEGACY_NATIVE_CALLBACK_URL, disableRedirect: true }),
+  }), BASE)
+  ok(legacyStart?.kind === 'respond', 'legacy social sign-in is answered by the shim')
+  const startBody = legacyStart?.kind === 'respond'
+    ? await legacyStart.response.json() as { url?: string; redirect?: boolean }
+    : {}
+  const startUrl = new URL(startBody.url ?? 'about:blank')
+  ok(`${startUrl.origin}${startUrl.pathname}` === `${BASE}/api/auth/native/start`, `legacy start URL is native/start (got ${startBody.url})`)
+  ok(startUrl.searchParams.get('provider') === 'google' && [...startUrl.searchParams.keys()].length === 1, 'legacy start URL carries only the provider')
+  ok(startBody.redirect === false, 'legacy start honours disableRedirect')
+
+  const round = await sheetRoundTrip(startUrl.searchParams.toString())
+  const legacyCode = appParams(round.res)?.get('code') ?? ''
+  ok(Boolean(legacyCode), `legacy flow ends at dayspring://auth-callback?code= (got ${round.res.headers.get('location')})`)
+
+  // Exactly what 1.0.1349's completeWorkersOAuthCallback does with that URL.
+  const cbReq = new Request(`${BASE}/api/auth/callback/apple?code=${encodeURIComponent(legacyCode)}`, {
+    headers: { origin: 'tauri://localhost' },
+  })
+  const fwd = await legacyNativeAuth(cbReq, BASE)
+  ok(fwd?.kind === 'forward', 'state-less legacy callback becomes the token exchange')
+  const legacyVerified = fwd?.kind === 'forward' ? await auth.handler(fwd.request) : new Response(null, { status: 599 })
+  ok(legacyVerified.status === 200, `legacy exchange succeeds (got ${legacyVerified.status})`)
+  ok((legacyVerified.headers.get('set-auth-token') ?? '').includes('.'), 'legacy exchange returns a signed bearer')
+  const replayFwd = await legacyNativeAuth(cbReq.clone(), BASE)
+  const legacyReplay = replayFwd?.kind === 'forward' ? await auth.handler(replayFwd.request) : new Response(null, { status: 599 })
+  ok(legacyReplay.status !== 200, 'legacy one-time token cannot be replayed')
+  const junkFwd = await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=4%2F0junk`, { headers: { origin: 'tauri://localhost' } }), BASE)
+  const junk = junkFwd?.kind === 'forward' ? await auth.handler(junkFwd.request) : new Response(null, { status: 599 })
+  ok(junk.status >= 400 && junk.status < 500, `junk legacy code is a 4xx (got ${junk.status})`)
+
+  // Untouched paths.
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=c&state=s`), BASE) === null, 'real provider callbacks (with state) go to Better Auth')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?error=access_denied&code=c`), BASE) === null, 'provider error callbacks go to Better Auth')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=c`, { method: 'POST' }), BASE) === null, 'Apple form_post callbacks go to Better Auth')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ provider: 'google', callbackURL: 'https://usedayspring.app' }),
+  }), BASE) === null, 'web social sign-in is not rewritten')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ provider: 'apple', callbackURL: LEGACY_NATIVE_CALLBACK_URL, idToken: { token: 't' } }),
+  }), BASE) === null, 'native id-token sign-in is not rewritten')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ provider: 'github', callbackURL: LEGACY_NATIVE_CALLBACK_URL }),
+  }), BASE) === null, 'unknown providers are not rewritten')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, { method: 'POST', body: 'not json' }), BASE) === null, 'non-JSON social sign-in falls through')
 }
 
 globalThis.fetch = realFetch
