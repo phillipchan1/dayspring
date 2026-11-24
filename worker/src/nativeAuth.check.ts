@@ -19,7 +19,7 @@ import {
   pkceChallenge,
   type ClaimDb,
 } from './nativeAuth.ts'
-import { LEGACY_NATIVE_CALLBACK_URL, legacyNativeAuth } from './legacyNativeAuth.ts'
+import { LEGACY_NATIVE_CALLBACK_URL, isLegacyNativeCandidate, legacyNativeAuth } from './legacyNativeAuth.ts'
 
 const fails: string[] = []
 let checks = 0
@@ -478,60 +478,94 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789a
 }
 
 // 6. iOS App Store 1.0.1349 (2c6dd0da) and other pre-native/start builds, with no
-//    app release: the webview's POST /sign-in/social is steered to native/start,
-//    and the state-less GET /callback/apple?code=<ott> is the token exchange.
+//    app release. The webview's POST /sign-in/social is steered to native/start
+//    with a legacy nonce bound to the webview's IP; only the code finish minted
+//    for that nonce may be exchanged through the state-less GET /callback/apple.
 {
-  const legacyStart = await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
+  const WEBVIEW_IP = '198.51.100.7'
+  const OTHER_IP = '192.0.2.99'
+  const TAURI = { origin: 'tauri://localhost' }
+  const legacySocial = (body: object, headers: Record<string, string> = TAURI) => new Request(`${BASE}/api/auth/sign-in/social`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: 'tauri://localhost' },
-    body: JSON.stringify({ provider: 'google', callbackURL: LEGACY_NATIVE_CALLBACK_URL, disableRedirect: true }),
-  }), BASE)
-  ok(legacyStart?.kind === 'respond', 'legacy social sign-in is answered by the shim')
-  const startBody = legacyStart?.kind === 'respond'
-    ? await legacyStart.response.json() as { url?: string; redirect?: boolean }
-    : {}
-  const startUrl = new URL(startBody.url ?? 'about:blank')
-  ok(`${startUrl.origin}${startUrl.pathname}` === `${BASE}/api/auth/native/start`, `legacy start URL is native/start (got ${startBody.url})`)
-  ok(startUrl.searchParams.get('provider') === 'google' && [...startUrl.searchParams.keys()].length === 1, 'legacy start URL carries only the provider')
-  ok(startBody.redirect === false, 'legacy start honours disableRedirect')
-
-  const round = await sheetRoundTrip(startUrl.searchParams.toString())
-  const legacyCode = appParams(round.res)?.get('code') ?? ''
-  ok(Boolean(legacyCode), `legacy flow ends at dayspring://auth-callback?code= (got ${round.res.headers.get('location')})`)
-
-  // Exactly what 1.0.1349's completeWorkersOAuthCallback does with that URL.
-  const cbReq = new Request(`${BASE}/api/auth/callback/apple?code=${encodeURIComponent(legacyCode)}`, {
-    headers: { origin: 'tauri://localhost' },
+    headers: { 'content-type': 'application/json', ...headers },
+    body: JSON.stringify(body),
   })
-  const fwd = await legacyNativeAuth(cbReq, BASE)
-  ok(fwd?.kind === 'forward', 'state-less legacy callback becomes the token exchange')
-  const legacyVerified = fwd?.kind === 'forward' ? await auth.handler(fwd.request) : new Response(null, { status: 599 })
-  ok(legacyVerified.status === 200, `legacy exchange succeeds (got ${legacyVerified.status})`)
-  ok((legacyVerified.headers.get('set-auth-token') ?? '').includes('.'), 'legacy exchange returns a signed bearer')
-  const replayFwd = await legacyNativeAuth(cbReq.clone(), BASE)
-  const legacyReplay = replayFwd?.kind === 'forward' ? await auth.handler(replayFwd.request) : new Response(null, { status: 599 })
-  ok(legacyReplay.status !== 200, 'legacy one-time token cannot be replayed')
-  const junkFwd = await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=4%2F0junk`, { headers: { origin: 'tauri://localhost' } }), BASE)
-  const junk = junkFwd?.kind === 'forward' ? await auth.handler(junkFwd.request) : new Response(null, { status: 599 })
-  ok(junk.status >= 400 && junk.status < 500, `junk legacy code is a 4xx (got ${junk.status})`)
+  const legacyCallback = (code: string, headers: Record<string, string> = TAURI, provider = 'apple') =>
+    new Request(`${BASE}/api/auth/callback/${provider}?code=${encodeURIComponent(code)}`, { headers })
+  /** What index.ts does: forward to Better Auth only when the shim says so. */
+  const legacyExchange = async (req: Request, ip: string) => {
+    const r = await legacyNativeAuth(req, BASE, store, ip)
+    return r?.kind === 'forward' ? auth.handler(r.request) : null
+  }
+  /** 1.0.1349 sign-in: shim start → sheet round-trip → dayspring://auth-callback?code=. */
+  const legacyFlow = async (provider = 'google') => {
+    const started = await legacyNativeAuth(legacySocial({ provider, callbackURL: LEGACY_NATIVE_CALLBACK_URL, disableRedirect: true }), BASE, store, WEBVIEW_IP)
+    const body = started?.kind === 'respond' ? await started.response.json() as { url?: string; redirect?: boolean } : {}
+    const startUrl = new URL(body.url ?? 'about:blank')
+    const round = await sheetRoundTrip(startUrl.searchParams.toString())
+    return { started, body, startUrl, code: appParams(round.res)?.get('code') ?? '', res: round.res }
+  }
+
+  const flow = await legacyFlow()
+  ok(flow.started?.kind === 'respond', 'legacy social sign-in is answered by the shim')
+  ok(`${flow.startUrl.origin}${flow.startUrl.pathname}` === `${BASE}/api/auth/native/start`, `legacy start URL is native/start (got ${flow.body.url})`)
+  ok(flow.startUrl.searchParams.get('provider') === 'google', 'legacy start URL carries the provider')
+  ok(/^[0-9a-f]{32}$/.test(flow.startUrl.searchParams.get('legacy') ?? ''), 'legacy start URL carries a 128-bit nonce')
+  ok(flow.body.redirect === false, 'legacy start honours disableRedirect')
+  ok(Boolean(flow.code), `legacy flow ends at dayspring://auth-callback?code= (got ${flow.res.headers.get('location')})`)
+  ok(isLegacyNativeCandidate(legacyCallback(flow.code)), 'index pre-check routes the legacy exchange to the shim')
+
+  // Exactly what 1.0.1349's completeWorkersOAuthCallback does with that URL, from the same webview.
+  const good = await legacyExchange(legacyCallback(flow.code), WEBVIEW_IP)
+  ok(good?.status === 200, `legacy exchange succeeds (got ${good?.status})`)
+  ok((good?.headers.get('set-auth-token') ?? '').includes('.'), 'legacy exchange returns a signed bearer')
+  ok(await legacyExchange(legacyCallback(flow.code), WEBVIEW_IP) === null, 'legacy code cannot be replayed through the shim')
+  ok((await exchange(flow.code)).status !== 200, 'legacy one-time token is single use')
+
+  // QA2 #223 M1: an attacker-minted OTT (their own bearer → /one-time-token/generate)
+  // delivered via dayspring://auth-callback?code= must not log the victim's app in.
+  const attackerGen = await auth.handler(new Request(`${BASE}/api/auth/one-time-token/generate`, { headers: { authorization: `Bearer ${bearer}` } }))
+  const attackerOtt = ((await attackerGen.json()) as { token?: string }).token ?? ''
+  ok(attackerGen.status === 200 && Boolean(attackerOtt), 'attacker can mint an OTT for their own account')
+  ok(await legacyExchange(legacyCallback(attackerOtt), WEBVIEW_IP) === null, 'attacker-minted OTT is NOT forwarded (no bearer)')
+  const fallthrough = await auth.handler(legacyCallback(attackerOtt))
+  ok(!fallthrough.headers.get('set-auth-token') && /error=state_not_found/.test(fallthrough.headers.get('location') ?? ''), `attacker OTT falls through to Better Auth state_not_found (got ${fallthrough.status} ${fallthrough.headers.get('location')})`)
+
+  // A legacy flow the attacker runs themselves is bound to the attacker's IP.
+  const otherIp = await legacyFlow()
+  ok(Boolean(otherIp.code), 'second legacy flow mints a code')
+  ok(await legacyExchange(legacyCallback(otherIp.code), OTHER_IP) === null, 'legacy code from a different IP gets no bearer')
+  ok(await legacyExchange(legacyCallback(otherIp.code), WEBVIEW_IP) === null, 'a refused legacy code is burned (no retry from the right IP)')
+
+  // Origin: only the Tauri webview.
+  const noOrigin = await legacyFlow()
+  ok(await legacyExchange(legacyCallback(noOrigin.code, {}), WEBVIEW_IP) === null, 'legacy exchange without Origin tauri://localhost is refused')
+  ok(await legacyExchange(legacyCallback(noOrigin.code, { origin: 'https://evil.example' }), WEBVIEW_IP) === null, 'legacy exchange from a web origin is refused')
+  ok(await legacyNativeAuth(legacySocial({ provider: 'google', callbackURL: LEGACY_NATIVE_CALLBACK_URL, disableRedirect: true }, {}), BASE, store, WEBVIEW_IP) === null, 'legacy start without Origin tauri://localhost falls through')
+
+  // A start URL without a valid legacy nonce (or a reused one) never binds a code.
+  const forged = await sheetRoundTrip(`provider=google&legacy=${'a'.repeat(32)}`)
+  const forgedCode = appParams(forged.res)?.get('code') ?? ''
+  ok(Boolean(forgedCode) && await legacyExchange(legacyCallback(forgedCode), WEBVIEW_IP) === null, 'unknown legacy nonce binds nothing')
+  const reused = await sheetRoundTrip(flow.startUrl.searchParams.toString())
+  const reusedCode = appParams(reused.res)?.get('code') ?? ''
+  ok(Boolean(reusedCode) && await legacyExchange(legacyCallback(reusedCode), WEBVIEW_IP) === null, 'a consumed legacy nonce cannot bind a second code')
+  const plain = await sheetRoundTrip('provider=google')
+  ok(await legacyExchange(legacyCallback(appParams(plain.res)?.get('code') ?? ''), WEBVIEW_IP) === null, 'current-build (non-legacy) codes are not exchangeable through the shim')
+  // Apple is not configured in this harness: check the steer only.
+  const appleStart = await legacyNativeAuth(legacySocial({ provider: 'apple', callbackURL: LEGACY_NATIVE_CALLBACK_URL, disableRedirect: true }), BASE, store, WEBVIEW_IP)
+  const appleUrl = new URL(appleStart?.kind === 'respond' ? ((await appleStart.response.json()) as { url: string }).url : 'about:blank')
+  ok(appleUrl.searchParams.get('provider') === 'apple' && Boolean(appleUrl.searchParams.get('legacy')), 'legacy Apple start keeps the provider')
 
   // Untouched paths.
-  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=c&state=s`), BASE) === null, 'real provider callbacks (with state) go to Better Auth')
-  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?error=access_denied&code=c`), BASE) === null, 'provider error callbacks go to Better Auth')
-  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=c`, { method: 'POST' }), BASE) === null, 'Apple form_post callbacks go to Better Auth')
-  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ provider: 'google', callbackURL: 'https://usedayspring.app' }),
-  }), BASE) === null, 'web social sign-in is not rewritten')
-  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ provider: 'apple', callbackURL: LEGACY_NATIVE_CALLBACK_URL, idToken: { token: 't' } }),
-  }), BASE) === null, 'native id-token sign-in is not rewritten')
-  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ provider: 'github', callbackURL: LEGACY_NATIVE_CALLBACK_URL }),
-  }), BASE) === null, 'unknown providers are not rewritten')
-  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, { method: 'POST', body: 'not json' }), BASE) === null, 'non-JSON social sign-in falls through')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=c&state=s`, { headers: TAURI }), BASE, store, WEBVIEW_IP) === null, 'real provider callbacks (with state) go to Better Auth')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?error=access_denied&code=c`, { headers: TAURI }), BASE, store, WEBVIEW_IP) === null, 'provider error callbacks go to Better Auth')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/callback/google?code=c`, { method: 'POST', headers: TAURI }), BASE, store, WEBVIEW_IP) === null, 'Apple form_post callbacks go to Better Auth')
+  ok(await legacyNativeAuth(legacySocial({ provider: 'google', callbackURL: 'https://usedayspring.app' }), BASE, store, WEBVIEW_IP) === null, 'web social sign-in is not rewritten')
+  ok(await legacyNativeAuth(legacySocial({ provider: 'apple', callbackURL: LEGACY_NATIVE_CALLBACK_URL, idToken: { token: 't' } }), BASE, store, WEBVIEW_IP) === null, 'native id-token sign-in is not rewritten')
+  ok(await legacyNativeAuth(legacySocial({ provider: 'github', callbackURL: LEGACY_NATIVE_CALLBACK_URL }), BASE, store, WEBVIEW_IP) === null, 'unknown providers are not rewritten')
+  ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, { method: 'POST', headers: TAURI, body: 'not json' }), BASE, store, WEBVIEW_IP) === null, 'non-JSON social sign-in falls through')
+  ok(!isLegacyNativeCandidate(new Request(`${BASE}/api/auth/get-session`, { headers: TAURI })), 'ordinary auth requests skip the shim')
 }
 
 globalThis.fetch = realFetch

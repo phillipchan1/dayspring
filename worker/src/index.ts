@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json, webAuthOrigins } from './cors.ts'
 import { sessionUser } from './auth.ts'
 import { resolveAuthBaseURL } from './authUrl.ts'
-import { legacyNativeAuth } from './legacyNativeAuth.ts'
+import { isLegacyNativeCandidate, legacyNativeAuth } from './legacyNativeAuth.ts'
 import {
   NATIVE_CLAIM_PATH,
   NATIVE_FINISH_PATH,
@@ -163,7 +163,9 @@ app.all('/api/auth/*', async (c) => {
   if (c.req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     // iOS App Store 1.0.1349 and other pre-native/start builds: see legacyNativeAuth.ts.
-    const legacy = await legacyNativeAuth(c.req.raw, resolveAuthBaseURL(c.env))
+    const legacy = isLegacyNativeCandidate(c.req.raw)
+      ? await legacyNativeAuth(c.req.raw, resolveAuthBaseURL(c.env), claimDbFromSql(sqlOf(c)), clientIp(c.req.raw))
+      : null
     if (legacy?.kind === 'respond') {
       const headers = new Headers(legacy.response.headers)
       for (const [k, v] of Object.entries(cors)) headers.set(k, v)
