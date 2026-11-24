@@ -13,8 +13,8 @@ mod native_typing;
 // so the front end can invoke it without a platform check (src/lib/auth.ts:83).
 mod ios_oauth;
 
-// RFC 8252 loopback listener for Mac Google / Apple. Compiles everywhere;
-// off macOS the commands return an error, same shape as start_oauth_session.
+// RFC 8252 loopback listener for Mac Google / Apple. Compiles everywhere so
+// unit tests can bind 127.0.0.1; the front end only invokes it on the Mac.
 mod loopback_oauth;
 
 // Compiles everywhere for the same reason: the command is always registered,

@@ -12,14 +12,15 @@
  * So the whole round-trip runs in the sheet:
  *
  *   GET  /api/auth/native/start?provider=google[&link=<ott>][&device=<pkce>]
- *        [&loopback=http://127.0.0.1:<port>/auth-callback][&scheme=dayspring]
+ *        [&loopback=http://127.0.0.1:<port>/auth-callback/<state>][&scheme=dayspring]
  *        → sets the state cookie here, 302 to the provider
  *   provider → /api/auth/callback/:id (Better Auth, unchanged)
  *        → session cookie here, 302 to /api/auth/native/finish
  *   GET  /api/auth/native/finish
  *        → one-time token for that session, clears the sheet's cookies.
- *          Mac (RFC 8252): HTML that redirects Safari to the loopback URL
- *          (this machine only) and shows a short confirm code. A hashed claim
+ *          Mac (RFC 8252): HTML that POSTs the one-time token to the loopback
+ *          URL on this machine (token stays out of Safari history) and shows a
+ *          short confirm code. A hashed claim
  *          is stored under the PKCE challenge as a fallback the app polls
  *          with POST /api/auth/native/claim { verifier, confirm }.
  *          iOS: 302 to {scheme}://auth-callback?code=<ott>
@@ -48,6 +49,9 @@ export const NATIVE_CLAIM_PATH = '/api/auth/native/claim'
 export const NATIVE_SCHEMES = ['dayspring'] as const
 export type NativeScheme = (typeof NATIVE_SCHEMES)[number]
 export const NATIVE_CALLBACK = nativeCallbackUrl('dayspring')
+/** 128-bit hex state on `/auth-callback/<state>`. */
+export const LOOPBACK_STATE_RE = /^[0-9a-f]{32}$/
+export const LOOPBACK_PATH_RE = /^\/auth-callback\/([0-9a-f]{32})$/
 /** Matches Better Auth oneTimeToken expiresIn (minutes). */
 export const NATIVE_CLAIM_TTL_MS = 3 * 60 * 1000
 const CLAIM_PREFIX = 'native-claim:'
@@ -83,7 +87,8 @@ export function parseNativeScheme(raw: string | null): NativeScheme {
 }
 
 /**
- * RFC 8252 loopback redirect. Only `http://127.0.0.1:<unprivileged>/auth-callback`.
+ * RFC 8252 loopback redirect. Only
+ * `http://127.0.0.1:<unprivileged>/auth-callback/<32-hex-state>`.
  * No userinfo, query, hash, HTTPS, or `localhost` (DNS rebinding).
  */
 export function parseLoopbackRedirect(raw: string | null): string | undefined {
@@ -98,10 +103,11 @@ export function parseLoopbackRedirect(raw: string | null): string | undefined {
   if (url.hostname !== '127.0.0.1') return undefined
   if (url.username || url.password) return undefined
   if (url.search || url.hash) return undefined
-  if (url.pathname !== '/auth-callback') return undefined
+  const state = LOOPBACK_PATH_RE.exec(url.pathname)?.[1]
+  if (!state || !LOOPBACK_STATE_RE.test(state)) return undefined
   const port = Number(url.port)
   if (!Number.isInteger(port) || port < 1024 || port > 65535) return undefined
-  return `http://127.0.0.1:${port}/auth-callback`
+  return `http://127.0.0.1:${port}/auth-callback/${state}`
 }
 
 export function clientIp(req: Request): string {
@@ -245,21 +251,26 @@ export function claimDbFromSql(sql: Sql): ClaimDb {
     async touchRate(key, windowMs, max) {
       const now = String(Date.now())
       const window = String(windowMs)
-      const rows = await sql<{ count: number }[]>`
-        INSERT INTO rate_limit (id, key, count, last_request)
-        VALUES (${crypto.randomUUID()}, ${key}, 1, ${now}::bigint)
-        ON CONFLICT (key) DO UPDATE SET
-          count = CASE
-            WHEN ${now}::bigint - rate_limit.last_request > ${window}::bigint THEN 1
-            ELSE rate_limit.count + 1
-          END,
-          last_request = CASE
-            WHEN ${now}::bigint - rate_limit.last_request > ${window}::bigint THEN ${now}::bigint
-            ELSE rate_limit.last_request
-          END
-        RETURNING count
-      `
-      return Number(rows[0]?.count ?? 1) <= max
+      try {
+        const rows = await sql<{ count: number }[]>`
+          INSERT INTO rate_limit (id, key, count, last_request)
+          VALUES (${crypto.randomUUID()}, ${key}, 1, ${now}::bigint)
+          ON CONFLICT (key) DO UPDATE SET
+            count = CASE
+              WHEN ${now}::bigint - rate_limit.last_request > ${window}::bigint THEN 1
+              ELSE rate_limit.count + 1
+            END,
+            last_request = CASE
+              WHEN ${now}::bigint - rate_limit.last_request > ${window}::bigint THEN ${now}::bigint
+              ELSE rate_limit.last_request
+            END
+          RETURNING count
+        `
+        return Number(rows[0]?.count ?? 1) <= max
+      } catch {
+        console.warn('[auth] rate_limit unavailable; allowing request')
+        return true
+      }
     },
   }
 }
@@ -355,8 +366,25 @@ function finishScript(callbackUrl: string): string {
   return `(function(){var href=${jsonForScript(callbackUrl)};try{location.replace(href)}catch(e){}setTimeout(function(){var el=document.getElementById('return');if(el)el.removeAttribute('hidden')},2000)})()`
 }
 
+function finishFormScript(): string {
+  return `(function(){var f=document.getElementById('f');try{if(f)f.submit()}catch(e){}setTimeout(function(){var el=document.getElementById('return');if(el)el.removeAttribute('hidden')},2000)})()`
+}
+
+function loopbackFormActionOrigin(action: string): string | undefined {
+  try {
+    const url = new URL(action)
+    if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1') return undefined
+    const port = url.port ? `:${url.port}` : ''
+    return `http://127.0.0.1${port}`
+  } catch {
+    return undefined
+  }
+}
+
 export async function nativeFinishHtml(opts: {
   callbackUrl?: string
+  /** POST the token to loopback so it never lands in Safari's URL/history. */
+  loopbackPost?: { action: string; fields: Record<string, string> }
   confirm?: string
   heading?: string
 }): Promise<{ html: string; csp: string; script: string }> {
@@ -364,13 +392,29 @@ export async function nativeFinishHtml(opts: {
   const confirmBlock = opts.confirm
     ? `<p class="code" aria-label="Sign-in code">${opts.confirm}</p><p class="hint">Type this code in Dayspring if the app doesn’t come back on its own.</p>`
     : `<p class="hint">You can close this window and try again from Dayspring.</p>`
-  const href = opts.callbackUrl
-    ? `<p><a id="return" hidden href="${escapeAttr(opts.callbackUrl)}">Return to Dayspring</a></p>`
+  const loopbackOrigin = opts.loopbackPost
+    ? loopbackFormActionOrigin(opts.loopbackPost.action)
+    : undefined
+  const formAction = opts.loopbackPost && loopbackOrigin ? opts.loopbackPost.action : undefined
+  const fields = formAction && opts.loopbackPost
+    ? Object.entries(opts.loopbackPost.fields)
+      .map(([name, value]) => `<input type="hidden" name="${escapeAttr(name)}" value="${escapeAttr(value)}">`)
+      .join('')
     : ''
-  const script = opts.callbackUrl ? finishScript(opts.callbackUrl) : ''
+  const href = formAction
+    ? `<form id="f" method="POST" action="${escapeAttr(formAction)}">${fields}<p><button type="submit" id="return" hidden>Return to Dayspring</button></p></form>`
+    : opts.callbackUrl
+      ? `<p><a id="return" hidden href="${escapeAttr(opts.callbackUrl)}">Return to Dayspring</a></p>`
+      : ''
+  const script = formAction
+    ? finishFormScript()
+    : opts.callbackUrl
+      ? finishScript(opts.callbackUrl)
+      : ''
   const scriptTag = script ? `<script>${script}</script>` : ''
   const scriptSrc = script ? `'sha256-${await sha256Base64(script)}'` : "'none'"
-  const csp = `default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; script-src ${scriptSrc}; style-src 'unsafe-inline'`
+  const formActionCsp = loopbackOrigin ? loopbackOrigin : "'none'"
+  const csp = `default-src 'none'; base-uri 'none'; form-action ${formActionCsp}; frame-ancestors 'none'; script-src ${scriptSrc}; style-src 'unsafe-inline'`
   const html = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -384,8 +428,9 @@ export async function nativeFinishHtml(opts: {
   h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 .75rem; }
   .code { font: 600 1.75rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .28em; margin: 0 0 .75rem; }
   .hint { color: #6b6258; font-size: .9rem; margin: 0 0 1.25rem; }
-  a { color: #6b4f2a; }
-  a[hidden] { display: none; }
+  a, button { color: #6b4f2a; }
+  a[hidden], button[hidden] { display: none; }
+  button { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: underline; }
 </style>
 </head><body><main>
 <h1>${escapeText(heading)}</h1>
@@ -564,11 +609,8 @@ export async function nativeFinish(
       ...(params.code && sessionId ? { sessionId } : {}),
       ...(params.error ? { error: params.error } : {}),
     })
-    const href = loopback
-      ? `${loopback}?${new URLSearchParams(params).toString()}`
-      : undefined
     return htmlResponse(await nativeFinishHtml({
-      callbackUrl: href,
+      ...(loopback ? { loopbackPost: { action: loopback, fields: params } } : {}),
       confirm,
       heading: params.error ? 'Sign-in didn’t finish' : 'Return to Dayspring',
     }), clear)
@@ -576,7 +618,7 @@ export async function nativeFinish(
 
   if (loopback) {
     return htmlResponse(await nativeFinishHtml({
-      callbackUrl: `${loopback}?${new URLSearchParams(params).toString()}`,
+      loopbackPost: { action: loopback, fields: params },
       heading: params.error ? 'Sign-in didn’t finish' : 'Return to Dayspring',
     }), clear)
   }

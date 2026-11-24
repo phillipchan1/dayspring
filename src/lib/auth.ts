@@ -80,12 +80,21 @@ async function runOAuth(
   let loopback: string | undefined
   if (isDesktopTauri()) {
     try {
-      const { beginLoopbackOAuth, waitLoopbackOAuth } = await import('./loopbackOAuth')
-      const port = await beginLoopbackOAuth()
-      loopback = `http://127.0.0.1:${port}/auth-callback`
+      const {
+        beginLoopbackOAuth,
+        createLoopbackState,
+        loopbackCallbackMatches,
+        waitLoopbackOAuth,
+      } = await import('./loopbackOAuth')
+      const state = createLoopbackState()
+      const port = await beginLoopbackOAuth(state)
+      loopback = `http://127.0.0.1:${port}/auth-callback/${state}`
       void waitLoopbackOAuth(CLAIM_TIMEOUT_MS)
         .then(async (url) => {
           try {
+            if (!loopbackCallbackMatches(url, state)) {
+              throw new Error('Sign-in didn’t finish. Try again.')
+            }
             await completeOAuthCallback(url)
             track('auth_callback_received', { via: 'loopback' })
             await bringAppToForeground()

@@ -307,19 +307,22 @@ function claimPost(body: object, ip = '203.0.113.10') {
 
 const cors = { 'Access-Control-Allow-Origin': 'tauri://localhost' }
 
-ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback') === 'http://127.0.0.1:54721/auth-callback', 'loopback 127.0.0.1:ephemeral is allowed')
-ok(parseLoopbackRedirect('http://127.0.0.1:80/auth-callback') === undefined, 'loopback port 80 is refused')
-ok(parseLoopbackRedirect('http://localhost:54721/auth-callback') === undefined, 'loopback localhost is refused')
-ok(parseLoopbackRedirect('http://evil.com@127.0.0.1:54721/auth-callback') === undefined, 'loopback userinfo is refused')
-ok(parseLoopbackRedirect('https://127.0.0.1:54721/auth-callback') === undefined, 'loopback https is refused')
-ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback?x=1') === undefined, 'loopback extra query is refused')
+const loopbackState = '0123456789abcdef0123456789abcdef'
+const loopback = `http://127.0.0.1:54721/auth-callback/${loopbackState}`
+ok(parseLoopbackRedirect(loopback) === loopback, 'loopback 127.0.0.1:ephemeral with state is allowed')
+ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback') === undefined, 'loopback without state is refused')
+ok(parseLoopbackRedirect('http://127.0.0.1:80/auth-callback/' + loopbackState) === undefined, 'loopback port 80 is refused')
+ok(parseLoopbackRedirect('http://localhost:54721/auth-callback/' + loopbackState) === undefined, 'loopback localhost is refused')
+ok(parseLoopbackRedirect('http://evil.com@127.0.0.1:54721/auth-callback/' + loopbackState) === undefined, 'loopback userinfo is refused')
+ok(parseLoopbackRedirect('https://127.0.0.1:54721/auth-callback/' + loopbackState) === undefined, 'loopback https is refused')
+ok(parseLoopbackRedirect(loopback + '?x=1') === undefined, 'loopback extra query is refused')
+ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789abcdef0123456789') === undefined, 'loopback uppercase state is refused')
 
 // 4. Hardened claim fallback: PKCE + confirm + IP. Loopback HTML, not dayspring://.
 {
   const verifier = `v${'A'.repeat(42)}`
   const challenge = await pkceChallenge(verifier)
   const otherVerifier = `v${'B'.repeat(42)}`
-  const loopback = 'http://127.0.0.1:54721/auth-callback'
   const victimIp = '203.0.113.10'
   const attackerIp = '198.51.100.9'
   const jar = new Jar()
@@ -349,12 +352,13 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback?x=1') === undefin
   ok(csp.includes("default-src 'none'") && csp.includes('sha256-'), `finish CSP hashes the inline script (got ${csp})`)
   const html = await finish.text()
   ok(html.includes('Return to Dayspring'), 'finish page offers Return to Dayspring')
-  ok(html.includes(loopback), 'finish page returns through loopback, not the custom scheme')
+  ok(html.includes(`action="${loopback}"`) && html.includes('method="POST"'), 'finish page POSTs through loopback, not the custom scheme')
+  ok(!html.includes(`${loopback}?`), 'one-time token is not on the 127.0.0.1 URL')
   ok(!html.includes('dayspring-alpha://') && !html.includes('dayspring://auth-callback'), 'finish HTML does not put the one-time token on a custom-scheme URL')
   ok(/setTimeout\(function\(\)\{[\s\S]*\},2000\)/.test(html), 'Return to Dayspring waits about 2s')
   const confirm = html.match(/aria-label="Sign-in code">([A-Z2-9]{6})</)?.[1] ?? ''
   ok(Boolean(confirm), 'finish page shows a confirm code')
-  ok(html.includes('\\u003c') || !html.includes('<img'), 'inline JSON does not leave raw < in the script')
+  ok(csp.includes('form-action http://127.0.0.1:54721'), 'finish CSP allows the loopback form POST')
 
   const pending = await nativeClaim(auth, claimPost({ verifier }), cors, store, attackerIp)
   ok(pending.status === 202, `phishing attacker-chosen PKCE challenge cannot claim the victim token without confirm (got ${pending.status})`)
@@ -392,6 +396,31 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback?x=1') === undefin
 }
 
 {
+  const verifier = `n${'E'.repeat(42)}`
+  const challenge = await pkceChallenge(verifier)
+  const jar = new Jar()
+  const start = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&device=${challenge}`), BASE)
+  jar.take(start)
+  const providerUrl = new URL(start.headers.get('location') ?? 'about:blank')
+  const oauthState = providerUrl.searchParams.get('state') ?? ''
+  const cb = await auth.handler(new Request(`${BASE}/api/auth/callback/google?code=google-code&state=${encodeURIComponent(oauthState)}`, {
+    headers: { cookie: jar.header() },
+  }))
+  jar.take(cb)
+  const finish = await nativeFinish(auth, new Request(cb.headers.get('location') ?? `${BASE}${NATIVE_FINISH_PATH}`, { headers: { cookie: jar.header() } }), [], store, '203.0.113.10')
+  const html = await finish.text()
+  const confirm = html.match(/aria-label="Sign-in code">([A-Z2-9]{6})</)?.[1] ?? ''
+  const [first, second] = await Promise.all([
+    nativeClaim(auth, claimPost({ verifier, confirm }), cors, store, '203.0.113.10'),
+    nativeClaim(auth, claimPost({ verifier, confirm }), cors, store, '203.0.113.10'),
+  ])
+  const statuses = [first.status, second.status].sort((a, b) => a - b)
+  ok(statuses[0] === 200 && statuses[1] === 204, `concurrent claim consume is atomic (got ${first.status} and ${second.status})`)
+  const bodies = [first, second].filter((res) => res.status === 200)
+  ok(bodies.length === 1, 'only one concurrent claim returns a token')
+}
+
+{
   const verifier = `e${'C'.repeat(42)}`
   const challenge = await pkceChallenge(verifier)
   const jar = new Jar()
@@ -421,13 +450,27 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback?x=1') === undefin
 
 {
   const page = await nativeFinishHtml({
-    callbackUrl: 'http://127.0.0.1:54721/auth-callback?code=<img>',
+    callbackUrl: 'dayspring://auth-callback?code=<img>',
     confirm: 'ABC234',
   })
   ok(page.html.includes('Return to Dayspring'), 'finish HTML always includes the return control')
   ok(page.html.includes('\\u003c'), 'finish HTML escapes < in the inline JSON')
   ok(page.csp.includes('sha256-'), 'finish HTML CSP includes the script hash')
   ok(page.html.includes('ABC234'), 'finish HTML shows the confirm code')
+}
+
+{
+  const posted = await nativeFinishHtml({
+    loopbackPost: {
+      action: loopback,
+      fields: { code: '<img src=x onerror=alert(1)>' },
+    },
+    confirm: 'ABC234',
+  })
+  ok(posted.html.includes(`action="${loopback}"`), 'loopback form posts to the state path')
+  ok(!posted.html.includes(`${loopback}?`), 'loopback form action has no query')
+  ok(posted.html.includes('&lt;img') && !posted.html.includes('<img src'), 'loopback form escapes the token in the hidden field')
+  ok(posted.csp.includes('form-action http://127.0.0.1:54721'), 'loopback form CSP allows 127.0.0.1')
 }
 
 globalThis.fetch = realFetch
