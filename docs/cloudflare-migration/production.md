@@ -22,6 +22,7 @@ Do not put values in this file. Do not commit values in `wrangler.jsonc` `vars`.
 | `HYPERDRIVE` | Hyperdrive binding (prod). Placeholder id until create. |
 | `ASSETS` | Static assets from `dist/` (wrangler `assets`, not operator-set). |
 | `ATTACHMENTS` | R2 bucket `dayspring-attachments`. Unused until `STORAGE_BACKEND=r2`. |
+| `PROCESSING_GATE` | Durable Object `ProcessingGate` (SQLite, migration tag `v1-processing-gate`). Lets the every-minute cron skip idle minutes so Neon can suspend. Created on the next `wrangler deploy --env production`; no operator step. |
 
 ### Vars (`wrangler.jsonc` `env.production.vars` or dashboard vars)
 

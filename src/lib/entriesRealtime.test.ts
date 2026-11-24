@@ -7,6 +7,7 @@ vi.mock('./api', () => ({
 }))
 
 const { subscribeEntryChanges, ENTRY_POLL_IDLE_MS } = await import('./entriesRealtime')
+const { IDLE_AFTER_MS, setLastInputAtForTest } = await import('./presence')
 
 function entry(id: string, updated_at: string) {
   return {
@@ -28,6 +29,7 @@ describe('subscribeEntryChanges polling', () => {
     apiGet.mockReset()
     vi.useFakeTimers()
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true, writable: true })
+    setLastInputAtForTest(Date.now())
   })
 
   afterEach(() => {
@@ -67,6 +69,23 @@ describe('subscribeEntryChanges polling', () => {
       expect(apiGet).toHaveBeenCalled()
     })
 
+    stop()
+  })
+
+  it('stops polling once nobody has touched the app, so an open window lets the database sleep', async () => {
+    apiGet.mockResolvedValue({ entries: [] })
+    const stop = subscribeEntryChanges({ onBatch: vi.fn() })
+    await vi.waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    apiGet.mockClear()
+    await vi.advanceTimersByTimeAsync(60 * 60_000) // an idle hour, window visible
+    // Polls only for the first IDLE_AFTER_MS, then silence for the rest of the hour.
+    expect(apiGet.mock.calls.length).toBe(Math.floor(IDLE_AFTER_MS / ENTRY_POLL_IDLE_MS))
+
+    apiGet.mockClear()
+    window.dispatchEvent(new Event('pointerdown')) // someone is back
+    await vi.advanceTimersByTimeAsync(ENTRY_POLL_IDLE_MS)
+    expect(apiGet).toHaveBeenCalled()
     stop()
   })
 })

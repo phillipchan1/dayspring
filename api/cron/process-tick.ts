@@ -2,13 +2,16 @@
 // advances each by one bounded chunk, then returns. The engine SELF-CHAINS —
 // enqueue kicks the first tick and each working tick kicks the next (kickWorker)
 // — so an archive drains in the background without a sub-minute cron (Vercel
-// Hobby-safe). The daily cron in vercel.json is only a backstop to restart any
-// chain that stalled; crashes also self-heal via the 90 s stale-lock reclaim
-// (claim_processing_jobs, worker/schema/0007).
+// Hobby-safe). The cron is only a backstop to restart any chain that stalled;
+// crashes also self-heal via the 90 s stale-lock reclaim (claim_processing_jobs,
+// worker/schema/0007). On the Worker the every-minute cron runs this only when
+// the processing gate (worker/src/processingGate.ts) says work may exist, so
+// an idle Dayspring sends Neon no queries; `idle` / `scan_complete` in the
+// response are what the gate reads to stand down.
 // See docs/PROCESSING_AND_ONBOARDING.md §4.
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
-import { drain, enqueueSettledGathers, kickWorker, TickClock } from '../_lib/processing.js'
+import { activeJobCount, drain, kickWorker, scanSettledGathers, TickClock } from '../_lib/processing.js'
 
 // Owners processed per tick — also the natural OpenAI rate cap. skip-locked makes
 // overlapping ticks safe.
@@ -24,8 +27,11 @@ export async function GET(req: Request): Promise<Response> {
     // has settled gets a gather job, which this same tick can then claim. Its own
     // try/catch — a failed lookup must not stop imports draining.
     let gathers = 0
+    let scanComplete = false
     try {
-      gathers = await enqueueSettledGathers()
+      const scan = await scanSettledGathers()
+      gathers = scan.enqueued
+      scanComplete = !scan.saturated
     } catch (e) {
       console.error('[process-tick] enqueueSettledGathers failed:', e instanceof Error ? e.message : e)
     }
@@ -34,7 +40,11 @@ export async function GET(req: Request): Promise<Response> {
     // chunks likely remain — kick the next tick before returning. Stops naturally
     // when a tick claims nothing (chain ends).
     if (results.length > 0) kickWorker()
-    return Response.json({ ran_at: ranAt, gathers, claimed: results.length, results })
+    // Idle = nothing left for any tick: the gate may stop the every-minute cron.
+    // A claim of 0 can still mean jobs locked by a concurrent (or dead) tick, so
+    // count them; that one query runs only on the tick that ends a chain.
+    const idle = scanComplete && results.length === 0 && (await activeJobCount()) === 0
+    return Response.json({ ran_at: ranAt, gathers, claimed: results.length, results, scan_complete: scanComplete, idle })
   } catch (e) {
     return Response.json(
       { ran_at: ranAt, error: e instanceof Error ? e.message : 'tick failed' },

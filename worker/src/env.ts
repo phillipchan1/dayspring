@@ -57,6 +57,9 @@ export interface Env {
   /** Vercel-port routes (worker/src/vercel). The transcription key is read only in vercel/routes.ts. */
   GATHER_ENGINE?: string
   GATHER_MODE?: string
+  GATHER_SETTLE_MINUTES?: string
+  /** Durable Object: when process-tick next has work, kept outside Postgres (processingGate.ts). */
+  PROCESSING_GATE?: DurableObjectNamespace
   /** `on` only in the switch step that turns off Vercel's remind / sync-resend / welcome-drip crons. */
   WORKER_MAIL_CRONS?: string
 }

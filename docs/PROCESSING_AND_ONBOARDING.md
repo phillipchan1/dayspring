@@ -112,6 +112,18 @@ for each claimed job:  do ONE bounded chunk by kind (below); advance cursor + co
   next tick continues. A decade-import drains over many ticks with a live %.
 - **Self-healing:** `locked_at` older than 5 min ⇒ a crashed job is re-claimable.
 - **Idempotent bodies** (already true): re-running a chunk never duplicates.
+- **Idle means no queries (Worker, Nov 2026).** Neon suspends compute after ~5
+  minutes with no queries, and an every-minute tick that always touched Postgres
+  kept it awake 24/7. The cron now asks the **processing gate** first — a Durable
+  Object (`worker/src/processingGate.ts`, binding `PROCESSING_GATE`) that holds,
+  outside Postgres, (a) whether jobs may be queued or running (set by every kick,
+  every non-tick cron, and every tick that did work; cleared only by a tick that
+  found the queue empty) and (b) one due time per owner, `last write + settle +
+  2 min`, noted by `upsert-checked` and entry writes through `/api/data/query`.
+  It ticks when either says so, plus a full backstop tick every 6 h; otherwise
+  the minute sends Neon nothing. No binding, or a gate error, means it ticks as
+  before. `worker/src/vercel/neonIdle.test.ts` measures it. Clients pull in the
+  background only while someone is present (`src/lib/presence.ts`).
 
 ---
 

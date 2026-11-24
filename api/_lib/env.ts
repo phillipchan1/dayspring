@@ -8,6 +8,13 @@ function need(name: string): string {
   return v
 }
 
+/** GATHER_SETTLE_MINUTES: minutes an entry must sit untouched before the engine reads it (default 30). */
+export function parseGatherSettleMinutes(value: string | undefined): number {
+  const raw = (value ?? '').trim()
+  const n = Number(raw)
+  return raw !== '' && Number.isFinite(n) && n >= 0 ? n : 30
+}
+
 export const env = {
   supabaseUrl: () => need('SUPABASE_URL'),
   serviceRoleKey: () => need('SUPABASE_SERVICE_ROLE_KEY'),
@@ -68,11 +75,7 @@ export const env = {
   // Needs the migration applied first; unknown values mean off.
   gatherEngine: (): boolean => (process.env.GATHER_ENGINE ?? '').trim().toLowerCase() === 'on',
   // Minutes an entry must sit untouched before the engine reads it.
-  gatherSettleMinutes: (): number => {
-    const raw = (process.env.GATHER_SETTLE_MINUTES ?? '').trim()
-    const n = Number(raw)
-    return raw !== '' && Number.isFinite(n) && n >= 0 ? n : 30
-  },
+  gatherSettleMinutes: (): number => parseGatherSettleMinutes(process.env.GATHER_SETTLE_MINUTES),
   gatherSentiment: (): 'v2' | 'tight-denial' => {
     const v = (process.env.GATHER_SENTIMENT ?? '').trim().toLowerCase()
     return v === 'tight-denial' ? 'tight-denial' : 'v2'
