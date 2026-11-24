@@ -10,6 +10,14 @@ const signInWithApple = vi.fn()
 const signInWithGoogle = vi.fn()
 const signInWithEmail = vi.fn()
 const signUpWithEmail = vi.fn()
+const sendEmailCode = vi.fn()
+const signInWithEmailCode = vi.fn()
+const takePendingOAuthDevice = vi.fn(() => null as string | null)
+const pollNativeOAuthClaim = vi.fn(
+  (_device: string, _signal: AbortSignal, _getConfirm?: () => string) =>
+    new Promise<'claimed' | 'aborted'>(() => {}),
+)
+const cancelPendingOAuth = vi.fn(async () => {})
 
 vi.mock('@/lib/auth', () => ({
   WEB_AUTH_ERROR_KEY: 'dayspring.authError',
@@ -17,6 +25,12 @@ vi.mock('@/lib/auth', () => ({
   signInWithGoogle: () => signInWithGoogle(),
   signInWithEmail: (email: string, password: string) => signInWithEmail(email, password),
   signUpWithEmail: (email: string, password: string) => signUpWithEmail(email, password),
+  sendEmailCode: (email: string) => sendEmailCode(email),
+  signInWithEmailCode: (email: string, code: string) => signInWithEmailCode(email, code),
+  takePendingOAuthDevice: () => takePendingOAuthDevice(),
+  pollNativeOAuthClaim: (device: string, signal: AbortSignal, getConfirm?: () => string) =>
+    pollNativeOAuthClaim(device, signal, getConfirm),
+  cancelPendingOAuth: () => cancelPendingOAuth(),
 }))
 
 // vi.hoisted runs before vi.mock's own hoisting, so this object exists before
@@ -94,10 +108,18 @@ describe('SignIn (iPad tap)', () => {
     signInWithGoogle.mockReset()
     signInWithEmail.mockReset()
     signUpWithEmail.mockReset()
+    sendEmailCode.mockReset()
+    signInWithEmailCode.mockReset()
+    takePendingOAuthDevice.mockReset()
+    takePendingOAuthDevice.mockReturnValue(null)
+    pollNativeOAuthClaim.mockReset()
+    pollNativeOAuthClaim.mockReturnValue(new Promise(() => {}))
     signInWithApple.mockReturnValue(new Promise(() => {}))
     signInWithGoogle.mockReturnValue(new Promise(() => {}))
     signInWithEmail.mockReturnValue(new Promise(() => {}))
     signUpWithEmail.mockReturnValue(new Promise(() => {}))
+    sendEmailCode.mockReturnValue(new Promise(() => {}))
+    signInWithEmailCode.mockReturnValue(new Promise(() => {}))
     host = document.createElement('div')
     document.body.appendChild(host)
     root = createRoot(host)
@@ -505,5 +527,118 @@ describe('SignIn (web email)', () => {
       await Promise.resolve()
     })
     expect(signUpWithEmail).toHaveBeenCalledWith('cold.visitor@example.com', 'a-fresh-password')
+  })
+})
+
+describe('SignIn (Mac email code)', () => {
+  let root: Root
+  let host: HTMLDivElement
+
+  beforeEach(() => {
+    platformMock.isIOSTauri = false
+    platformMock.isMobileTauri = false
+    platformMock.isTauri = true
+    signInWithApple.mockReset()
+    signInWithGoogle.mockReset()
+    sendEmailCode.mockReset()
+    signInWithEmailCode.mockReset()
+    takePendingOAuthDevice.mockReset()
+    takePendingOAuthDevice.mockReturnValue('device-nonce-from-oauth')
+    pollNativeOAuthClaim.mockReset()
+    pollNativeOAuthClaim.mockReturnValue(new Promise(() => {}))
+    signInWithApple.mockReturnValue(new Promise(() => {}))
+    signInWithGoogle.mockResolvedValue('waiting-for-browser')
+    sendEmailCode.mockResolvedValue(undefined)
+    signInWithEmailCode.mockResolvedValue(undefined)
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+  })
+
+  afterEach(() => {
+    platformMock.isIOSTauri = true
+    platformMock.isMobileTauri = true
+    platformMock.isTauri = true
+    vi.restoreAllMocks()
+    act(() => root.unmount())
+    host.remove()
+  })
+
+  function mount() {
+    act(() => {
+      root.render(createElement(SignIn))
+    })
+  }
+
+  it('offers an email-code path on Mac', () => {
+    mount()
+    expect(buttonNamed(host, 'Sign in with email')).toBeTruthy()
+    act(() => {
+      buttonNamed(host, 'Sign in with email').click()
+    })
+    expect(buttonNamed(host, 'Email me a code')).toBeTruthy()
+    expect(host.querySelector('input[name="password"]')).toBeNull()
+  })
+
+  it('sends a code then signs in with it', async () => {
+    mount()
+    act(() => {
+      buttonNamed(host, 'Sign in with email').click()
+    })
+    const email = host.querySelector('input[type="email"]') as HTMLInputElement
+    act(() => {
+      nativeInput(email, 'mac.user@example.com')
+    })
+    await act(async () => {
+      host.querySelector('form')?.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true }),
+      )
+      await Promise.resolve()
+    })
+    expect(sendEmailCode).toHaveBeenCalledWith('mac.user@example.com')
+    expect(host.textContent).toContain('We sent a sign-in code')
+    const code = host.querySelector('input[name="code"]') as HTMLInputElement
+    expect(code).toBeTruthy()
+    act(() => {
+      nativeInput(code, '123456')
+    })
+    await act(async () => {
+      host.querySelector('form')?.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true }),
+      )
+      await Promise.resolve()
+    })
+    expect(signInWithEmailCode).toHaveBeenCalledWith('mac.user@example.com', '123456')
+  })
+
+  it('polls the claim fallback while waiting on the browser', async () => {
+    mount()
+    await act(async () => {
+      buttonNamed(host, 'Continue with Google').click()
+      await Promise.resolve()
+    })
+    expect(takePendingOAuthDevice).toHaveBeenCalled()
+    expect(pollNativeOAuthClaim).toHaveBeenCalledWith(
+      'device-nonce-from-oauth',
+      expect.any(AbortSignal),
+      expect.any(Function),
+    )
+    expect(host.textContent).toContain('Continue with Google in your browser.')
+    expect(host.querySelector('input[name="confirm"]')).toBeTruthy()
+    expect(host.textContent).toContain('type the code from your browser')
+  })
+
+  it('shows a deep-link failure on the sign-in screen instead of waiting silently', async () => {
+    mount()
+    await act(async () => {
+      buttonNamed(host, 'Continue with Google').click()
+      await Promise.resolve()
+    })
+    act(() => {
+      window.dispatchEvent(new CustomEvent('dayspring.authError', { detail: 'Sign-in expired. Try again.' }))
+    })
+    expect(host.textContent).toContain('Sign-in expired. Try again.')
+    expect(host.textContent).not.toContain('Continue with Google in your browser.')
+    expect(buttonNamed(host, 'Continue with Google').getAttribute('aria-disabled')).not.toBe('true')
   })
 })

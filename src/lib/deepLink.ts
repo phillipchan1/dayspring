@@ -6,8 +6,10 @@ export interface DayspringDeepLink {
   url: string
 }
 
+const NATIVE_PROTOCOLS = new Set(['dayspring:'])
+
 /**
- * Classify a single URL. Only the `dayspring:` scheme is recognized.
+ * Classify a single URL. Native uses `dayspring:`.
  *
  * Accepts host form (`dayspring://open`) and path form (`dayspring:///open`),
  * with or without a trailing slash or query. Extra path segments are rejected
@@ -23,7 +25,7 @@ export function parseDayspringDeepLink(raw: string): DayspringDeepLink | null {
   } catch {
     return null
   }
-  if (url.protocol.toLowerCase() !== 'dayspring:') return null
+  if (!NATIVE_PROTOCOLS.has(url.protocol.toLowerCase())) return null
 
   const host = url.hostname.toLowerCase()
   const path = url.pathname.replace(/\/+$/, '').toLowerCase()

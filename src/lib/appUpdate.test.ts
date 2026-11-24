@@ -22,6 +22,19 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('startUpdatePolling', () => {
+  it('starts the background check without waiting for a signed-in shell', async () => {
+    updater.check.mockResolvedValue(null)
+    const m = await fresh()
+    m.startUpdatePolling()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(updater.check).toHaveBeenCalledTimes(1)
+    m.startUpdatePolling()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(updater.check).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('checkForUpdate', () => {
   it('gives every request a deadline', async () => {
     updater.check.mockResolvedValue(null)

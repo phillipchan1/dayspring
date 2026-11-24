@@ -4,6 +4,7 @@ import { purgeOnSignOut } from './localData'
 import { beginExternalTrip } from './appLockSuppress'
 import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
 import { selectDayspringDeepLink } from './deepLink'
+import { track } from './analytics'
 
 type OAuthProvider = AuthProvider
 
@@ -34,10 +35,30 @@ export async function completeOAuthCallback(callbackUrl: string): Promise<void> 
  * and returns the URL here. See worker/src/nativeAuth.ts.
  *
  * Desktop returns `'waiting-for-browser'` after the system browser opens —
- * sign-in finishes later via the deep link. The sign-in screen uses that to
- * offer Open again / Cancel if the window is closed.
+ * sign-in finishes later via the RFC 8252 loopback, the deep link, or the
+ * hardened claim poll. The sign-in screen uses that to offer Open again /
+ * Cancel if the window is closed.
  */
 export type OAuthHandoff = 'completed' | 'waiting-for-browser'
+
+const CLAIM_POLL_MS = 1000
+const CLAIM_TIMEOUT_MS = 3 * 60 * 1000
+
+/** High-entropy PKCE verifier the Mac app polls the Worker with after Google / Apple. */
+export function createDeviceNonce(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+export async function pkceChallenge(verifier: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)))
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
 
 async function runOAuth(
   provider: OAuthProvider,
@@ -53,8 +74,48 @@ async function runOAuth(
     return 'completed'
   }
 
-  const { nativeOAuthStartUrl } = await import('./authClient')
-  const authUrl = await nativeOAuthStartUrl(provider, intent)
+  const { nativeCallbackScheme, nativeOAuthStartUrl } = await import('./authClient')
+  const verifier = isDesktopTauri() ? createDeviceNonce() : undefined
+  const challenge = verifier ? await pkceChallenge(verifier) : undefined
+  let loopback: string | undefined
+  if (isDesktopTauri()) {
+    try {
+      const { beginLoopbackOAuth, waitLoopbackOAuth } = await import('./loopbackOAuth')
+      const port = await beginLoopbackOAuth()
+      loopback = `http://127.0.0.1:${port}/auth-callback`
+      void waitLoopbackOAuth(CLAIM_TIMEOUT_MS)
+        .then(async (url) => {
+          try {
+            await completeOAuthCallback(url)
+            track('auth_callback_received', { via: 'loopback' })
+            await bringAppToForeground()
+          } catch (err) {
+            if (await hasWorkersSession()) return
+            const message = err instanceof Error ? err.message : 'Sign-in didn’t finish. Try again.'
+            track('auth_callback_failed', { via: 'loopback', reason: callbackFailReason(err) })
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent(WEB_AUTH_ERROR_KEY, { detail: message }))
+            }
+          }
+        })
+        .catch(() => {
+          /* cancelled or timed out; claim poll / confirm code still run */
+        })
+    } catch {
+      /* claim-only fallback if the loopback bind fails */
+    }
+  }
+  const authUrl = await nativeOAuthStartUrl(
+    provider,
+    intent,
+    undefined,
+    {
+      scheme: nativeCallbackScheme(),
+      ...(challenge ? { device: challenge } : {}),
+      ...(loopback ? { loopback } : {}),
+    },
+  )
+  if (verifier) pendingClaimDevice = verifier
 
   // Linking a second provider happens from inside the app, so this hand-off has
   // to be marked or the app lock closes behind it and the user returns from
@@ -75,6 +136,114 @@ async function runOAuth(
   const { openUrl } = await import('@tauri-apps/plugin-opener')
   await openUrl(authUrl)
   return 'waiting-for-browser'
+}
+
+let pendingClaimDevice: string | null = null
+
+/** PKCE verifier for the in-flight Mac OAuth, if any. SignIn polls with it. */
+export function takePendingOAuthDevice(): string | null {
+  const device = pendingClaimDevice
+  pendingClaimDevice = null
+  return device
+}
+
+export async function cancelPendingOAuth(): Promise<void> {
+  pendingClaimDevice = null
+  try {
+    const { cancelLoopbackOAuth } = await import('./loopbackOAuth')
+    await cancelLoopbackOAuth()
+  } catch {
+    /* not desktop, or nothing listening */
+  }
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'))
+      return
+    }
+    const timer = window.setTimeout(resolve, ms)
+    signal.addEventListener(
+      'abort',
+      () => {
+        window.clearTimeout(timer)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'AbortError'
+}
+
+function callbackFailReason(err: unknown): 'expired' | 'missing_code' | 'error' | 'other' {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (/expired/i.test(msg)) return 'expired'
+  if (/no authorization code/i.test(msg)) return 'missing_code'
+  if (/didn’t finish|did not finish|cancelled|canceled/i.test(msg)) return 'error'
+  return 'other'
+}
+
+/**
+ * Poll POST /api/auth/native/claim until the browser finishes, the user
+ * cancels, or the one-time token expires. First of this, the loopback, and
+ * the deep link wins. `getConfirm` is the 6-character code from the finish page.
+ */
+async function hasWorkersSession(): Promise<boolean> {
+  try {
+    const { getSessionState } = await import('./sessionStore')
+    return Boolean(getSessionState().session)
+  } catch {
+    return false
+  }
+}
+
+export async function pollNativeOAuthClaim(
+  device: string,
+  signal: AbortSignal,
+  getConfirm?: () => string,
+): Promise<'claimed' | 'aborted'> {
+  const { claimNativeOAuth, completeWorkersOAuthToken, oauthErrorMessage } = await import('./authClient')
+  const started = Date.now()
+  while (!signal.aborted) {
+    // Deep link / loopback may have already finished this sign-in.
+    if (await hasWorkersSession()) return 'claimed'
+    try {
+      const payload = await claimNativeOAuth(device, getConfirm?.()?.trim())
+      if (payload?.error) throw new Error(oauthErrorMessage(payload.error))
+      if (payload?.token) {
+        try {
+          await completeWorkersOAuthToken(payload.token)
+        } catch (err) {
+          if (await hasWorkersSession()) return 'claimed'
+          throw err
+        }
+        track('auth_callback_received', { via: 'claim' })
+        await bringAppToForeground()
+        return 'claimed'
+      }
+    } catch (err) {
+      if (isAbortError(err) || signal.aborted) return 'aborted'
+      if (await hasWorkersSession()) return 'claimed'
+      track('auth_callback_failed', { via: 'claim', reason: callbackFailReason(err) })
+      throw err
+    }
+    if (Date.now() - started > CLAIM_TIMEOUT_MS) {
+      const err = new Error('Sign-in didn’t finish. Try again.')
+      track('auth_callback_failed', { via: 'claim', reason: 'expired' })
+      throw err
+    }
+    try {
+      await sleep(CLAIM_POLL_MS, signal)
+    } catch (err) {
+      if (isAbortError(err) || signal.aborted) return 'aborted'
+      throw err
+    }
+  }
+  return 'aborted'
 }
 
 async function signInWithProvider(provider: OAuthProvider): Promise<OAuthHandoff> {
@@ -151,6 +320,38 @@ export async function signUpWithEmail(
   return signUpWorkersEmail(trimmed, password)
 }
 
+/** Mac (and any client that wants a browser-free path): email a 6-digit code. */
+export async function sendEmailCode(email: string): Promise<void> {
+  const trimmed = email.trim()
+  if (!trimmed) throw new Error('Enter your email')
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window as unknown as { __DAYSPRING_SIGNIN_PREVIEW__?: boolean }).__DAYSPRING_SIGNIN_PREVIEW__
+  ) {
+    await new Promise((r) => setTimeout(r, 800))
+    return
+  }
+  const { sendWorkersEmailOtp } = await import('./authClient')
+  await sendWorkersEmailOtp(trimmed)
+}
+
+export async function signInWithEmailCode(email: string, code: string): Promise<void> {
+  const trimmed = email.trim()
+  const otp = code.replace(/\s/g, '')
+  if (!trimmed || !otp) throw new Error('Enter the code we sent')
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window as unknown as { __DAYSPRING_SIGNIN_PREVIEW__?: boolean }).__DAYSPRING_SIGNIN_PREVIEW__
+  ) {
+    await new Promise((r) => setTimeout(r, 800))
+    throw new Error('Preview: email-code sign-in would complete here')
+  }
+  const { signInWorkersEmailOtp } = await import('./authClient')
+  await signInWorkersEmailOtp(trimmed, otp)
+}
+
 /**
  * Attach a second provider to the account that is ALREADY signed in.
  *
@@ -211,29 +412,50 @@ export async function signOut(): Promise<void> {
  * On iOS, ASWebAuthenticationSession usually completes inline; this listener
  * remains the fallback when the app is cold-started by the OAuth deep link.
  */
-export async function initDeepLinkAuth(): Promise<void> {
-  if (!isTauri()) return
-
-  const handle = async (urls: string[] | null) => {
-    const picked = selectDayspringDeepLink(urls)
-    if (!picked) return
-    if (picked.kind === 'open') {
+export async function handleNativeOpenUrls(urls: string[] | null): Promise<void> {
+  const picked = selectDayspringDeepLink(urls)
+  if (!picked) return
+  if (picked.kind === 'open') {
+    await bringAppToForeground()
+    return
+  }
+  try {
+    const { getSessionState } = await import('./sessionStore')
+    if (getSessionState().session) {
       await bringAppToForeground()
       return
     }
-    try {
-      await completeOAuthCallback(picked.url)
-    } catch (err) {
-      console.error('[auth] deep-link exchange failed', err)
+    await completeOAuthCallback(picked.url)
+    track('auth_callback_received', { via: 'deep_link' })
+    await bringAppToForeground()
+  } catch (err) {
+    if (await hasWorkersSession()) {
+      await bringAppToForeground()
+      return
     }
+    const message = err instanceof Error ? err.message : 'Sign-in didn’t finish. Try again.'
+    track('auth_callback_failed', { via: 'deep_link', reason: callbackFailReason(err) })
+    try {
+      sessionStorage.setItem(WEB_AUTH_ERROR_KEY, message)
+    } catch {
+      /* ignore */
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(WEB_AUTH_ERROR_KEY, { detail: message }))
+    }
+    console.error('[auth] deep-link exchange failed', err)
   }
+}
+
+export async function initDeepLinkAuth(): Promise<void> {
+  if (!isTauri()) return
 
   try {
     const { onOpenUrl, getCurrent } = await import('@tauri-apps/plugin-deep-link')
     // App already running: URL arrives as an event.
-    await onOpenUrl((urls) => void handle(urls))
+    await onOpenUrl((urls) => void handleNativeOpenUrls(urls))
     // App launched by the deep link: pick up the initial URL.
-    await handle(await getCurrent())
+    await handleNativeOpenUrls(await getCurrent())
   } catch (err) {
     console.error('[auth] deep-link init failed', err)
   }

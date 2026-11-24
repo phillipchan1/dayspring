@@ -3,6 +3,7 @@ import { bearer, emailOTP, oneTimeToken } from 'better-auth/plugins'
 import { verifyPassword as verifyBetterAuthPassword } from 'better-auth/crypto'
 import bcrypt from 'bcryptjs'
 import { Pool } from 'pg'
+import { APIError } from 'better-auth/api'
 import { NATIVE_APP_ORIGINS } from './cors.ts'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
 import { pgClientOptions } from './db.ts'
@@ -110,6 +111,46 @@ export async function verifyPassword({ hash, password }: { hash: string; passwor
 export const SESSION_EXPIRES_IN = 60 * 60 * 24 * 365
 export const SESSION_UPDATE_AGE = 60 * 60 * 24
 
+/** Persist Better Auth's limiter in Neon so it is shared across Worker isolates. */
+export const AUTH_RATE_LIMIT = {
+  enabled: true,
+  storage: 'database' as const,
+  modelName: 'rate_limit',
+  fields: { lastRequest: 'last_request' as const },
+}
+
+const OTP_EMAIL_WINDOW_MS = 10 * 60 * 1000
+const OTP_EMAIL_MAX = 5
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function allowEmailOtp(db: AuthDatabase, email: string): Promise<boolean> {
+  const key = `otp-email:${await sha256Hex(email.trim().toLowerCase())}`
+  const client = await db.connect()
+  try {
+    const now = String(Date.now())
+    const window = String(OTP_EMAIL_WINDOW_MS)
+    const result = await client.query(
+      `INSERT INTO rate_limit (id, key, count, last_request)
+       VALUES ($1, $2, 1, $3)
+       ON CONFLICT (key) DO UPDATE SET
+         count = CASE WHEN $3::bigint - rate_limit.last_request > $4::bigint THEN 1 ELSE rate_limit.count + 1 END,
+         last_request = CASE WHEN $3::bigint - rate_limit.last_request > $4::bigint THEN $3::bigint ELSE rate_limit.last_request END
+       RETURNING count`,
+      [crypto.randomUUID(), key, now, window],
+    )
+    const count = Number((result.rows[0] as { count: number } | undefined)?.count ?? 1)
+    return count <= OTP_EMAIL_MAX
+  } catch {
+    return false
+  } finally {
+    client.release()
+  }
+}
+
 const DEEP_LINK_ORIGIN = 'https://dayspring-eosin.vercel.app'
 
 /** Apple + Google only when client id and secret are both set. */
@@ -174,9 +215,13 @@ export function createAuth(
     trustedOrigins: isLocalAuthHost(baseURL)
       ? [baseURL, DEEP_LINK_ORIGIN, ...NATIVE_APP_ORIGINS, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
       : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://', ...NATIVE_APP_ORIGINS],
+    rateLimit: AUTH_RATE_LIMIT,
     advanced: {
       database: {
         generateId: () => crypto.randomUUID(),
+      },
+      ipAddress: {
+        ipAddressHeaders: ['cf-connecting-ip', 'x-real-ip'],
       },
       defaultCookieAttributes: {
         sameSite: 'lax',
@@ -194,7 +239,13 @@ export function createAuth(
       emailOTP({
         otpLength: 6,
         expiresIn: 300,
+        rateLimit: { window: 60, max: 3 },
         sendVerificationOTP: async ({ email, otp, type }) => {
+          if (!(await allowEmailOtp(db, email))) {
+            throw new APIError('TOO_MANY_REQUESTS', {
+              message: 'Too many sign-in codes. Try again in a few minutes.',
+            })
+          }
           hooks?.onOtp?.({ email, otp, type })
           await sendOtpEmail(env, email, otp, type)
         },

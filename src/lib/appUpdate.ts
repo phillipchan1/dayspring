@@ -177,12 +177,17 @@ export async function restartForUpdate(): Promise<void> {
   await relaunchFn()
 }
 
-/** Start the background poll once (idempotent). Called when the first hook mounts. */
+/** Start the background poll once (idempotent). Called at boot and when a hook mounts. */
 function ensurePolling() {
   if (pollStarted || !isDesktop()) return
   pollStarted = true
   void checkForUpdate(false)
   window.setInterval(() => void checkForUpdate(false), POLL_MS)
+}
+
+/** Run the updater regardless of auth state. Call from main.tsx at boot. */
+export function startUpdatePolling(): void {
+  ensurePolling()
 }
 
 export function subscribe(listener: () => void): () => void {

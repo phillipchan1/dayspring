@@ -2,7 +2,7 @@
 // Proves Better Auth insert/select against the snake_case Neon schema.
 import { PGlite } from '@electric-sql/pglite'
 import { applyNeonSchema } from './isolationDb.ts'
-import { authModels, createAuth, socialProvidersFromEnv, type AuthDatabase } from './auth.ts'
+import { AUTH_RATE_LIMIT, authModels, createAuth, socialProvidersFromEnv, type AuthDatabase } from './auth.ts'
 import { stripGetSessionToken } from './sessionBody.ts'
 
 const fails: string[] = []
@@ -70,6 +70,8 @@ ok(authModels.user.fields.emailVerified === 'email_verified', 'user.emailVerifie
 ok(authModels.session.fields.userId === 'user_id', 'session.userId maps to user_id')
 ok(authModels.account.fields.accountId === 'account_id', 'account.accountId maps to account_id')
 ok(authModels.verification.fields.expiresAt === 'expires_at', 'verification.expiresAt maps to expires_at')
+ok(AUTH_RATE_LIMIT.enabled === true && AUTH_RATE_LIMIT.storage === 'database', 'Better Auth rate limit uses the database')
+ok(AUTH_RATE_LIMIT.modelName === 'rate_limit' && AUTH_RATE_LIMIT.fields.lastRequest === 'last_request', 'rate_limit columns are snake_case')
 
 try {
   createAuth({
@@ -86,6 +88,10 @@ try {
 
 const db = new PGlite()
 await applyNeonSchema(db)
+const rateLimitTable = await db.query<{ table_name: string }>(
+  `SELECT table_name FROM information_schema.tables WHERE table_name = 'rate_limit'`,
+)
+ok(rateLimitTable.rows.length === 1, '0009 created rate_limit for database-backed rate limiting')
 
 const otps: Array<{ email: string; otp: string; type: string }> = []
 const auth = createAuth(
