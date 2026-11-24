@@ -375,10 +375,29 @@ html[data-platform='desktop'] .signin__dismiss {
 
 .signin__recover {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 4px;
   margin: 0 0 16px;
+}
+
+.signin__confirm-hint {
+  flex: 1 0 100%;
+  margin: 8px 0 0;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.signin__input--confirm {
+  flex: 1 0 100%;
+  max-width: 10rem;
+  margin: 4px auto 8px;
+  text-align: center;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
 }
 
 .signin__recover-btn {

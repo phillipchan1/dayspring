@@ -3,6 +3,7 @@ import { bearer, emailOTP, oneTimeToken } from 'better-auth/plugins'
 import { verifyPassword as verifyBetterAuthPassword } from 'better-auth/crypto'
 import bcrypt from 'bcryptjs'
 import { Pool } from 'pg'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
 import { NATIVE_APP_ORIGINS } from './cors.ts'
 import { authCookieSecure, isLocalAuthHost, isLocalAuthRuntime, resolveAuthBaseURL } from './authUrl.ts'
 import { pgClientOptions } from './db.ts'
@@ -110,6 +111,93 @@ export async function verifyPassword({ hash, password }: { hash: string; passwor
 export const SESSION_EXPIRES_IN = 60 * 60 * 24 * 365
 export const SESSION_UPDATE_AGE = 60 * 60 * 24
 
+/**
+ * Persist Better Auth's limiter in Neon so it is shared across Worker isolates.
+ * `customStorage` (wired in createAuth) fail-opens if this table is missing.
+ * Do not set `storage: 'database'` — that makes Better Auth require `rate_limit`
+ * at startup (`Database schema mismatch`) and every `/api/auth/*` route dies.
+ */
+export const AUTH_RATE_LIMIT = {
+  enabled: true,
+  modelName: 'rate_limit',
+  fields: { lastRequest: 'last_request' as const },
+}
+
+export const OTP_EMAIL_WINDOW_MS = 10 * 60 * 1000
+export const OTP_EMAIL_MAX = 5
+export const OTP_EMAIL_KEY_PREFIX = 'otp-email:'
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+export async function otpEmailLimitKey(email: string): Promise<string> {
+  return `${OTP_EMAIL_KEY_PREFIX}${await sha256Hex(email.trim().toLowerCase())}`
+}
+
+function warnRateLimitOpen(table: 'rate_limit' | 'otp_send_limit'): void {
+  console.warn(`[auth] ${table} unavailable; allowing request`)
+}
+
+/** Fail-open Better Auth limiter: missing table or query error never blocks auth. */
+export function failOpenRateLimitStorage(db: AuthDatabase) {
+  return {
+    async consume(key: string, rule: { window: number; max: number }) {
+      const client = await db.connect()
+      try {
+        const now = Date.now()
+        const windowMs = rule.window * 1000
+        const result = await client.query(
+          `INSERT INTO rate_limit (id, key, count, last_request)
+           VALUES ($1, $2, 1, $3)
+           ON CONFLICT (key) DO UPDATE SET
+             count = CASE WHEN $3::bigint - rate_limit.last_request > $4::bigint THEN 1 ELSE rate_limit.count + 1 END,
+             last_request = CASE WHEN $3::bigint - rate_limit.last_request > $4::bigint THEN $3::bigint ELSE rate_limit.last_request END
+           RETURNING count, last_request`,
+          [crypto.randomUUID(), key, String(now), String(windowMs)],
+        )
+        const row = result.rows[0] as { count?: number; last_request?: number } | undefined
+        const count = Number(row?.count ?? 1)
+        const last = Number(row?.last_request ?? now)
+        if (count <= rule.max) return { allowed: true as const, retryAfter: null }
+        const retryAfter = Math.max(1, Math.ceil((last + windowMs - now) / 1000))
+        return { allowed: false as const, retryAfter }
+      } catch {
+        warnRateLimitOpen('rate_limit')
+        return { allowed: true as const, retryAfter: null }
+      } finally {
+        client.release()
+      }
+    },
+  }
+}
+
+async function allowEmailOtp(db: AuthDatabase, email: string): Promise<boolean> {
+  const key = await otpEmailLimitKey(email)
+  const client = await db.connect()
+  try {
+    const now = String(Date.now())
+    const window = String(OTP_EMAIL_WINDOW_MS)
+    const result = await client.query(
+      `INSERT INTO otp_send_limit (key, count, window_start)
+       VALUES ($1, 1, $2)
+       ON CONFLICT (key) DO UPDATE SET
+         count = CASE WHEN $2::bigint - otp_send_limit.window_start > $3::bigint THEN 1 ELSE otp_send_limit.count + 1 END,
+         window_start = CASE WHEN $2::bigint - otp_send_limit.window_start > $3::bigint THEN $2::bigint ELSE otp_send_limit.window_start END
+       RETURNING count`,
+      [key, now, window],
+    )
+    const count = Number((result.rows[0] as { count: number } | undefined)?.count ?? 1)
+    return count <= OTP_EMAIL_MAX
+  } catch {
+    warnRateLimitOpen('otp_send_limit')
+    return true
+  } finally {
+    client.release()
+  }
+}
+
 const DEEP_LINK_ORIGIN = 'https://dayspring-eosin.vercel.app'
 
 /** Apple + Google only when client id and secret are both set. */
@@ -174,9 +262,27 @@ export function createAuth(
     trustedOrigins: isLocalAuthHost(baseURL)
       ? [baseURL, DEEP_LINK_ORIGIN, ...NATIVE_APP_ORIGINS, 'http://localhost:5173', 'http://localhost:5180', 'http://localhost:8787', 'http://[::1]:5173', 'http://[::1]:5180', 'http://[::1]:8787']
       : [baseURL, DEEP_LINK_ORIGIN, 'dayspring://', ...NATIVE_APP_ORIGINS],
+    rateLimit: {
+      ...AUTH_RATE_LIMIT,
+      customStorage: failOpenRateLimitStorage(db),
+    },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/email-otp/send-verification-otp') return
+        const email = (ctx.body as { email?: string } | undefined)?.email
+        if (typeof email === 'string' && !(await allowEmailOtp(db, email))) {
+          throw new APIError('TOO_MANY_REQUESTS', {
+            message: 'Too many sign-in codes. Try again in a few minutes.',
+          })
+        }
+      }),
+    },
     advanced: {
       database: {
         generateId: () => crypto.randomUUID(),
+      },
+      ipAddress: {
+        ipAddressHeaders: ['cf-connecting-ip', 'x-real-ip'],
       },
       defaultCookieAttributes: {
         sameSite: 'lax',
@@ -194,6 +300,7 @@ export function createAuth(
       emailOTP({
         otpLength: 6,
         expiresIn: 300,
+        rateLimit: { window: 60, max: 30 },
         sendVerificationOTP: async ({ email, otp, type }) => {
           hooks?.onOtp?.({ email, otp, type })
           await sendOtpEmail(env, email, otp, type)

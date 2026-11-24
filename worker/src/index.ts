@@ -2,7 +2,16 @@ import { Hono } from 'hono'
 import { API_CORS, API_SECURITY, beginAuthCors, json, webAuthOrigins } from './cors.ts'
 import { sessionUser } from './auth.ts'
 import { resolveAuthBaseURL } from './authUrl.ts'
-import { NATIVE_FINISH_PATH, NATIVE_START_PATH, nativeFinish, nativeStart } from './nativeAuth.ts'
+import {
+  NATIVE_CLAIM_PATH,
+  NATIVE_FINISH_PATH,
+  NATIVE_START_PATH,
+  claimDbFromSql,
+  clientIp,
+  nativeClaim,
+  nativeFinish,
+  nativeStart,
+} from './nativeAuth.ts'
 import { echoCallerBearer, stripGetSessionToken } from './sessionBody.ts'
 import { CPU_HEAVY_ROUTES } from './cpuLimits.ts'
 import type { Env } from './env.ts'
@@ -122,7 +131,29 @@ app.get('/api/health', (c) =>
 // Top-level navigations inside the native sign-in sheet — no Origin, no CORS.
 // Registered before the /api/auth/* catch-all so Better Auth never sees them.
 app.get(NATIVE_START_PATH, (c) => nativeStart(authOf(c), c.req.raw, resolveAuthBaseURL(c.env), webAuthOrigins(c.env)))
-app.get(NATIVE_FINISH_PATH, (c) => nativeFinish(authOf(c), c.req.raw, webAuthOrigins(c.env)))
+app.get(NATIVE_FINISH_PATH, (c) => nativeFinish(
+  authOf(c),
+  c.req.raw,
+  webAuthOrigins(c.env),
+  claimDbFromSql(sqlOf(c)),
+  clientIp(c.req.raw),
+))
+app.get(NATIVE_CLAIM_PATH, () => new Response(JSON.stringify({ error: 'method_not_allowed' }), {
+  status: 405,
+  headers: { 'content-type': 'application/json', Allow: 'POST, OPTIONS' },
+}))
+app.on(['POST', 'OPTIONS'], NATIVE_CLAIM_PATH, async (c) => {
+  const started = beginAuthCors(c.req.header('Origin'), c.env)
+  if (!started.ok) return started.response
+  if (c.req.method === 'OPTIONS') return new Response('ok', { headers: started.cors })
+  return nativeClaim(
+    authOf(c),
+    c.req.raw,
+    started.cors,
+    claimDbFromSql(sqlOf(c)),
+    clientIp(c.req.raw),
+  )
+})
 
 app.all('/api/auth/*', async (c) => {
   const started = beginAuthCors(c.req.header('Origin'), c.env)

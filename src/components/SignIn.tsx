@@ -1,11 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { WEB_AUTH_ERROR_KEY, signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/auth'
+import {
+  WEB_AUTH_ERROR_KEY,
+  cancelPendingOAuth,
+  pollNativeOAuthClaim,
+  sendEmailCode,
+  signInWithApple,
+  signInWithEmail,
+  signInWithEmailCode,
+  signInWithGoogle,
+  signUpWithEmail,
+  takePendingOAuthDevice,
+} from '@/lib/auth'
 import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { isLightTheme } from '@/lib/resolveTheme'
-import { isIOSTauri, isMobileTauri, isTauri } from '@/lib/platform'
+import { isDesktopTauri, isIOSTauri, isMobileTauri, isTauri } from '@/lib/platform'
 import { legalUrl } from '@/lib/legal'
 import { openExternal } from '@/lib/openExternal'
 import { PROVIDER_LABEL, readLastAuthProvider } from '@/lib/lastAuthProvider'
@@ -33,17 +44,28 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
     const onWebAuthError = (e: Event) => {
       try { sessionStorage.removeItem(WEB_AUTH_ERROR_KEY) } catch { /* ignore */ }
       setError((e as CustomEvent<string>).detail)
+      setWaiting(false)
+      setBusy(null)
+      setClaimDevice(null)
+      setBrowserCode('')
+      browserCodeRef.current = ''
     }
     window.addEventListener(WEB_AUTH_ERROR_KEY, onWebAuthError)
     return () => window.removeEventListener(WEB_AUTH_ERROR_KEY, onWebAuthError)
   }, [])
   const [busy, setBusy] = useState<'apple' | 'google' | 'email' | null>(null)
-  // Desktop: browser is open and we're waiting on the dayspring:// callback.
-  // iOS never sets this — the in-app sheet reports cancel itself.
+  // Desktop: browser is open and we're waiting on the dayspring:// callback
+  // or the server-polled claim. iOS never sets this — the in-app sheet
+  // reports cancel itself.
   const [waiting, setWaiting] = useState(false)
+  const [claimDevice, setClaimDevice] = useState<string | null>(null)
+  const [browserCode, setBrowserCode] = useState('')
+  const browserCodeRef = useRef('')
   const [showEmail, setShowEmail] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
   const [revealPassword, setRevealPassword] = useState(false)
   // 'signup' is the only door into Dayspring for a visitor with no Google or
   // Apple account — cold web traffic without either dies on OAuth-only.
@@ -52,10 +74,12 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
   const passwordRef = useRef<HTMLInputElement>(null)
   const { settings, update } = useSettings()
   const isLight = isLightTheme(useResolvedTheme(settings))
-  // iOS needs this for App Review's demo email+password path. Web needs it as
-  // the only account-creation door when Google/Apple aren't options. Desktop
-  // Tauri is untouched — OAuth via the system browser already works there.
-  const showEmailSignIn = isIOSTauri() || !isTauri()
+  // iOS needs password for App Review's demo path. Web needs it as the
+  // account-creation door. Mac offers a 6-digit email code so sign-in does
+  // not depend on dayspring:// reaching this copy of the app.
+  const showEmailPassword = isIOSTauri() || !isTauri()
+  const showEmailCode = isDesktopTauri()
+  const showEmailSignIn = showEmailPassword || showEmailCode
   // Read once on mount: the value only changes on a successful sign-in, by
   // which point this screen is gone.
   const [lastProvider] = useState(readLastAuthProvider)
@@ -70,10 +94,14 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
   async function startProvider(provider: 'apple' | 'google') {
     setError(null)
     setWaiting(false)
+    setClaimDevice(null)
+    setBrowserCode('')
+    browserCodeRef.current = ''
     setBusy(provider)
     try {
       const handoff = provider === 'apple' ? await signInWithApple() : await signInWithGoogle()
       if (handoff === 'waiting-for-browser') {
+        setClaimDevice(takePendingOAuthDevice())
         setWaiting(true)
         return
       }
@@ -83,6 +111,7 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
       }
       setBusy(null)
       setWaiting(false)
+      setClaimDevice(null)
     }
   }
 
@@ -94,8 +123,30 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
   function handleCancelOAuth() {
     setBusy(null)
     setWaiting(false)
+    setClaimDevice(null)
+    setBrowserCode('')
+    browserCodeRef.current = ''
     setError(null)
+    void cancelPendingOAuth()
   }
+
+  useEffect(() => {
+    if (!waiting || !claimDevice) return
+    const ac = new AbortController()
+    void pollNativeOAuthClaim(claimDevice, ac.signal, () => browserCodeRef.current)
+      .then((result) => {
+        if (result === 'aborted' || ac.signal.aborted) return
+        setWaiting(false)
+      })
+      .catch((err: unknown) => {
+        if (ac.signal.aborted) return
+        setError(err instanceof Error ? err.message : 'Sign-in didn’t finish. Try again.')
+        setWaiting(false)
+        setBusy(null)
+        setClaimDevice(null)
+      })
+    return () => ac.abort()
+  }, [waiting, claimDevice])
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -104,6 +155,17 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
     setInfo(null)
     setBusy('email')
     try {
+      if (showEmailCode) {
+        if (!codeSent) {
+          await sendEmailCode(email)
+          setCodeSent(true)
+          setInfo('We sent a sign-in code to that email.')
+          setBusy(null)
+          return
+        }
+        await signInWithEmailCode(email, emailCode)
+        return
+      }
       if (emailMode === 'signup') {
         const { needsConfirmation } = await signUpWithEmail(email, password)
         if (needsConfirmation) {
@@ -270,12 +332,16 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
                   autoCorrect="off"
                   spellCheck={false}
                   inputMode="email"
-                  enterKeyHint="next"
+                  enterKeyHint={showEmailCode && !codeSent ? 'send' : 'next'}
                   autoFocus
                   placeholder="Email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (showEmailCode) setCodeSent(false)
+                  }}
                   onKeyDown={(e) => {
+                    if (showEmailCode) return
                     // The key says "next", so it goes to the next field rather
                     // than trying (and, with no password yet, failing) to submit.
                     if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
@@ -286,6 +352,27 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
                   disabled={busy === 'email'}
                   className="signin__input"
                 />
+                {showEmailCode ? (
+                  codeSent && (
+                    <input
+                      type="text"
+                      name="code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      enterKeyHint="go"
+                      placeholder="6-digit code"
+                      value={emailCode}
+                      onChange={(e) => setEmailCode(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+                      onFocus={(e) => revealField(e.currentTarget)}
+                      disabled={busy === 'email'}
+                      className="signin__input"
+                      autoFocus
+                    />
+                  )
+                ) : (
                 <div className="signin__secret">
                   <input
                     ref={passwordRef}
@@ -322,19 +409,33 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
                     {revealPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
+                )}
                 <button
                   type="submit"
                   className="signin__btn"
-                  disabled={busy === 'email' || !email.trim() || !password}
+                  disabled={
+                    busy === 'email'
+                    || !email.trim()
+                    || (showEmailCode ? codeSent && emailCode.length !== 6 : !password)
+                  }
                 >
                   {busy === 'email'
-                    ? emailMode === 'signup'
-                      ? 'Creating account…'
-                      : 'Signing in…'
-                    : emailMode === 'signup'
-                      ? 'Create account'
-                      : 'Continue with email'}
+                    ? showEmailCode
+                      ? codeSent
+                        ? 'Signing in…'
+                        : 'Sending code…'
+                      : emailMode === 'signup'
+                        ? 'Creating account…'
+                        : 'Signing in…'
+                    : showEmailCode
+                      ? codeSent
+                        ? 'Continue with code'
+                        : 'Email me a code'
+                      : emailMode === 'signup'
+                        ? 'Create account'
+                        : 'Continue with email'}
                 </button>
+                {!showEmailCode && (
                 <button
                   type="button"
                   className="signin__toggle-mode"
@@ -345,6 +446,7 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
                     ? 'Already have an account? Sign in'
                     : 'New here? Create an account'}
                 </button>
+                )}
               </form>
             )}
           </div>
@@ -365,6 +467,26 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
             </p>
             {waiting && (
               <div className="signin__recover">
+                <p className="signin__confirm-hint">
+                  If Dayspring doesn’t come back, type the code from your browser.
+                </p>
+                <input
+                  type="text"
+                  name="confirm"
+                  inputMode="text"
+                  autoComplete="one-time-code"
+                  spellCheck={false}
+                  maxLength={6}
+                  className="signin__input signin__input--confirm"
+                  placeholder="Code"
+                  aria-label="Sign-in code from your browser"
+                  value={browserCode}
+                  onChange={(e) => {
+                    const next = e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6)
+                    browserCodeRef.current = next
+                    setBrowserCode(next)
+                  }}
+                />
                 <button type="button" className="signin__recover-btn" {...reopenTap}>
                   Open again
                 </button>

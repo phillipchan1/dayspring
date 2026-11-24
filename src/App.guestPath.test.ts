@@ -14,4 +14,15 @@ describe('guest cold path', () => {
     expect(source).toMatch(/getOrCreateGuestOwnerId/)
     expect(source).toMatch(/setLocalOnlySync\(true\)/)
   })
+
+  it('UpdateToast mounts above the auth branches, including GuestApp', () => {
+    const source = readFileSync(resolve(__dirname, 'App.tsx'), 'utf8')
+    const toast = source.indexOf('const toast = <UpdateToast />')
+    expect(toast).toBeGreaterThan(-1)
+    expect(toast).toBeLessThan(source.indexOf('if (loading)'))
+    expect(toast).toBeLessThan(source.indexOf('<GuestApp />'))
+    const boot = readFileSync(resolve(__dirname, 'main.tsx'), 'utf8')
+    expect(boot).toMatch(/startUpdatePolling\(\)/)
+    expect(boot.indexOf('installNativeMenu()')).toBeLessThan(boot.indexOf('startUpdatePolling()'))
+  })
 })
