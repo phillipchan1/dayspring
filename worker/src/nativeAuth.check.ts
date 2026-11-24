@@ -10,6 +10,7 @@ import {
   NATIVE_CALLBACK,
   NATIVE_CLAIM_PATH,
   NATIVE_FINISH_PATH,
+  nativeCallbackUrl,
   nativeClaim,
   nativeFinish,
   nativeFinishHtml,
@@ -326,7 +327,7 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789a
   const victimIp = '203.0.113.10'
   const attackerIp = '198.51.100.9'
   const jar = new Jar()
-  const start = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&device=${challenge}&loopback=${encodeURIComponent(loopback)}`), BASE)
+  const start = await nativeStart(auth, new Request(`${BASE}/api/auth/native/start?provider=google&device=${challenge}&loopback=${encodeURIComponent(loopback)}&scheme=dayspring-alpha`), BASE)
   jar.take(start)
   const providerUrl = new URL(start.headers.get('location') ?? 'about:blank')
   const state = providerUrl.searchParams.get('state') ?? ''
@@ -336,6 +337,7 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789a
   jar.take(cb)
   const cbLoc = cb.headers.get('location') ?? ''
   ok(cbLoc.includes(`device=${challenge}`), `finish URL carries the PKCE challenge (got ${cbLoc})`)
+  ok(cbLoc.includes('scheme=dayspring-alpha'), `finish URL carries the alpha scheme (got ${cbLoc})`)
   ok(cbLoc.includes('loopback='), `finish URL carries the loopback (got ${cbLoc})`)
 
   const empty = await nativeClaim(auth, claimPost({ verifier }), cors, store, victimIp)
@@ -457,6 +459,7 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789a
   ok(page.html.includes('\\u003c'), 'finish HTML escapes < in the inline JSON')
   ok(page.csp.includes('sha256-'), 'finish HTML CSP includes the script hash')
   ok(page.html.includes('ABC234'), 'finish HTML shows the confirm code')
+  ok(nativeCallbackUrl('dayspring-alpha') === 'dayspring-alpha://auth-callback', 'alpha scheme has its own callback URL')
 }
 
 {

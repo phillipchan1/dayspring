@@ -352,6 +352,12 @@
     {
       "file": "release.yml",
       "job": "release",
+      "id": "patch-alpha-identity",
+      "sha256": "46bf987f40a67c95832669710772b230d854d102c2f23f5f5ce7ab1a277b9a28"
+    },
+    {
+      "file": "release.yml",
+      "job": "release",
       "id": "version",
       "sha256": "a7bc7ccdbe49c36f01541af40acff1048ef150732c841a71560833ebeac786d0"
     },
@@ -619,6 +625,7 @@
         "cache-rust",
         "install",
         "patch-updater",
+        "patch-alpha-identity",
         "version",
         "signing",
         "release-notes",
@@ -629,7 +636,7 @@
         "record-sha",
         "write-version"
       ],
-      "sha256": "99201e1c17e05e9cab16846387a6940aff21dff8fa6f2e884eec280a34b25c1b"
+      "sha256": "e5021deb37fdad9c1113e9212f8a8ceda49be4604adcb2acced9e7bb13adbceb"
     },
     {
       "file": "site-deploy.yml",

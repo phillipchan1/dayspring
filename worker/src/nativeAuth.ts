@@ -46,7 +46,7 @@ import type { Sql } from './db.ts'
 export const NATIVE_START_PATH = '/api/auth/native/start'
 export const NATIVE_FINISH_PATH = '/api/auth/native/finish'
 export const NATIVE_CLAIM_PATH = '/api/auth/native/claim'
-export const NATIVE_SCHEMES = ['dayspring'] as const
+export const NATIVE_SCHEMES = ['dayspring', 'dayspring-alpha'] as const
 export type NativeScheme = (typeof NATIVE_SCHEMES)[number]
 export const NATIVE_CALLBACK = nativeCallbackUrl('dayspring')
 /** 128-bit hex state on `/auth-callback/<state>`. */
@@ -74,7 +74,7 @@ export function nativeCallbackUrl(scheme: NativeScheme = 'dayspring'): string {
 }
 
 function isNativeScheme(value: string | null): value is NativeScheme {
-  return value === 'dayspring'
+  return value === 'dayspring' || value === 'dayspring-alpha'
 }
 
 export function parseNativeDevice(raw: string | null): string | undefined {

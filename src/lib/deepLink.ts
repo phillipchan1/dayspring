@@ -6,10 +6,11 @@ export interface DayspringDeepLink {
   url: string
 }
 
-const NATIVE_PROTOCOLS = new Set(['dayspring:'])
+const NATIVE_PROTOCOLS = new Set(['dayspring:', 'dayspring-alpha:'])
 
 /**
- * Classify a single URL. Native uses `dayspring:`.
+ * Classify a single URL. Stable uses `dayspring:`; alpha uses
+ * `dayspring-alpha:` so the two channels cannot steal each other's callbacks.
  *
  * Accepts host form (`dayspring://open`) and path form (`dayspring:///open`),
  * with or without a trailing slash or query. Extra path segments are rejected
