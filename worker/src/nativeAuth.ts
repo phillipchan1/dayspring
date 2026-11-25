@@ -43,6 +43,7 @@
 import type { AuthInstance } from './auth.ts'
 import type { Sql } from './db.ts'
 import { bindLegacyCode, parseLegacyNonce } from './legacyNativeAuth.ts'
+import { ipBindKey } from './ipBind.ts'
 
 export const NATIVE_START_PATH = '/api/auth/native/start'
 export const NATIVE_FINISH_PATH = '/api/auth/native/finish'
@@ -580,7 +581,7 @@ export async function nativeFinish(
   const errorParam = url.searchParams.get('error')
   const cookiesOk = hasAuthCookies(req)
   const clear = expireSessionCookies(req)
-  const ipHash = await sha256Hex(ip ?? '')
+  const ipHash = await sha256Hex(ipBindKey(ip))
   const confirm = generateConfirmCode()
   const confirmHash = await sha256Hex(confirm)
 
@@ -682,7 +683,7 @@ export async function nativeClaim(
   }
 
   const confirmHash = await sha256Hex(confirm)
-  const ipHash = await sha256Hex(ip ?? '')
+  const ipHash = await sha256Hex(ipBindKey(ip))
   const raw = await store.peek(identifier)
   const payload = parseClaimPayload(raw)
   if (!payload) return new Response(null, { status: 204, headers: { ...NO_STORE, ...cors } })

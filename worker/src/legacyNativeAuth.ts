@@ -1,5 +1,6 @@
 import { NATIVE_APP_ORIGINS } from './cors.ts'
 import type { ClaimDb } from './nativeAuth.ts'
+import { ipBindKey } from './ipBind.ts'
 
 async function sha256Hex(input: string): Promise<string> {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input)))
@@ -44,8 +45,15 @@ const LEGACY_NONCE = /^[0-9a-f]{32}$/
 
 const LEGACY_PROVIDERS = new Set(['google', 'apple'])
 const SOCIAL_SIGN_IN_PATH = '/api/auth/sign-in/social'
-const CALLBACK_PATH = /^\/api\/auth\/callback\/(google|apple)\/?$/
+// 1.0.1349 calls better-auth's client $fetch('/api/auth/callback/apple?code=…'),
+// which prefixes basePath again: /api/auth/api/auth/callback/apple. Accept both.
+const CALLBACK_PATH = /^\/api\/auth(?:\/api\/auth)?\/callback\/(google|apple)\/?$/
 const VERIFY_PATH = '/api/auth/one-time-token/verify'
+
+/** No-PII diagnostics for the legacy path (Workers Logs). */
+export function legacyLog(event: string, detail: Record<string, string | boolean> = {}): void {
+  console.log(`[legacy-auth] ${JSON.stringify({ event, ...detail })}`)
+}
 
 export type LegacyNativeAuth =
   | { kind: 'respond'; response: Response }
@@ -81,21 +89,35 @@ function parseBound(raw: string | null): Bound | null {
 /** Finish (legacy flow): consume the start row and bind the minted code to its ipHash. */
 export async function bindLegacyCode(store: ClaimDb, nonce: string, code: string): Promise<boolean> {
   const started = parseBound(await store.deleteReturning(`${LEGACY_START_PREFIX}${await sha256Hex(nonce)}`))
-  if (!started) return false
+  if (!started) {
+    legacyLog('finish_nonce_unknown')
+    return false
+  }
   await store.put(
     `${LEGACY_CODE_PREFIX}${await sha256Hex(code)}`,
     JSON.stringify({ v: 1, ipHash: started.ipHash } satisfies Bound),
     new Date(Date.now() + LEGACY_CODE_TTL_MS),
   )
+  legacyLog('finish_code_bound')
   return true
 }
 
 /** Cheap pre-check so ordinary auth requests never open a SQL client for the shim. */
 export function isLegacyNativeCandidate(req: Request): boolean {
-  if (!fromNativeWebview(req)) return false
   const { pathname, searchParams } = new URL(req.url)
+  const legacyExchange = req.method === 'GET' && CALLBACK_PATH.test(pathname)
+    && searchParams.has('code') && !searchParams.has('state') && !searchParams.has('error')
+  if (!fromNativeWebview(req)) {
+    if (legacyExchange) {
+      legacyLog('origin_mismatch', {
+        origin: req.headers.get('origin') ? 'other' : 'none',
+        doubled: pathname.startsWith('/api/auth/api/auth/'),
+      })
+    }
+    return false
+  }
   if (req.method === 'POST') return pathname === SOCIAL_SIGN_IN_PATH
-  return req.method === 'GET' && CALLBACK_PATH.test(pathname) && searchParams.has('code') && !searchParams.has('state')
+  return legacyExchange
 }
 
 export async function legacyNativeAuth(
@@ -127,9 +149,10 @@ export async function legacyNativeAuth(
     const nonce = newNonce()
     await store.put(
       `${LEGACY_START_PREFIX}${await sha256Hex(nonce)}`,
-      JSON.stringify({ v: 1, ipHash: await sha256Hex(ip ?? '') } satisfies Bound),
+      JSON.stringify({ v: 1, ipHash: await sha256Hex(ipBindKey(ip)) } satisfies Bound),
       new Date(Date.now() + LEGACY_START_TTL_MS),
     )
+    legacyLog('start_bound', { provider: body.provider })
     const params = new URLSearchParams({ provider: body.provider, legacy: nonce })
     const start = `${baseURL.replace(/\/$/, '')}/api/auth/native/start?${params}`
     return {
@@ -144,9 +167,21 @@ export async function legacyNativeAuth(
   if (req.method === 'GET' && CALLBACK_PATH.test(url.pathname)) {
     const code = url.searchParams.get('code')
     if (!code || url.searchParams.has('state') || url.searchParams.has('error')) return null
-    if (!fromNativeWebview(req)) return null
+    const doubled = url.pathname.startsWith('/api/auth/api/auth/')
+    if (!fromNativeWebview(req)) {
+      legacyLog('origin_mismatch', { origin: req.headers.get('origin') ? 'other' : 'none', doubled })
+      return null
+    }
     const bound = parseBound(await store.deleteReturning(`${LEGACY_CODE_PREFIX}${await sha256Hex(code)}`))
-    if (!bound || bound.ipHash !== await sha256Hex(ip ?? '')) return null
+    if (!bound) {
+      legacyLog('code_unbound', { doubled })
+      return null
+    }
+    if (bound.ipHash !== await sha256Hex(ipBindKey(ip))) {
+      legacyLog('ip_mismatch', { family: (ip ?? '').includes(':') ? 'v6' : 'v4', doubled })
+      return null
+    }
+    legacyLog('exchange_forwarded', { doubled })
     const headers = new Headers()
     for (const name of ['origin', 'authorization', 'user-agent', 'cf-connecting-ip', 'x-real-ip']) {
       const v = req.headers.get(name)

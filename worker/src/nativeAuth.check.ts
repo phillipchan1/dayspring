@@ -566,6 +566,92 @@ ok(parseLoopbackRedirect('http://127.0.0.1:54721/auth-callback/ABCDEF0123456789a
   ok(await legacyNativeAuth(legacySocial({ provider: 'github', callbackURL: LEGACY_NATIVE_CALLBACK_URL }), BASE, store, WEBVIEW_IP) === null, 'unknown providers are not rewritten')
   ok(await legacyNativeAuth(new Request(`${BASE}/api/auth/sign-in/social`, { method: 'POST', headers: TAURI, body: 'not json' }), BASE, store, WEBVIEW_IP) === null, 'non-JSON social sign-in falls through')
   ok(!isLegacyNativeCandidate(new Request(`${BASE}/api/auth/get-session`, { headers: TAURI })), 'ordinary auth requests skip the shim')
+
+  // Nov 25 (Eugene, 1.0.1349 vs Worker 010bff61): the exchange arrived as
+  // GET /api/auth/api/auth/callback/apple?code= — better-auth's client $fetch
+  // prefixes basePath to the app's '/api/auth/callback/apple' path — and 404'd.
+  // Drive the exact 1.0.1349 client code (2c6dd0da authClient.ts:23-42, 188-203)
+  // through an index.ts-shaped handler.
+  {
+    const { createAuthClient } = await import('better-auth/client')
+    const seen: string[] = []
+    let captured = ''
+    const indexLike = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const raw = new Request(input, init)
+      const headers = new Headers(raw.headers)
+      headers.set('origin', 'tauri://localhost') // WKWebView adds it on the cross-origin fetch
+      const req = new Request(raw, { headers })
+      seen.push(new URL(req.url).pathname)
+      if (isLegacyNativeCandidate(req)) {
+        const r = await legacyNativeAuth(req, BASE, store, WEBVIEW_IP)
+        if (r?.kind === 'respond') return r.response
+        if (r?.kind === 'forward') return auth.handler(r.request)
+      }
+      return auth.handler(req)
+    }
+    const legacyClient = createAuthClient({
+      baseURL: BASE,
+      basePath: '/api/auth',
+      fetchOptions: {
+        customFetchImpl: indexLike as typeof fetch,
+        auth: { type: 'Bearer', token: () => captured },
+        onSuccess(ctx) {
+          const t = ctx.response.headers.get('set-auth-token')
+          if (t) captured = t
+        },
+      },
+    })
+    // signInWorkersSocial (authClient.ts:89-104 at 2c6dd0da)
+    const social = await legacyClient.signIn.social({ provider: 'google', callbackURL: LEGACY_NATIVE_CALLBACK_URL, disableRedirect: true })
+    const socialUrl = new URL(((social.data ?? {}) as { url?: string }).url ?? 'about:blank')
+    ok(!social.error && socialUrl.pathname === '/api/auth/native/start' && Boolean(socialUrl.searchParams.get('legacy')), 'real 1.0.1349 client gets native/start?legacy= from signIn.social')
+    const sheet = await sheetRoundTrip(socialUrl.searchParams.toString())
+    const appCode = appParams(sheet.res)?.get('code') ?? ''
+    ok(Boolean(appCode), 'sheet returns dayspring://auth-callback?code= to the 1.0.1349 client')
+    // completeWorkersOAuthCallback: auth.$fetch(`/api/auth/callback/apple?code=…`)
+    const result = await legacyClient.$fetch(`/api/auth/callback/apple?code=${encodeURIComponent(appCode)}`)
+    ok(seen.includes('/api/auth/api/auth/callback/apple'), `1.0.1349 exchange path is doubled (saw ${seen.join(', ')})`)
+    ok(!result.error, `1.0.1349 $fetch exchange has no error (got ${JSON.stringify(result.error)})`)
+    ok(captured.includes('.'), '1.0.1349 onSuccess captures the signed bearer (set-auth-token)')
+    const me = await auth.handler(new Request(`${BASE}/api/auth/get-session`, { headers: { authorization: `Bearer ${captured}` } }))
+    ok(((await me.json()) as { user?: { email?: string } } | null)?.user?.email === 'native@example.test', 'captured bearer authenticates the 1.0.1349 app')
+    const again = await legacyClient.$fetch(`/api/auth/callback/apple?code=${encodeURIComponent(appCode)}`)
+    ok(Boolean(again.error), 'doubled-path exchange is still single use')
+    const attackerOnDoubled = await legacyNativeAuth(new Request(`${BASE}/api/auth/api/auth/callback/apple?code=${encodeURIComponent(attackerOtt)}`, { headers: TAURI }), BASE, store, WEBVIEW_IP)
+    ok(attackerOnDoubled === null, 'attacker OTT on the doubled path is not forwarded')
+    ok(!isLegacyNativeCandidate(new Request(`${BASE}/api/auth/api/auth/callback/apple?code=x`)), 'doubled path without Origin skips the shim')
+  }
+
+  // ipBindKey unit cases
+  {
+    const { ipBindKey } = await import('./ipBind.ts')
+    const cases: Array<[string, string]> = [
+      ['203.0.113.7', '203.0.113.7'], [' 203.0.113.7 ', '203.0.113.7'],
+      ['::ffff:203.0.113.7', '203.0.113.7'], ['0:0:0:0:0:ffff:cb00:7107', '203.0.113.7'],
+      ['2600:1700:abcd:12::1', '2600:1700:abcd:12::/64'], ['2600:1700:ABCD:0012:aaaa:bbbb:cccc:dddd', '2600:1700:abcd:12::/64'],
+      ['[2001:db8::1]', '2001:db8:0:0::/64'], ['fe80::1%en0', 'fe80:0:0:0::/64'], ['', ''],
+    ]
+    for (const [input, want] of cases) ok(ipBindKey(input) === want, `ipBindKey(${JSON.stringify(input)}) === ${want}`)
+    ok(ipBindKey('2600:1700:abcd:12::1') !== ipBindKey('2600:1700:abcd:13::1'), 'ipBindKey separates adjacent /64s')
+    ok(ipBindKey(null) === '' && ipBindKey(undefined) === '', 'ipBindKey tolerates missing IP')
+  }
+
+  // Shared /64 binding (QA2-approved): IPv6 temporary-address rotation inside a /64 still binds; another /64 does not.
+  {
+    const v6Start = async (ip: string) => {
+      const started = await legacyNativeAuth(legacySocial({ provider: 'google', callbackURL: LEGACY_NATIVE_CALLBACK_URL, disableRedirect: true }), BASE, store, ip)
+      const u = new URL(started?.kind === 'respond' ? ((await started.response.json()) as { url: string }).url : 'about:blank')
+      return appParams((await sheetRoundTrip(u.searchParams.toString())).res)?.get('code') ?? ''
+    }
+    const sameNet = await v6Start('2600:1700:abcd:12:aaaa:1:2:3')
+    ok((await legacyExchange(legacyCallback(sameNet), '2600:1700:abcd:12:ffff:9:8:7'))?.status === 200, 'IPv6 exchange from the same /64 succeeds')
+    const otherNet = await v6Start('2600:1700:abcd:12::1')
+    ok(await legacyExchange(legacyCallback(otherNet), '2600:1700:abcd:13::1') === null, 'IPv6 exchange from another /64 is refused')
+    const mapped = await v6Start('::ffff:198.51.100.7')
+    ok((await legacyExchange(legacyCallback(mapped), '198.51.100.7'))?.status === 200, 'IPv4-mapped IPv6 binds as its IPv4 address')
+    const v4Neighbour = await v6Start('198.51.100.7')
+    ok(await legacyExchange(legacyCallback(v4Neighbour), '198.51.100.8') === null, 'IPv4 stays exact')
+  }
 }
 
 globalThis.fetch = realFetch
