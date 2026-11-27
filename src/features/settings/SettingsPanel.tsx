@@ -8,6 +8,7 @@ import type { PresenceState } from '@/hooks/usePresence'
 import { useSelectionPlate } from '@/hooks/useSelectionPlate'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
+import { renderKey } from '@/features/shortcuts/shortcuts'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -263,7 +264,7 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
   const active = useResolvedTheme(settings)
   return (
     <div className="settings-stack">
-      <Field label="Mode" hint="Match your system, or lock it light or dark.">
+      <Field label="Mode" hint={`Match your system, or lock it light or dark.${isMobile ? '' : ` ${renderKey('Mod')}${renderKey('Shift')}L switches from anywhere.`}`}>
         <AppearanceToggle appearance={settings.appearance} onChange={(appearance) => update({ appearance })} />
       </Field>
       <Field label="Theme" hint="Palette, typeface and ornament, day and night. Pick one to switch to it now.">

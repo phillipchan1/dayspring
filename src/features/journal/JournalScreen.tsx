@@ -9,6 +9,7 @@ import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
+import { oppositeAppearance } from '@/lib/resolveTheme'
 import { FONT_SIZE_MIN, FONT_SIZE_DEFAULT, FONT_SIZE_MAX } from '@/lib/settings'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
@@ -2189,6 +2190,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onFindOrAsk: () => openFindOrAsk(''),
     onFindInPages: (seed) => void findInPages(seed),
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
+    onToggleAppearance: () => {
+      const next = oppositeAppearance(settings, globalThis.matchMedia('(prefers-color-scheme: dark)').matches)
+      if (next) updateSettings({ appearance: next })
+    },
     // ⌘= / ⌘− / ⌘0 mean "bigger / smaller / normal", and what that acts on is
     // whatever owns the screen: the writing size while writing, how close
     // you're standing while on the wall.

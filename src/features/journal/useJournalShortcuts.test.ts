@@ -19,6 +19,7 @@ function mount(overrides: Partial<JournalShortcutActions> = {}) {
     onFindOrAsk: vi.fn(),
     onFindInPages,
     onToggleRailLabels: vi.fn(),
+    onToggleAppearance: vi.fn(),
     onZoomIn: vi.fn(),
     onZoomOut: vi.fn(),
     onZoomReset: vi.fn(),
@@ -61,6 +62,26 @@ describe('useJournalShortcuts ⌘F', () => {
     const event = press({ key: 'f', metaKey: true, ctrlKey: true })
     expect(event.defaultPrevented).toBe(false)
     expect(onFindInPages).not.toHaveBeenCalled()
+    unmount()
+  })
+})
+
+describe('useJournalShortcuts ⌘⇧L', () => {
+  it('switches light and dark on ⌘⇧L', () => {
+    const onToggleAppearance = vi.fn()
+    const { unmount } = mount({ onToggleAppearance })
+    const event = press({ key: 'l', metaKey: true, shiftKey: true })
+    expect(event.defaultPrevented).toBe(true)
+    expect(onToggleAppearance).toHaveBeenCalledOnce()
+    unmount()
+  })
+
+  it('leaves ⌘L and ⌘⇧L-less keys alone', () => {
+    const onToggleAppearance = vi.fn()
+    const { unmount } = mount({ onToggleAppearance })
+    press({ key: 'l', metaKey: true })
+    press({ key: 'l', shiftKey: true })
+    expect(onToggleAppearance).not.toHaveBeenCalled()
     unmount()
   })
 })

@@ -49,6 +49,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Mod', 'Shift', 'F'], label: 'Show formatting', when: 'in the editor' },
       { keys: ['Mod', 'K'], label: 'Link', when: 'with text selected in the editor' },
       { keys: ['Mod', 'Enter'], label: 'Toggle focus mode' },
+      { keys: ['Mod', 'Shift', 'L'], label: 'Switch between light and dark' },
       { keys: ['Mod', '='], label: 'Larger writing', when: 'on the wall, larger pages' },
       { keys: ['Mod', '-'], label: 'Smaller writing', when: 'on the wall, smaller pages' },
       { keys: ['Mod', '0'], label: 'Writing at its usual size' },

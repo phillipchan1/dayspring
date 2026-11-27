@@ -48,6 +48,7 @@ pub const COMMAND_IDS: &[&str] = &[
   "zoom-in",
   "zoom-out",
   "zoom-reset",
+  "toggle-appearance",
   "go-write",
   "go-journal",
   "go-ascent",
@@ -135,6 +136,8 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     .item(&command(app, "zoom-in", "Bigger", Some("CmdOrCtrl+="))?)
     .item(&command(app, "zoom-out", "Smaller", Some("CmdOrCtrl+-"))?)
     .item(&command(app, "zoom-reset", "Actual Size", Some("CmdOrCtrl+0"))?)
+    .separator()
+    .item(&command(app, "toggle-appearance", "Switch Light/Dark", Some("CmdOrCtrl+Shift+L"))?)
     .separator()
     .fullscreen_with_text("Enter Full Screen")
     .build()?;

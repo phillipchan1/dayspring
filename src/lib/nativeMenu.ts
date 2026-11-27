@@ -107,6 +107,8 @@ export const MENU_COMMANDS: Record<string, MenuCommand> = {
   'zoom-in': { chord: mod('=', 'Equal', 187) },
   'zoom-out': { chord: mod('-', 'Minus', 189) },
   'zoom-reset': { chord: mod('0', 'Digit0', 48) },
+  // ⌘⇧L, useJournalShortcuts. ⌘⇧ leaves `key` lowercase on the Mac.
+  'toggle-appearance': { chord: mod('l', 'KeyL', 76, true) },
   'go-write': { chord: mod('1', 'Digit1', 49) },
   'go-journal': { chord: mod('2', 'Digit2', 50) },
   'go-ascent': { chord: mod('3', 'Digit3', 51) },

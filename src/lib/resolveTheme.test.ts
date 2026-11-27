@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { isLightTheme, resolveTheme, THEMES, type ThemeId } from './resolveTheme'
+import { isLightTheme, oppositeAppearance, resolveTheme, THEMES, type ThemeId } from './resolveTheme'
 import type { Settings } from './settings'
 
 function settings(patch: Partial<Settings>): Settings {
@@ -76,5 +76,21 @@ describe('theme registry', () => {
       expect(t.family === 'light' ? light : dark).toContain(`${t.id}: 1`)
       expect(t.family === 'light' ? dark : light).not.toContain(`${t.id}: 1`)
     }
+  })
+})
+
+describe('oppositeAppearance', () => {
+  it('goes to the other side of what is showing', () => {
+    expect(oppositeAppearance(settings({ appearance: 'light' }), false)).toBe('dark')
+    expect(oppositeAppearance(settings({ appearance: 'dark' }), false)).toBe('light')
+  })
+
+  it('from Auto, switches away from what the system is showing', () => {
+    expect(oppositeAppearance(settings({ appearance: 'auto' }), true)).toBe('light')
+    expect(oppositeAppearance(settings({ appearance: 'auto' }), false)).toBe('dark')
+  })
+
+  it('has nowhere to go from a night-only voice', () => {
+    expect(oppositeAppearance(settings({ appearance: 'dark', voice: 'vigil' }), false)).toBeNull()
   })
 })

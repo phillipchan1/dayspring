@@ -32,6 +32,8 @@ export interface JournalShortcutActions {
   onFindInPages: (seed: string) => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
+  /** ⌘⇧L — the other of light and dark. Works while writing, and in Settings. */
+  onToggleAppearance: () => void
   /**
    * ⌘= / ⌘− / ⌘0 — "bigger", "smaller", "back to normal".
    *
@@ -74,7 +76,7 @@ export function goUpOneLayer(): void {
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
  * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–5 rail · ⌘, settings
- * ⌘S save · ⌘K search · ⌘⏎ focus · ⌘[ and the mouse's back button: back
+ * ⌘S save · ⌘K search · ⌘⏎ focus · ⌘⇧L light/dark · ⌘[ and the mouse's back button: back
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
@@ -88,6 +90,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onFindOrAsk,
     onFindInPages,
     onToggleRailLabels,
+    onToggleAppearance,
     onZoomIn,
     onZoomOut,
     onZoomReset,
@@ -167,6 +170,15 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         if (e.metaKey && e.ctrlKey) return
         e.preventDefault()
         onFindInPages(hasEditorSelection() ? selectionSeed() : '')
+        return
+      }
+
+      // ⌘⇧L — light/dark, from anywhere, the editor included: changing the
+      // lamp mid-sentence is no reason to leave the page. Nothing else in the
+      // app or CodeMirror claims ⌘⇧L. (⌃⌘L would be Mac's own; both down = not ours.)
+      if (key === 'l' && e.shiftKey && !(e.metaKey && e.ctrlKey)) {
+        e.preventDefault()
+        onToggleAppearance()
         return
       }
 
@@ -270,6 +282,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onFindOrAsk,
     onFindInPages,
     onToggleRailLabels,
+    onToggleAppearance,
     onZoomIn,
     onZoomOut,
     onZoomReset,

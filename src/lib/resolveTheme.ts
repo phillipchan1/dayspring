@@ -118,3 +118,19 @@ export function resolveTheme(settings: Settings, prefersDark: boolean): ThemeId 
   if (mode === 'dark') return dark
   return prefersDark ? dark : light
 }
+
+/**
+ * The mode ⌘⇧L switches to: the other side of what is on screen right now.
+ *
+ * Decided from the palette actually showing, not from `settings.appearance`, so
+ * it does the visible thing from Auto too (Auto at night → Light). It pins the
+ * mode rather than returning to Auto, because a toggle that lands somewhere you
+ * didn't choose is not a toggle. Null for a night-only voice: Vigil has no
+ * daylight to go to, and pretending it did would change a setting and nothing
+ * on screen.
+ */
+export function oppositeAppearance(settings: Settings, prefersDark: boolean): 'light' | 'dark' | null {
+  const voice = settings.voice ? getVoice(settings.voice) : null
+  if (voice && isNightOnly(voice.id)) return null
+  return isLightTheme(resolveTheme(settings, prefersDark)) ? 'dark' : 'light'
+}
