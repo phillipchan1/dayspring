@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.552",
+  "appVersion": "1.0.564",
   "channel": "stable",
   "categories": {
     "shortcuts": [
@@ -125,6 +125,19 @@
         ],
         "mac": "⌘⏎",
         "pc": "Ctrl + Enter"
+      },
+      {
+        "id": "shortcut.switch-between-light-and-dark",
+        "group": "Writing",
+        "label": "Switch between light and dark",
+        "when": null,
+        "keys": [
+          "Mod",
+          "Shift",
+          "L"
+        ],
+        "mac": "⌘⇧L",
+        "pc": "Ctrl + Shift + L"
       },
       {
         "id": "shortcut.larger-writing",
