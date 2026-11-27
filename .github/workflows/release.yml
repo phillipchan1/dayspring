@@ -294,6 +294,15 @@ jobs:
           DMG=$(ls "$BUNDLE"/dmg/*.dmg | head -1)
           APPTAR=$(ls "$BUNDLE"/macos/*.app.tar.gz | head -1)
           SIG=$(cat "$BUNDLE"/macos/*.app.tar.gz.sig)
+          # The product is "Dayspring Alpha", so the bundler names this
+          # "Dayspring Alpha.app.tar.gz". GitHub stores a release asset with
+          # spaces as dots, so a URL built from the spaced name 404s and every
+          # alpha app's download fails ("Couldn't check for updates"). Name the
+          # file the way GitHub will, and build the URL from that. The signature
+          # signs the contents, not the name, so it is unaffected.
+          APPTAR_SAFE="$(dirname "$APPTAR")/$(basename "$APPTAR" | tr ' ' '.')"
+          [ "$APPTAR" = "$APPTAR_SAFE" ] || mv "$APPTAR" "$APPTAR_SAFE"
+          APPTAR="$APPTAR_SAFE"
           APPTAR_NAME=$(basename "$APPTAR")
           ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
 
